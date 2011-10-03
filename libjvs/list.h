@@ -15,18 +15,18 @@
 #define NULL 0
 #endif
 
-typedef struct Node Node;
+typedef struct ListNode ListNode;
 typedef struct List List;
 
-struct Node {
-  Node *next;
-  Node *prev;
+struct ListNode {
+  ListNode *next;
+  ListNode *prev;
   List *list;
 };
 
 struct List {
-  Node *head;
-  Node *tail;
+  ListNode *head;
+  ListNode *tail;
   int length;
 };
 
@@ -45,25 +45,25 @@ List *listCreate(void);
 void listInitialize(List *list);
 
 /* Insert <node> at the head of list <list>. */
-void f_listInsertHead(List *list, Node *node);
+void f_listInsertHead(List *list, ListNode *node);
 
 /* Append <node> to the tail of list <list>. */
-void f_listAppendTail(List *list, Node *node);
+void f_listAppendTail(List *list, ListNode *node);
 
 /* Insert <node> just before <before> in list <list>. */
-void f_listInsert(List *list, Node *node, Node *before);
+void f_listInsert(List *list, ListNode *node, ListNode *before);
 
 /* Append <node> to <after> in list <list>. */
-void f_listAppend(List *list, Node *node, Node *after);
+void f_listAppend(List *list, ListNode *node, ListNode *after);
 
 /* Remove <node> from list <list>. */
-void f_listRemove(List *list, Node *node);
+void f_listRemove(List *list, ListNode *node);
 
 /* Return the node before <node>. */
-void *f_listPrev(const Node *node);
+void *f_listPrev(const ListNode *node);
 
 /* Return the node following <node>. */
-void *f_listNext(const Node *node);
+void *f_listNext(const ListNode *node);
 
 /* Return the node at the head of <list>. */
 void *listHead(const List *list);

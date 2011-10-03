@@ -15,7 +15,7 @@
 
 #include "list.h"
 
-#define N(pointer) ((Node *) pointer)
+#define N(pointer) ((ListNode *) pointer)
 
 char *_id_list = "$Id: list.c 242 2007-06-23 23:12:05Z jacco $\n";
 
@@ -41,7 +41,7 @@ void listInitialize(List *list)
 
 /* Insert <node> at the head of list <list>. */
 
-void f_listInsertHead(List *list, Node *node)
+void f_listInsertHead(List *list, ListNode *node)
 {
     assert(list != NULL);
     assert(node != NULL);
@@ -67,7 +67,7 @@ void f_listInsertHead(List *list, Node *node)
 
 /* Append <node> to the tail of list <list>. */
 
-void f_listAppendTail(List *list, Node *node)
+void f_listAppendTail(List *list, ListNode *node)
 {
     assert(list != NULL);
     assert(node != NULL);
@@ -93,7 +93,7 @@ void f_listAppendTail(List *list, Node *node)
 
 /* Insert <node> just before <before> in list <list>. */
 
-void f_listInsert(List *list, Node *node, Node *before)
+void f_listInsert(List *list, ListNode *node, ListNode *before)
 {
     assert(list != NULL);
     assert(node != NULL);
@@ -126,7 +126,7 @@ void f_listInsert(List *list, Node *node, Node *before)
 
 /* Append <node> to <after> in list <list>. */
 
-void f_listAppend(List *list, Node *node, Node *after)
+void f_listAppend(List *list, ListNode *node, ListNode *after)
 {
     assert(list != NULL);
     assert(node != NULL);
@@ -159,7 +159,7 @@ void f_listAppend(List *list, Node *node, Node *after)
 
 /* Remove <node> from list <list>. */
 
-void f_listRemove(List *list, Node *node)
+void f_listRemove(List *list, ListNode *node)
 {
     assert(list != NULL);
     assert(node != NULL);
@@ -186,14 +186,14 @@ void f_listRemove(List *list, Node *node)
 
 /* Return the node before <node>. */
 
-void *f_listPrev(const Node *node)
+void *f_listPrev(const ListNode *node)
 {
     return(N(node)->prev);
 }
 
 /* Return the node following <node>. */
 
-void *f_listNext(const Node *node)
+void *f_listNext(const ListNode *node)
 {
     return(N(node)->next);
 }
@@ -216,7 +216,7 @@ void *listTail(const List *list)
 
 void *listRemoveHead(List *list)
 {
-    Node *node;
+    ListNode *node;
 
     assert(list != NULL);
 
@@ -233,7 +233,7 @@ void *listRemoveHead(List *list)
 
 void *listRemoveTail(List *list)
 {
-    Node *node;
+    ListNode *node;
 
     assert(list != NULL);
 
@@ -268,7 +268,7 @@ int listIsEmpty(const List *list)
 
 void listSort(List *list, int(*cmp)(const void *, const void *))
 {
-    Node *l, *r;            /* Current node in l(eft) and r(ight) list. */
+    ListNode *l, *r;        /* Current node in l(eft) and r(ight) list. */
     List left;              /* Left list (<list> is used as the right list). */
     int i, len = listLength(list);
 
