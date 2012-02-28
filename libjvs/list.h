@@ -30,13 +30,13 @@ struct List {
   int length;
 };
 
-#define listInsertHead(l, n) f_listInsertHead((l), &(n)->node)
-#define listAppendTail(l, n) f_listAppendTail((l), &(n)->node)
-#define listInsert(l, n, b)  f_listInsert((l), &(n)->node, &(b)->node)
-#define listInsert(l, n, b)  f_listInsert((l), &(n)->node, &(b)->node)
-#define listNext(n)          f_listNext(&(n)->node)
-#define listPrev(n)          f_listPrev(&(n)->node)
-#define listRemove(l, n)     f_listRemove((l), &(n)->node)
+#define listInsertHead(l, n) f_listInsertHead((l), &(n)->_node)
+#define listAppendTail(l, n) f_listAppendTail((l), &(n)->_node)
+#define listInsert(l, n, b)  f_listInsert((l), &(n)->_node, &(b)->_node)
+#define listInsert(l, n, b)  f_listInsert((l), &(n)->_node, &(b)->_node)
+#define listNext(n)          f_listNext(&(n)->_node)
+#define listPrev(n)          f_listPrev(&(n)->_node)
+#define listRemove(l, n)     f_listRemove((l), &(n)->_node)
 
 /* Create a new, empty list. */
 List *listCreate(void);
