@@ -32,7 +32,7 @@ typedef struct {
    int written, allocated;
 } Buffer;
 
-static Buffer buffer = { 0 };
+static Buffer buffer = { };
 
 static char *buf_get(Buffer *buffer)
 {
