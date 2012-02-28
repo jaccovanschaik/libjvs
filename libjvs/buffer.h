@@ -99,4 +99,5 @@ Buffer *bufCat(Buffer *base, Buffer *addition);
  * Trim <left> bytes from the left and <right> bytes from the right of <buf>.
  */
 Buffer *bufTrim(Buffer *buf, unsigned int left, unsigned int right);
+
 #endif

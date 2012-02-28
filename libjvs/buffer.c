@@ -31,10 +31,10 @@ Buffer *bufCreate(void)
 {
     Buffer *buf = calloc(1, sizeof(Buffer));
 
-    assert(buf);
+    assert(buf != NULL);
 
     buf->size = INITIAL_SIZE;
-    buf->data = calloc(1, buf->size);
+    buf->data = calloc(1, (size_t) buf->size);
     buf->used = 1;
 
     assert(buf->data);
