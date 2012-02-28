@@ -24,6 +24,7 @@ static char *__func__ = NULL;
 #define dbgAbort  (_dbgSetPos(__FILE__, __LINE__, __func__), _dbgAbort)
 #define dbgPrint  (_dbgSetPos(__FILE__, __LINE__, __func__), _dbgPrint)
 #define dbgAssert (_dbgSetPos(__FILE__, __LINE__, __func__), _dbgAssert)
+#define dbgError  (_dbgSetPos(__FILE__, __LINE__, __func__), _dbgError)
 
 /* Set the current position for subsequent error messages. */
 void _dbgSetPos(char *file, int line, const char *func);
@@ -39,5 +40,10 @@ void _dbgPrint(FILE *fp, const char *fmt, ...)
 /* Check <cond> and, if false, print the given message and call abort(). */
 void _dbgAssert(FILE *fp, int cond, const char *fmt, ...)
         __attribute__ ((format (printf, 3, 4)));
+
+/* Print the given debugging message on <fp>, followed by the error
+ * message associated with the current value of errno. */
+void _dbgError(FILE *fp, const char *fmt, ...)
+        __attribute__ ((format (printf, 2, 3)));
 
 #endif

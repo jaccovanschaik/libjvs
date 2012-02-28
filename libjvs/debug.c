@@ -11,6 +11,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdarg.h>
+#include <string.h>
+#include <errno.h>
 
 #include "debug.h"
 
@@ -87,4 +89,22 @@ void _dbgAssert(FILE *fp, int cond, const char *fmt, ...)
 
       abort();
    }
+}
+
+/* Print the given debugging message on <fp>, followed by the error
+ * message associated with the current value of errno. */
+
+void _dbgError(FILE *fp, const char *fmt, ...)
+{
+   va_list ap;
+
+   print_position(fp);
+
+   va_start(ap, fmt);
+   vfprintf(fp, fmt, ap);
+   va_end(ap);
+
+   fprintf(fp, "%s", strerror(errno));
+
+   fflush(fp);
 }
