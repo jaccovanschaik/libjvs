@@ -26,7 +26,7 @@
 /* An entry in a hash table. */
 
 typedef struct {
-   ListNode node;   /* Make it listable. */
+   ListNode _node;  /* Make it listable. */
    void *data;      /* Pointer to some data. */
    void *key;       /* Points to the associated key. */
    int key_len;     /* Length of the key. */
