@@ -2,7 +2,7 @@
  * Provides a simplified interface to TCP/IP networking.
  *
  * Copyright:   (c) 2007 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: net.h 242 2007-06-23 23:12:05Z jacco $
+ * Version:     $Id: net.h 237 2012-02-10 14:09:38Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -11,11 +11,16 @@
 #ifndef NET_H
 #define NET_H
 
-/* Open a listen port (using a port number) */
-int netOpenPort(int port);
+/* Open a listen port on <host> and <port> and return the corresponding
+ * file descriptor. If <host> is NULL the socket will listen on all
+ * interfaces. If <port> is less than 0, the socket will be bound to a
+ * random local port. You can use netLocalPort() afterwards to find out
+ * which one. */
+int netOpenPort(const char *host, int port);
 
-/* Connect to a port (using a port number) */
-int netConnect(int port, char *server);
+/* Make a connection to <port> on <host> and return the corresponding
+ * file descriptor. */
+int netConnect(const char *host, int port);
 
 /* Get the port that corresponds to service <service>. */
 int netPortFor(char *service);
@@ -24,7 +29,16 @@ int netPortFor(char *service);
 int netAccept(int sd);
 
 /* Get hostname of peer */
-char *netGetPeerName(int sd);
+const char *netPeerHost(int sd);
+
+/* Get port number used by peer */
+int netPeerPort(int sd);
+
+/* Get local hostname */
+const char *netLocalHost(int sd);
+
+/* Get local port number. */
+int netLocalPort(int sd);
 
 /* Read until <buf> is full */
 int netRead(int fd, void *buf, int len);
