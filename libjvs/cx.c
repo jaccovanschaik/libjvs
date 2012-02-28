@@ -32,7 +32,7 @@
 typedef struct {
     Buffer *incoming, *outgoing;
     void *udata;
-    int (*handler)(CX *cx, int fd, void *udata);
+    int (*handler)(CX *cx, int fd, int len, void *udata);
 } CX_Connection;
 
 typedef struct {
@@ -142,7 +142,8 @@ void cxDropFd(CX *cx, int fd)
     cx->connections[fd] = NULL;
 }
 
-void cxSubscribe(CX *cx, int fd, void *udata, int (*handler)(CX *cx, int fd, void *udata))
+void cxSubscribe(CX *cx, int fd, void *udata,
+        int (*handler)(CX *cx, int fd, int len, void *udata))
 {
     CX_Connection *conn = cx->connections[fd];
 
@@ -272,15 +273,12 @@ int cxRun(CX *cx)
 
                     r = read(fd, buffer, sizeof(buffer));
 
-                    if (r < 0) {
-                    }
-                    else if (r == 0) {
-                        close(fd);
-                        memset(conn, 0, sizeof(CX_Connection));
+                    if (r <= 0) {
+                        conn->handler(cx, fd, r, conn->udata);
                     }
                     else {
                         bufAdd(cx->connections[fd]->incoming, buffer, r);
-                        conn->handler(cx, fd, NULL);
+                        conn->handler(cx, fd, r, conn->udata);
                     }
                 }
 
@@ -288,11 +286,7 @@ int cxRun(CX *cx)
                     r = write(fd, bufGet(conn->outgoing),
                             bufLen(conn->outgoing));
 
-                    if (r < 0) {
-                    }
-                    else if (r == 0) {
-                    }
-                    else {
+                    if (r > 0) {
                         bufTrim(conn->outgoing, r, 0);
                     }
                 }
