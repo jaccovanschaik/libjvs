@@ -33,7 +33,7 @@ typedef struct {
     Buffer *incoming, *outgoing;
     void *udata;
     int err;
-    int (*handler)(CX *cx, int fd, int len, void *udata);
+    int (*handler)(CX *cx, int fd, void *udata);
 } CX_Connection;
 
 typedef struct {
@@ -129,6 +129,8 @@ void cxAddFd(CX *cx, int fd)
     conn->outgoing = bufCreate();
 }
 
+/* Drop file descriptor <fd>. */
+
 void cxDropFd(CX *cx, int fd)
 {
     CX_Connection *conn = cx->connections[fd];
@@ -143,8 +145,10 @@ void cxDropFd(CX *cx, int fd)
     cx->connections[fd] = NULL;
 }
 
+/* Subscribe to input from file descriptor <fd>. */
+
 void cxSubscribe(CX *cx, int fd, void *udata,
-        int (*handler)(CX *cx, int fd, int len, void *udata))
+        int (*handler)(CX *cx, int fd, void *udata))
 {
     CX_Connection *conn = cx->connections[fd];
 
@@ -153,6 +157,10 @@ void cxSubscribe(CX *cx, int fd, void *udata,
     conn->handler = handler;
     conn->udata = udata;
 }
+
+/* Queue <len> bytes from <data> to be sent out over <fd>. Returns the
+ * number of bytes that were queued, which is usually <len>, except on
+ * error when it is 0. Call cxError() to get the associated errno. */
 
 int cxQueue(CX *cx, int fd, const char *data, int len)
 {
@@ -166,6 +174,11 @@ int cxQueue(CX *cx, int fd, const char *data, int len)
 
     return len;
 }
+
+/* Get <len> bytes from the incoming buffer for <fd> and put them in
+ * <data> (which should, obviously, be long enough to hold them all.
+ * Might return less than <len> (even 0) if fewer bytes are in the
+ * buffer. Call cxError() to find out * what happened. */
 
 int cxGet(CX *cx, int fd, char *data, int len)
 {
@@ -181,6 +194,9 @@ int cxGet(CX *cx, int fd, char *data, int len)
 
     return len;
 }
+
+/* Returns the errno for the latest error that occurred. Will be 0 for a
+ * simple end-of-file. */
 
 int cxError(CX *cx, int fd)
 {
@@ -204,6 +220,9 @@ const char *cxGet(CX *cx, int fd, int *len)
 }
 #endif
 
+/* Trim the first <len> bytes from the input buffer for <fd>, to be
+ * called when you've handled them. */
+
 void cxClear(CX *cx, int fd, int len)
 {
     CX_Connection *conn = cx->connections[fd];
@@ -226,6 +245,17 @@ void cxAddTimeout(CX *cx, double t, void *udata, int (*handler)(CX *cx, double t
     listAppendTail(&cx->timeouts, tm);
 
     listSort(&cx->timeouts, cx_compare_timeouts);
+}
+
+void cxDump(FILE *fp, const CX *cx)
+{
+    dbgPrint(fp, "nfds = %d\n", cx->nfds);
+
+#if 0
+    int nfds;
+    CX_Connection **connections;
+    List timeouts;
+#endif
 }
 
 /* Run the communications exchange. */
@@ -258,7 +288,11 @@ int cxRun(CX *cx)
                 return 0;
             }
             else {
+                dbgPrint(stderr, "No timeouts, calling select\n");
+
                 r = select(cx->nfds, &rfds, &wfds, NULL, NULL);
+
+                dbgPrint(stderr, "select returned %d\n", r);
             }
         }
         else {
@@ -299,9 +333,13 @@ int cxRun(CX *cx)
         }
         else {
             for (fd = 0; fd < cx->nfds; fd++) {
+                dbgPrint(stderr, "fd = %d\n", fd);
+
                 conn = cx->connections[fd];
 
                 if (FD_ISSET(fd, &wfds)) {
+                    dbgPrint(stderr, "Is set in wfds\n");
+
                     r = write(fd, bufGet(conn->outgoing),
                             bufLen(conn->outgoing));
 
@@ -323,7 +361,11 @@ int cxRun(CX *cx)
                 if (FD_ISSET(fd, &rfds)) {
                     char buffer[9000];
 
+                    dbgPrint(stderr, "Is set in rfds\n");
+
                     r = read(fd, buffer, sizeof(buffer));
+
+                    dbgPrint(stderr, "read returned %d\n", r);
 
                     if (r < 0) {
                         conn->err = errno;
@@ -337,7 +379,7 @@ int cxRun(CX *cx)
                     }
                     else {
                         bufAdd(conn->incoming, buffer, r);
-                        conn->handler(cx, fd, r, conn->udata);
+                        conn->handler(cx, fd, conn->udata);
                     }
                 }
             }
@@ -355,5 +397,47 @@ void cxFDSet(CX *cx, fd_set *fds)
 int cxOwnsFD(CX *cx, int fd)
 {
     return FD_ISSET(fd, &cx->fds);
+}
+#endif
+
+#ifdef TEST
+
+int handle_data(CX *cx, int fd, void *udata)
+{
+    char buffer[80];
+
+    int r = cxGet(cx, fd, buffer, sizeof(buffer));
+
+    dbgPrint(stderr, "Got %d bytes: \"%s\"\n", r, buffer);
+}
+
+int accept_connection(CX *cx, int fd, void *udata)
+{
+    fprintf(stderr, "accept_connection\n");
+
+    fd = netAccept(fd);
+
+    cxAddFd(cx, fd);
+
+    cxSubscribe(cx, fd, NULL, handle_data);
+
+    return 0;
+}
+
+int main(int argc, char *argv[])
+{
+    CX *cx = cxCreate();
+
+    int fd = netOpenPort("localhost", 1234);
+
+    cxAddFd(cx, fd);
+
+    cxSubscribe(cx, fd, NULL, accept_connection);
+
+    cxDump(stderr, cx);
+
+    cxRun(cx);
+
+    return 0;
 }
 #endif
