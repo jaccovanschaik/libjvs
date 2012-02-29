@@ -33,11 +33,9 @@ void _dbgSetPos(char *file, int line, const char *func)
 
 static void print_position(FILE *fp)
 {
-   fprintf(fp, "%s:%d", _err_file, _err_line);
+   fprintf(fp, "%s:%d: ", _err_file, _err_line);
 
-   if (_err_func) fprintf(fp, "(%s)", _err_func);
-
-   fprintf(fp, ": ");
+   if (_err_func) fprintf(fp, "(%s) ", _err_func);
 }
 
 /* Call abort(), preceded with the given message. */

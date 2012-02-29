@@ -30,9 +30,9 @@
     dbgAssert(stderr, (cx)->connections[fd] != NULL, "Unknown fd %d\n", fd)
 
 typedef struct {
-    Buffer *incoming, *outgoing;
+    ListNode _node;
+    int fd;
     void *udata;
-    int err;
     int (*handler)(CX *cx, int fd, void *udata);
 } CX_Connection;
 
@@ -45,7 +45,7 @@ typedef struct {
 
 struct CX {
     int nfds;
-    CX_Connection **connections;
+    List connections;
     List timeouts;
 };
 
@@ -104,137 +104,41 @@ CX *cxCreate(void)
     return calloc(1, sizeof(CX));
 }
 
-/* Add file descriptor <fd>. */
+/* Subscribe to input. */
 
-void cxAddFd(CX *cx, int fd)
-{
-    CX_Connection *conn;
-
-    if (fd >= cx->nfds) {
-        cx->connections = realloc(cx->connections, (fd + 1) *
-                sizeof(CX_Connection *));
-
-        memset(cx->connections + cx->nfds * sizeof(CX_Connection *), 0,
-                (fd + 1 - cx->nfds) * sizeof(CX_Connection *));
-
-        cx->nfds = fd + 1;
-    }
-
-    conn = cx->connections[fd] = calloc(1, sizeof(CX_Connection));
-
-    if (conn->incoming != NULL) bufDestroy(conn->incoming);
-    if (conn->outgoing != NULL) bufDestroy(conn->outgoing);
-
-    conn->incoming = bufCreate();
-    conn->outgoing = bufCreate();
-}
-
-/* Drop file descriptor <fd>. */
-
-void cxDropFd(CX *cx, int fd)
-{
-    CX_Connection *conn = cx->connections[fd];
-
-    ASSERTFD(cx, fd);
-
-    if (conn->incoming != NULL) bufDestroy(conn->incoming);
-    if (conn->outgoing != NULL) bufDestroy(conn->outgoing);
-
-    free(conn);
-
-    cx->connections[fd] = NULL;
-}
-
-/* Subscribe to input from file descriptor <fd>. */
-
-void cxSubscribe(CX *cx, int fd, void *udata,
+void cxAddFile(CX *cx, int fd, void *udata,
         int (*handler)(CX *cx, int fd, void *udata))
 {
-    CX_Connection *conn = cx->connections[fd];
+    CX_Connection *conn = calloc(1, sizeof(CX_Connection));
 
-    ASSERTFD(cx, fd);
-
-    conn->handler = handler;
+    conn->fd = fd;
     conn->udata = udata;
+    conn->handler = handler;
+
+    listAppendTail(&cx->connections, conn);
 }
 
-/* Queue <len> bytes from <data> to be sent out over <fd>. Returns the
- * number of bytes that were queued, which is usually <len>, except on
- * error when it is 0. Call cxError() to get the associated errno. */
+/* Drop subscription to fd <fd>. */
 
-int cxQueue(CX *cx, int fd, const char *data, int len)
+void cxDropFile(CX *cx, int fd,
+        int (*handler)(CX *cx, int fd, void *udata))
 {
-    CX_Connection *conn = cx->connections[fd];
+    CX_Connection *conn, *next;
 
-    ASSERTFD(cx, fd);
+    for (conn = listHead(&cx->connections); conn; conn = next) {
+        next = listNext(conn);
 
-    if (conn->outgoing == NULL) return 0;
-
-    bufAdd(conn->outgoing, data, len);
-
-    return len;
-}
-
-/* Get <len> bytes from the incoming buffer for <fd> and put them in
- * <data> (which should, obviously, be long enough to hold them all.
- * Might return less than <len> (even 0) if fewer bytes are in the
- * buffer. Call cxError() to find out * what happened. */
-
-int cxGet(CX *cx, int fd, char *data, int len)
-{
-    CX_Connection *conn = cx->connections[fd];
-
-    ASSERTFD(cx, fd);
-
-    if (conn->incoming == NULL) return 0;
-
-    len = MIN(len, bufLen(conn->incoming));
-
-    memcpy(data, bufGet(conn->incoming), len);
-
-    return len;
-}
-
-/* Returns the errno for the latest error that occurred. Will be 0 for a
- * simple end-of-file. */
-
-int cxError(CX *cx, int fd)
-{
-    CX_Connection *conn = cx->connections[fd];
-
-    ASSERTFD(cx, fd);
-
-    return conn->err;
-}
-
-# if 0
-const char *cxGet(CX *cx, int fd, int *len)
-{
-    CX_Connection *conn = cx->connections[fd];
-
-    ASSERTFD(cx, fd);
-
-    *len = bufLen(conn->incoming);
-
-    return bufGet(conn->incoming);
-}
-#endif
-
-/* Trim the first <len> bytes from the input buffer for <fd>, to be
- * called when you've handled them. */
-
-void cxClear(CX *cx, int fd, int len)
-{
-    CX_Connection *conn = cx->connections[fd];
-
-    ASSERTFD(cx, fd);
-
-    bufTrim(conn->incoming, len, 0);
+        if (conn->fd == fd && conn->handler == handler) {
+            listRemove(&cx->connections, conn);
+            free(conn);
+        }
+    }
 }
 
 /* Add a timeout at time <t>. */
 
-void cxAddTimeout(CX *cx, double t, void *udata, int (*handler)(CX *cx, double t, void *udata))
+void cxAddTime(CX *cx, double t, void *udata,
+        int (*handler)(CX *cx, double t, void *udata))
 {
     CX_Timeout *tm = calloc(1, sizeof(CX_Timeout));
 
@@ -247,50 +151,55 @@ void cxAddTimeout(CX *cx, double t, void *udata, int (*handler)(CX *cx, double t
     listSort(&cx->timeouts, cx_compare_timeouts);
 }
 
-void cxDump(FILE *fp, const CX *cx)
-{
-    dbgPrint(fp, "nfds = %d\n", cx->nfds);
+/* Drop timeout at time <t>. */
 
-#if 0
-    int nfds;
-    CX_Connection **connections;
-    List timeouts;
-#endif
+void cxDropTime(CX *cx, double t,
+        int (*handler)(CX *cx, double t, void *udata))
+{
+    CX_Timeout *tm, *next;
+
+    for (tm = listHead(&cx->timeouts); tm; tm = next) {
+        next = listNext(tm);
+
+        if (tm->t == t && tm->handler == handler) {
+            listRemove(&cx->timeouts, tm);
+            free(tm);
+        }
+    }
 }
 
 /* Run the communications exchange. */
 
 int cxRun(CX *cx)
 {
-    int r, fd;
-    fd_set rfds, wfds;
+    int r, nfds;
+    fd_set rfds;
     CX_Timeout *tm;
+    CX_Connection *conn;
 
     while (1) {
-        CX_Connection *conn;
-
         FD_ZERO(&rfds);
-        FD_ZERO(&wfds);
+        nfds = 0;
 
-        for (fd = 0; fd < cx->nfds; fd++) {
-            conn = cx->connections[fd];
+        for (conn = listHead(&cx->connections);
+                conn; conn = listNext(conn)) {
+            dbgPrint(stderr, "Adding fd %d\n", conn->fd);
 
-            if (conn == NULL) continue;
+            FD_SET(conn->fd, &rfds);
 
-            if (conn->incoming) FD_SET(fd, &rfds);
-            if (conn->outgoing && bufLen(conn->outgoing) > 0) FD_SET(fd, &wfds);
+            if (conn->fd >= nfds) nfds = conn->fd + 1;
         }
 
         tm = listHead(&cx->timeouts);
 
         if (tm == NULL) {
-            if (cx->nfds == 0) {
+            if (nfds == 0) {
                 return 0;
             }
             else {
                 dbgPrint(stderr, "No timeouts, calling select\n");
 
-                r = select(cx->nfds, &rfds, &wfds, NULL, NULL);
+                r = select(nfds, &rfds, NULL, NULL, NULL);
 
                 dbgPrint(stderr, "select returned %d\n", r);
             }
@@ -300,7 +209,7 @@ int cxRun(CX *cx)
 
             if (dt < 0) dt = 0;
 
-            if (cx->nfds == 0) {
+            if (nfds == 0) {
                 struct timespec req, rem;
 
                 cx_double_to_timespec(dt, &req);
@@ -317,7 +226,7 @@ int cxRun(CX *cx)
 
                 cx_double_to_timeval(dt, &tv);
 
-                r = select(cx->nfds, &rfds, &wfds, NULL, &tv);
+                r = select(nfds, &rfds, NULL, NULL, &tv);
             }
         }
 
@@ -332,55 +241,10 @@ int cxRun(CX *cx)
             free(tm);
         }
         else {
-            for (fd = 0; fd < cx->nfds; fd++) {
-                dbgPrint(stderr, "fd = %d\n", fd);
-
-                conn = cx->connections[fd];
-
-                if (FD_ISSET(fd, &wfds)) {
-                    dbgPrint(stderr, "Is set in wfds\n");
-
-                    r = write(fd, bufGet(conn->outgoing),
-                            bufLen(conn->outgoing));
-
-                    if (r < 0) {
-                        conn->err = errno;
-                        bufDestroy(conn->outgoing);
-                        conn->outgoing = NULL;
-                    }
-                    else if (r == 0) {
-                        conn->err = 0;
-                        bufDestroy(conn->outgoing);
-                        conn->outgoing = NULL;
-                    }
-                    else {
-                        bufTrim(conn->outgoing, r, 0);
-                    }
-                }
-
-                if (FD_ISSET(fd, &rfds)) {
-                    char buffer[9000];
-
-                    dbgPrint(stderr, "Is set in rfds\n");
-
-                    r = read(fd, buffer, sizeof(buffer));
-
-                    dbgPrint(stderr, "read returned %d\n", r);
-
-                    if (r < 0) {
-                        conn->err = errno;
-                        bufDestroy(conn->incoming);
-                        conn->incoming = NULL;
-                    }
-                    else if (r == 0) {
-                        conn->err = 0;
-                        bufDestroy(conn->incoming);
-                        conn->incoming = NULL;
-                    }
-                    else {
-                        bufAdd(conn->incoming, buffer, r);
-                        conn->handler(cx, fd, conn->udata);
-                    }
+            for (conn = listHead(&cx->connections);
+                    conn; conn = listNext(conn)) {
+                if (FD_ISSET(conn->fd, &rfds)) {
+                    conn->handler(cx, conn->fd, conn->udata);
                 }
             }
         }
@@ -404,22 +268,29 @@ int cxOwnsFD(CX *cx, int fd)
 
 int handle_data(CX *cx, int fd, void *udata)
 {
-    char buffer[80];
+    char buffer[80] = "";
 
-    int r = cxGet(cx, fd, buffer, sizeof(buffer));
+    int r = read(fd, buffer, sizeof(buffer));
 
-    dbgPrint(stderr, "Got %d bytes: \"%s\"\n", r, buffer);
+    if (r == 0) {
+        dbgPrint(stderr, "End of file on fd %d\n", fd);
+        close(fd);
+        cxDropFile(cx, fd, handle_data);
+    }
+    else {
+        dbgPrint(stderr, "Got %d bytes: \"%s\"\n", r, buffer);
+    }
+
+    return 0;
 }
 
 int accept_connection(CX *cx, int fd, void *udata)
 {
-    fprintf(stderr, "accept_connection\n");
+    dbgPrint(stderr, "accept_connection\n");
 
     fd = netAccept(fd);
 
-    cxAddFd(cx, fd);
-
-    cxSubscribe(cx, fd, NULL, handle_data);
+    cxAddFile(cx, fd, NULL, handle_data);
 
     return 0;
 }
@@ -430,11 +301,7 @@ int main(int argc, char *argv[])
 
     int fd = netOpenPort("localhost", 1234);
 
-    cxAddFd(cx, fd);
-
-    cxSubscribe(cx, fd, NULL, accept_connection);
-
-    cxDump(stderr, cx);
+    cxAddFile(cx, fd, NULL, accept_connection);
 
     cxRun(cx);
 
