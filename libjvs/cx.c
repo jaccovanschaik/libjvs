@@ -32,6 +32,7 @@
 typedef struct {
     Buffer *incoming, *outgoing;
     void *udata;
+    int err;
     int (*handler)(CX *cx, int fd, int len, void *udata);
 } CX_Connection;
 
@@ -134,8 +135,8 @@ void cxDropFd(CX *cx, int fd)
 
     ASSERTFD(cx, fd);
 
-    bufDestroy(conn->incoming);
-    bufDestroy(conn->outgoing);
+    if (conn->incoming != NULL) bufDestroy(conn->incoming);
+    if (conn->outgoing != NULL) bufDestroy(conn->outgoing);
 
     free(conn);
 
@@ -153,15 +154,44 @@ void cxSubscribe(CX *cx, int fd, void *udata,
     conn->udata = udata;
 }
 
-void cxQueue(CX *cx, int fd, const char *data, int len)
+int cxQueue(CX *cx, int fd, const char *data, int len)
 {
     CX_Connection *conn = cx->connections[fd];
 
     ASSERTFD(cx, fd);
 
+    if (conn->outgoing == NULL) return 0;
+
     bufAdd(conn->outgoing, data, len);
+
+    return len;
 }
 
+int cxGet(CX *cx, int fd, char *data, int len)
+{
+    CX_Connection *conn = cx->connections[fd];
+
+    ASSERTFD(cx, fd);
+
+    if (conn->incoming == NULL) return 0;
+
+    len = MIN(len, bufLen(conn->incoming));
+
+    memcpy(data, bufGet(conn->incoming), len);
+
+    return len;
+}
+
+int cxError(CX *cx, int fd)
+{
+    CX_Connection *conn = cx->connections[fd];
+
+    ASSERTFD(cx, fd);
+
+    return conn->err;
+}
+
+# if 0
 const char *cxGet(CX *cx, int fd, int *len)
 {
     CX_Connection *conn = cx->connections[fd];
@@ -172,6 +202,7 @@ const char *cxGet(CX *cx, int fd, int *len)
 
     return bufGet(conn->incoming);
 }
+#endif
 
 void cxClear(CX *cx, int fd, int len)
 {
@@ -212,10 +243,12 @@ int cxRun(CX *cx)
         FD_ZERO(&wfds);
 
         for (fd = 0; fd < cx->nfds; fd++) {
-            if (cx->connections[fd] == NULL) continue;
+            conn = cx->connections[fd];
 
-            FD_SET(fd, &rfds);
-            if (bufLen(cx->connections[fd]->outgoing) > 0) FD_SET(fd, &wfds);
+            if (conn == NULL) continue;
+
+            if (conn->incoming) FD_SET(fd, &rfds);
+            if (conn->outgoing && bufLen(conn->outgoing) > 0) FD_SET(fd, &wfds);
         }
 
         tm = listHead(&cx->timeouts);
@@ -268,26 +301,43 @@ int cxRun(CX *cx)
             for (fd = 0; fd < cx->nfds; fd++) {
                 conn = cx->connections[fd];
 
+                if (FD_ISSET(fd, &wfds)) {
+                    r = write(fd, bufGet(conn->outgoing),
+                            bufLen(conn->outgoing));
+
+                    if (r < 0) {
+                        conn->err = errno;
+                        bufDestroy(conn->outgoing);
+                        conn->outgoing = NULL;
+                    }
+                    else if (r == 0) {
+                        conn->err = 0;
+                        bufDestroy(conn->outgoing);
+                        conn->outgoing = NULL;
+                    }
+                    else {
+                        bufTrim(conn->outgoing, r, 0);
+                    }
+                }
+
                 if (FD_ISSET(fd, &rfds)) {
                     char buffer[9000];
 
                     r = read(fd, buffer, sizeof(buffer));
 
-                    if (r <= 0) {
-                        conn->handler(cx, fd, r, conn->udata);
+                    if (r < 0) {
+                        conn->err = errno;
+                        bufDestroy(conn->incoming);
+                        conn->incoming = NULL;
+                    }
+                    else if (r == 0) {
+                        conn->err = 0;
+                        bufDestroy(conn->incoming);
+                        conn->incoming = NULL;
                     }
                     else {
-                        bufAdd(cx->connections[fd]->incoming, buffer, r);
+                        bufAdd(conn->incoming, buffer, r);
                         conn->handler(cx, fd, r, conn->udata);
-                    }
-                }
-
-                if (FD_ISSET(fd, &wfds)) {
-                    r = write(fd, bufGet(conn->outgoing),
-                            bufLen(conn->outgoing));
-
-                    if (r > 0) {
-                        bufTrim(conn->outgoing, r, 0);
                     }
                 }
             }
