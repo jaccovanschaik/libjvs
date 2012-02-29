@@ -1,5 +1,5 @@
 /*
- * cx.c: Description
+ * cx.c: Communications Exchange
  *
  * Copyright:	(c) 2012 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Version:	$Id$
@@ -26,9 +26,6 @@
 
 #include "cx.h"
 
-#define ASSERTFD(cx, fd) \
-    dbgAssert(stderr, (cx)->connections[fd] != NULL, "Unknown fd %d\n", fd)
-
 typedef struct {
     ListNode _node;
     int fd;
@@ -44,7 +41,6 @@ typedef struct {
 } CX_Timeout;
 
 struct CX {
-    int nfds;
     List connections;
     List timeouts;
 };
