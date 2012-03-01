@@ -1,13 +1,13 @@
 #ifndef NX_H
 #define NX_H
 
-/*
- * nx.h: Description
+/* nx.h: Description
  *
- * Author:	Jacco van Schaik (jacco.van.schaik@dnw.aero)
- * Copyright:	(c) 2012 DNW German-Dutch Windtunnels
- * Created:	2012-03-01
+ * Copyright:	(c) 2012 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Version:	$Id$
+ *
+ * This software is distributed under the terms of the MIT license. See
+ * http://www.opensource.org/licenses/mit-license.php for details.
  */
 
 typedef struct NX NX;
