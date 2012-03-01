@@ -16,6 +16,10 @@ typedef struct NX_Conn NX_Conn;
 /* Create a Network Exchange. */
 NX *nxCreate(const char *host, int port);
 
+/* Close down this Network Exchange. This will cause the mainloop to
+ * exit when all connections are closed and no timeouts are left. */
+void nxClose(NX *nx);
+
 /* Return the port that <nx> listens on. */
 int nxListenPort(NX *nx);
 

@@ -124,6 +124,16 @@ NX *nxCreate(const char *host, int port)
     return nx;
 }
 
+/* Close down this Network Exchange. This will cause the mainloop to
+ * exit when all connections are closed and no timeouts are left. */
+
+void nxClose(NX *nx)
+{
+    close(nx->listen_fd);
+
+    nx->listen_fd = -1;
+}
+
 /* Return the port that <nx> listens on. */
 
 int nxListenPort(NX *nx)
@@ -302,12 +312,16 @@ int nxRun(NX *nx)
     struct timeval tv, *tvp;
 
     for ever {
-        nfds = 0;
-
         FD_ZERO(&rfds);
         FD_ZERO(&wfds);
 
-        FD_SET(nx->listen_fd, &rfds);
+        nfds = 0;
+
+        if (nx->listen_fd >= 0) {
+            nfds = nx->listen_fd + 1;
+
+            FD_SET(nx->listen_fd, &rfds);
+        }
 
         for (conn = listHead(&nx->connections); conn;
              conn = listNext(conn)) {
@@ -339,6 +353,8 @@ int nxRun(NX *nx)
             r = 0;
         }
         else {
+            /* No connections left and no timeouts. */
+
             r = 0;
 
             break;
