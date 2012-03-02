@@ -124,14 +124,28 @@ NX *nxCreate(const char *host, int port)
     return nx;
 }
 
-/* Close down this Network Exchange. This will cause the mainloop to
- * exit when all connections are closed and no timeouts are left. */
+/* Close down this Network Exchange. Closes the listen port and all
+ * other connections and cancels all timeouts. The nxRun() mainloop will
+ * then exit. */
 
 void nxClose(NX *nx)
 {
+    NX_Conn *conn, *next;
+    NX_Timeout *tm;
+
     close(nx->listen_fd);
 
     nx->listen_fd = -1;
+
+    for (conn = listHead(&nx->connections); conn; conn = next) {
+        next = listNext(conn);
+
+        nx_destroy_connection(conn);
+    }
+
+    while ((tm = listRemoveHead(&nx->timeouts)) != NULL) {
+        free(tm);
+    }
 }
 
 /* Return the port that <nx> listens on. */
