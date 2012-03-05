@@ -33,17 +33,17 @@ static int net_socket(void)
 
     sd = socket(AF_INET, SOCK_STREAM, 0);
     if (sd == -1) {
-        perror("unable to create socket");
+        dbgError(stderr, "unable to create socket");
         return (-1);
     }
 
     if (setsockopt(sd, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one)) != 0) {
-        perror("Couldn't setsockopt(REUSEADDR)");
+        dbgError(stderr, "setsockopt(REUSEADDR) failed");
         return (-1);
     }
 
     if (setsockopt(sd, SOL_SOCKET, SO_LINGER, &linger, sizeof(linger)) != 0) {
-        perror("Couldn't setsockopt(LINGER)");
+        dbgError(stderr, "setsockopt(LINGER) failed");
         return (-1);
     }
 
@@ -71,6 +71,7 @@ static int net_bind(int socket, const char *host, int port)
     myaddr_in.sin_family = AF_INET;
 
     if (bind(socket, (struct sockaddr *) &myaddr_in, sizeof(struct sockaddr_in)) != 0) {
+        dbgError(stderr, "bind failed");
         return (-1);
     }
 
@@ -82,7 +83,7 @@ static int net_bind(int socket, const char *host, int port)
 static int net_listen(int socket)
 {
     if (listen(socket, 5) == -1) {
-        perror("SetListenSocket: listen failed");
+        dbgError(stderr, "listen failed");
         return (-1);
     }
 
@@ -121,17 +122,17 @@ int netOpenPort(const char *host, int port)
 
     lsd = net_socket();
     if (lsd == -1) {
-        fprintf(stderr, "OpenPort: net_socket failed\n");
+        dbgError(stderr, "net_socket failed");
         return (-1);
     }
 
     if (port >= 0 && net_bind(lsd, host, port) != 0) {
-        fprintf(stderr, "OpenPort: net_bind failed\n");
+        dbgError(stderr, "net_bind failed");
         return (-1);
     }
 
     if (net_listen(lsd) != 0) {
-        perror("OpenPort: net_listen failed");
+        dbgError(stderr, "net_listen failed");
         return (-1);
     }
 
@@ -155,7 +156,7 @@ int netConnect(const char *host, int port)
     peeraddr_in.sin_port = htons(port);
 
     if ((host_ptr = gethostbyname(host)) == NULL) {
-        dbgError(stderr, "ConnectPort: gethostbyname(%s) failed: ", host);
+        dbgError(stderr, "gethostbyname(%s) failed", host);
         return (-1);
     }
 
@@ -165,14 +166,14 @@ int netConnect(const char *host, int port)
     sd = net_socket();
 
     if (sd == -1) {
-        perror("ConnectPort: net_socket failed");
+        dbgError(stderr, "net_socket failed");
         return (-1);
     }
 
     if (connect
         (sd, (struct sockaddr *) &peeraddr_in,
          sizeof(struct sockaddr_in)) != 0) {
-        perror("ConnectPort: connect failed");
+        dbgError(stderr, "connect failed");
         close(sd);
         return (-1);
     }
@@ -189,7 +190,7 @@ int netPortFor(char *service)
     serv_ptr = getservbyname(service, "tcp");
 
     if (serv_ptr == NULL) {
-        fprintf(stderr, "service \"%s\" not found in /etc/services\n", service);
+        dbgPrint(stderr, "service \"%s\" not found in /etc/services\n", service);
         return (-1);
     }
 
@@ -215,7 +216,7 @@ int netAccept(int sd)
     } while (csd == -1 && errno == EINTR);
 
     if (csd == -1)
-        perror("AcceptClient: accept failed");
+        dbgError(stderr, "accept failed");
 
     return (csd);
 }
@@ -269,7 +270,7 @@ int netLocalPort(int sd)
 
     getsockname(sd, (struct sockaddr *) &peeraddr, &len);
 
-    return peeraddr.sin_port;
+    return ntohs(peeraddr.sin_port);
 }
 
 /* Read until <buf> is full */
@@ -283,7 +284,7 @@ int netRead(int fd, void *buf, int len)
     } while ((res > 0 || errno == EINTR) && (n += res) < len);
 
     if (res == -1) {
-        perror("read(1) failed");
+        dbgError(stderr, "read(1) failed");
         return (-1);
     }
     else {
@@ -302,7 +303,7 @@ int netWrite(int fd, void *buf, int len)
     } while ((res > 0 || errno == EINTR) && (n += res) < len);
 
     if (res == -1) {
-        perror("write(1) failed");
+        dbgError(stderr, "write(1) failed");
         return (-1);
     }
     else {

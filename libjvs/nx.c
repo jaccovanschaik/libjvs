@@ -29,17 +29,17 @@ struct NX {
     List connections;
     List timeouts;
     int listen_fd;
-    int (*on_connect)(NX_Conn *conn);
-    int (*on_disconnect)(NX_Conn *conn);
-    int (*on_error)(NX_Conn *conn, int err);
-    int (*on_data)(NX_Conn *conn);
+    void (*on_connect)(NX_Conn *conn);
+    void (*on_disconnect)(NX_Conn *conn);
+    void (*on_error)(NX_Conn *conn, int err);
+    void (*on_data)(NX_Conn *conn);
 };
 
 typedef struct {
     ListNode _node;
     double t;
     void *udata;
-    int (*handler)(NX *nx, double t, void *udata);
+    void (*handler)(NX *nx, double t, void *udata);
 } NX_Timeout;
 
 struct NX_Conn {
@@ -108,18 +108,27 @@ static void nx_destroy_connection(NX_Conn *conn)
 
 /* Call the NX callback <handler> for connection <conn>. */
 
-static void nx_callback(NX_Conn *conn, int (*handler)(NX_Conn *conn))
+static void nx_callback(NX_Conn *conn, void (*handler)(NX_Conn *conn))
 {
     if (handler != NULL) handler(conn);
 }
 
-/* Create a Network Exchange. */
+/* Create a Network Exchange on <host> and <port>. <host> may be NULL,
+ * in which case the Exchange will listen on all interfaces. <port> may
+ * be -1, in which case the system will choose a port number. Use
+ * nxListenPort to find out which port was chosen. */
 
 NX *nxCreate(const char *host, int port)
 {
     NX *nx = calloc(1, sizeof(NX));
 
     nx->listen_fd = netOpenPort(host, port);
+
+    if (nx->listen_fd == -1) {
+        dbgError(stderr, "netOpenPort failed");
+        free(nx);
+        return NULL;
+    }
 
     return nx;
 }
@@ -215,6 +224,15 @@ int nxGet(NX_Conn *conn, char *data, int len)
     return len;
 }
 
+/* Drop the first <len> bytes from the incoming buffer on <conn>. */
+
+int nxDrop(NX_Conn *conn, int len)
+{
+    bufTrim(conn->incoming, len, 0);
+
+    return 0;
+}
+
 /* Make and return a connection to port <port> on host <host>. */
 
 NX_Conn *nxConnect(NX *nx, const char *host, int port)
@@ -240,7 +258,7 @@ void nxDisconnect(NX_Conn *conn)
  * previous ones. <handler> will *not* be called for connections users
  * create themselves (using nxConnect()). */
 
-void nxOnConnect(NX *nx, int (*handler)(NX_Conn *conn))
+void nxOnConnect(NX *nx, void (*handler)(NX_Conn *conn))
 {
     nx->on_connect = handler;
 }
@@ -250,7 +268,7 @@ void nxOnConnect(NX *nx, int (*handler)(NX_Conn *conn))
  * overwrite previous ones. <handler> will *not* be called for
  * connections users drop themselves (using nxDisconnect()). */
 
-void nxOnDisconnect(NX *nx, int (*handler)(NX_Conn *conn))
+void nxOnDisconnect(NX *nx, void (*handler)(NX_Conn *conn))
 {
     nx->on_disconnect = handler;
 }
@@ -259,7 +277,7 @@ void nxOnDisconnect(NX *nx, int (*handler)(NX_Conn *conn))
  * Only one function can be set; subsequent calls will overwrite
  * previous ones. */
 
-void nxOnData(NX *nx, int (*handler)(NX_Conn *conn))
+void nxOnData(NX *nx, void (*handler)(NX_Conn *conn))
 {
     nx->on_data = handler;
 }
@@ -268,7 +286,7 @@ void nxOnData(NX *nx, int (*handler)(NX_Conn *conn))
  * connection on which it occurred and the errno code will be passed to
  * the handler. */
 
-void nxOnError(NX *nx, int (*handler)(NX_Conn *conn, int err))
+void nxOnError(NX *nx, void (*handler)(NX_Conn *conn, int err))
 {
     nx->on_error = handler;
 }
@@ -288,8 +306,8 @@ double nxNow(void)
 /* Add a timeout at UTC time t, calling <handler> with <nx>, time <t>
  * and <udata>. */
 
-void nxAddTimeout(NX *nx, double t, void *udata,
-        int (*handler)(NX *nx, double t, void *udata))
+void nxTimeout(NX *nx, double t, void *udata,
+        void (*handler)(NX *nx, double t, void *udata))
 {
     NX_Timeout *tm = calloc(1, sizeof(NX_Timeout));
 
@@ -321,7 +339,7 @@ int nxRun(NX *nx)
 {
     int nfds, r;
     fd_set rfds, wfds;
-    NX_Conn *conn;
+    NX_Conn *conn, *next;
     NX_Timeout *tm;
     struct timeval tv, *tvp;
 
@@ -383,8 +401,9 @@ int nxRun(NX *nx)
                 nx_callback(conn, nx->on_connect);
             }
 
-            for (conn = listHead(&nx->connections); conn;
-                 conn = listNext(conn)) {
+            for (conn = listHead(&nx->connections); conn; conn = next) {
+                next = listNext(conn);
+
                 if (FD_ISSET(conn->fd, &wfds)) {
                     r = write(conn->fd, bufGet(conn->outgoing),
                             bufLen(conn->outgoing));
@@ -432,3 +451,81 @@ int nxRun(NX *nx)
 
     return r;
 }
+
+#ifdef TEST
+void on_connect(NX_Conn *conn)
+{
+    dbgPrint(stderr, "local: %s:%d, remote: %s:%d\n",
+            nxLocalHost(conn), nxLocalPort(conn),
+            nxRemoteHost(conn), nxRemotePort(conn));
+}
+
+void on_disconnect(NX_Conn *conn)
+{
+    dbgPrint(stderr, "\n");
+}
+
+void on_data(NX_Conn *conn)
+{
+    char buffer[80];
+    int n = nxGet(conn, buffer, sizeof(buffer));
+
+    nxDrop(conn, n);
+
+    dbgPrint(stderr, "Got %d bytes: \"%.*s\"\n", n, n, buffer);
+
+    if (strncmp(buffer, "Hoi!", 4) == 0) {
+        nxQueue(conn, "Bye!", 4);
+    }
+    else if (strncmp(buffer, "Bye!", 4) == 0) {
+        nxClose(nxFor(conn));
+    }
+}
+
+void on_error(NX_Conn *conn, int err)
+{
+    dbgPrint(stderr, "err = %d (%s)\n", err, strerror(err));
+}
+
+void on_timeout(NX *nx, double t, void *udata)
+{
+    NX_Conn *conn = udata;
+
+    dbgPrint(stderr, "timeout, sending welcome string\n");
+
+    nxQueue(conn, "Hoi!", 4);
+}
+
+int main(int argc, char *argv[])
+{
+    int r;
+
+    NX *nx;
+    NX_Conn *conn;
+
+    nx = nxCreate("localhost", 1234);
+
+    if (nx == NULL) {
+        dbgError(stderr, "nxCreate failed");
+        return 1;
+    }
+
+    dbgPrint(stderr, "Listening on host %s\n", nxListenHost(nx));
+    dbgPrint(stderr, "Listening on port %d\n", nxListenPort(nx));
+
+    conn = nxConnect(nx, "localhost", 1234);
+
+    nxOnConnect(nx, on_connect);
+    nxOnDisconnect(nx, on_disconnect);
+    nxOnData(nx, on_data);
+    nxOnError(nx, on_error);
+
+    nxTimeout(nx, nxNow() + 5, conn, on_timeout);
+
+    r = nxRun(nx);
+
+    dbgPrint(stderr, "nxRun exited with %d\n", r);
+
+    return r;
+}
+#endif

@@ -295,6 +295,8 @@ int main(int argc, char *argv[])
 {
     CX *cx = cxCreate();
 
+    return 0;
+
     int fd = netOpenPort("localhost", 1234);
 
     cxAddFile(cx, fd, NULL, accept_connection);

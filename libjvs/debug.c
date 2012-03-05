@@ -102,7 +102,7 @@ void _dbgError(FILE *fp, const char *fmt, ...)
    vfprintf(fp, fmt, ap);
    va_end(ap);
 
-   fprintf(fp, "%s", strerror(errno));
+   fprintf(fp, ": %s\n", strerror(errno));
 
    fflush(fp);
 }

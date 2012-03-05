@@ -13,7 +13,10 @@
 typedef struct NX NX;
 typedef struct NX_Conn NX_Conn;
 
-/* Create a Network Exchange. */
+/* Create a Network Exchange on <host> and <port>. <host> may be NULL,
+ * in which case the Exchange will listen on all interfaces. <port> may
+ * be -1, in which case the system will choose a port number. Use
+ * nxListenPort to find out which port was chosen. */
 NX *nxCreate(const char *host, int port);
 
 /* Close down this Network Exchange. Closes the listen port and all
@@ -50,6 +53,9 @@ int nxQueue(NX_Conn *conn, const char *data, int len);
  */
 int nxGet(NX_Conn *conn, char *data, int len);
 
+/* Drop the first <len> bytes from the incoming buffer on <conn>. */
+int nxDrop(NX_Conn *conn, int len);
+
 /* Make and return a connection to port <port> on host <host>. */
 NX_Conn *nxConnect(NX *nx, const char *host, int port);
 
@@ -60,23 +66,23 @@ void nxDisconnect(NX_Conn *conn);
  * made. Only one funcation can be set; subsequent calls will overwrite
  * previous ones. <handler> will *not* be called for connections users
  * create themselves (using nxConnect()). */
-void nxOnConnect(NX *nx, int (*handler)(NX_Conn *conn));
+void nxOnConnect(NX *nx, void (*handler)(NX_Conn *conn));
 
 /* Set <handler> as the function to be called when a connection is
  * dropped. Only one funcation can be set; subsequent calls will
  * overwrite previous ones. <handler> will *not* be called for
  * connections users drop themselves (using nxDisconnect()). */
-void nxOnDisconnect(NX *nx, int (*handler)(NX_Conn *conn));
+void nxOnDisconnect(NX *nx, void (*handler)(NX_Conn *conn));
 
 /* Set <handler> as the function to be called when new data comes in.
  * Only one function can be set; subsequent calls will overwrite
  * previous ones. */
-void nxOnData(NX *nx, int (*handler)(NX_Conn *conn));
+void nxOnData(NX *nx, void (*handler)(NX_Conn *conn));
 
 /* Set <handler> as the function to be called when an error occurs. The
  * connection on which it occurred and the errno code will be passed to
  * the handler. */
-void nxOnError(NX *nx, int (*handler)(NX_Conn *conn, int err));
+void nxOnError(NX *nx, void (*handler)(NX_Conn *conn, int err));
 
 /* Return the current *UTC* time (number of seconds since
  * 1970-01-01/00:00:00 UTC) as a double. */
@@ -84,8 +90,8 @@ double nxNow(void);
 
 /* Add a timeout at UTC time t, calling <handler> with <nx>, time <t>
  * and <udata>. */
-void nxAddTimeout(NX *nx, double t, void *udata, int (*handler)(NX *nx, double t,
-                    void *udata));
+void nxTimeout(NX *nx, double t, void *udata, void (*handler)(NX *nx, double t,
+                 void *udata));
 
 /* Return the NX for <conn>. */
 NX *nxFor(NX_Conn *conn);
