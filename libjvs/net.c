@@ -34,20 +34,20 @@ static int net_socket(void)
     sd = socket(AF_INET, SOCK_STREAM, 0);
     if (sd == -1) {
         dbgError(stderr, "unable to create socket");
-        return (-1);
+        return -1;
     }
 
     if (setsockopt(sd, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one)) != 0) {
         dbgError(stderr, "setsockopt(REUSEADDR) failed");
-        return (-1);
+        return -1;
     }
 
     if (setsockopt(sd, SOL_SOCKET, SO_LINGER, &linger, sizeof(linger)) != 0) {
         dbgError(stderr, "setsockopt(LINGER) failed");
-        return (-1);
+        return -1;
     }
 
-    return (sd);
+    return sd;
 }
 
 /* Bind a socket to <port> and <host>. If <host> is NULL, the socket
@@ -60,11 +60,15 @@ static int net_bind(int socket, const char *host, int port)
 
     memset(&myaddr_in, 0, sizeof(myaddr_in));
 
-    if (host != NULL && (host_ptr = gethostbyname(host)) != NULL) {
+    if (host == NULL) {
+        myaddr_in.sin_addr.s_addr = INADDR_ANY;
+    }
+    else if ((host_ptr = gethostbyname(host)) != NULL) {
         myaddr_in.sin_addr.s_addr = ((struct in_addr *) (host_ptr->h_addr))->s_addr;
     }
     else {
-        myaddr_in.sin_addr.s_addr = INADDR_ANY;
+        dbgError(stderr, "gethostbyname(%s) failed", host);
+        return -1;
     }
 
     myaddr_in.sin_port = htons(port);
@@ -72,10 +76,10 @@ static int net_bind(int socket, const char *host, int port)
 
     if (bind(socket, (struct sockaddr *) &myaddr_in, sizeof(struct sockaddr_in)) != 0) {
         dbgError(stderr, "bind failed");
-        return (-1);
+        return -1;
     }
 
-    return (0);
+    return 0;
 }
 
 /* Tell a socket to be a listener */
@@ -84,10 +88,10 @@ static int net_listen(int socket)
 {
     if (listen(socket, 5) == -1) {
         dbgError(stderr, "listen failed");
-        return (-1);
+        return -1;
     }
 
-    return (0);
+    return 0;
 }
 
 static const char *net_host_name(struct sockaddr_in *peeraddr)
@@ -107,7 +111,7 @@ static const char *net_host_name(struct sockaddr_in *peeraddr)
         return text_buffer;
     }
 
-    return (ent->h_name);
+    return ent->h_name;
 }
 
 /* Open a listen port on <host> and <port> and return the corresponding
@@ -123,20 +127,20 @@ int netOpenPort(const char *host, int port)
     lsd = net_socket();
     if (lsd == -1) {
         dbgError(stderr, "net_socket failed");
-        return (-1);
+        return -1;
     }
 
     if (port >= 0 && net_bind(lsd, host, port) != 0) {
         dbgError(stderr, "net_bind failed");
-        return (-1);
+        return -1;
     }
 
     if (net_listen(lsd) != 0) {
         dbgError(stderr, "net_listen failed");
-        return (-1);
+        return -1;
     }
 
-    return (lsd);
+    return lsd;
 }
 
 /* Make a connection to <port> on <host> and return the corresponding
@@ -157,7 +161,7 @@ int netConnect(const char *host, int port)
 
     if ((host_ptr = gethostbyname(host)) == NULL) {
         dbgError(stderr, "gethostbyname(%s) failed", host);
-        return (-1);
+        return -1;
     }
 
     peeraddr_in.sin_addr.s_addr =
@@ -167,7 +171,7 @@ int netConnect(const char *host, int port)
 
     if (sd == -1) {
         dbgError(stderr, "net_socket failed");
-        return (-1);
+        return -1;
     }
 
     if (connect
@@ -175,10 +179,10 @@ int netConnect(const char *host, int port)
          sizeof(struct sockaddr_in)) != 0) {
         dbgError(stderr, "connect failed");
         close(sd);
-        return (-1);
+        return -1;
     }
 
-    return (sd);
+    return sd;
 }
 
 /* Get the port that corresponds to service <service>. */
@@ -190,8 +194,8 @@ int netPortFor(char *service)
     serv_ptr = getservbyname(service, "tcp");
 
     if (serv_ptr == NULL) {
-        dbgPrint(stderr, "service \"%s\" not found in /etc/services\n", service);
-        return (-1);
+        dbgError(stderr, "getservbyname(%s) failed", service);
+        return -1;
     }
 
     return serv_ptr->s_port;
@@ -218,7 +222,7 @@ int netAccept(int sd)
     if (csd == -1)
         dbgError(stderr, "accept failed");
 
-    return (csd);
+    return csd;
 }
 
 /* Get hostname of peer */
@@ -284,11 +288,11 @@ int netRead(int fd, void *buf, int len)
     } while ((res > 0 || errno == EINTR) && (n += res) < len);
 
     if (res == -1) {
-        dbgError(stderr, "read(1) failed");
-        return (-1);
+        dbgError(stderr, "read failed");
+        return -1;
     }
     else {
-        return (n);
+        return n;
     }
 }
 
@@ -303,10 +307,10 @@ int netWrite(int fd, void *buf, int len)
     } while ((res > 0 || errno == EINTR) && (n += res) < len);
 
     if (res == -1) {
-        dbgError(stderr, "write(1) failed");
-        return (-1);
+        dbgError(stderr, "write failed");
+        return -1;
     }
     else {
-        return (n);
+        return n;
     }
 }
