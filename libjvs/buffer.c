@@ -326,6 +326,6 @@ int main(int argc, char *argv[])
    bufDestroy(buf1);
    bufDestroy(buf2);
 
-   return 0;
+   return errors;
 }
 #endif

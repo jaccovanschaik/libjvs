@@ -322,3 +322,152 @@ void listSort(List *list, int(*cmp)(const void *, const void *))
         }
     }
 }
+
+#ifdef TEST
+
+typedef struct {
+    ListNode _node;
+    int i;
+} Data;
+
+#define TEST_PTR(expr, exp) { \
+    void *test = expr; \
+    if (test != exp) { \
+        fprintf(stderr, \
+                "%s:%d: " #expr " returns %p, should be %p (%s).\n", \
+                __FILE__, __LINE__, test, exp, #exp); \
+        errors++; \
+    } \
+}
+
+#define TEST_INT(expr, exp) { \
+    int test = expr; \
+    if (test != exp) { \
+        fprintf(stderr, \
+                "%s:%d: " #expr " returns %d, should be %d.\n", \
+                __FILE__, __LINE__, test, exp); \
+        errors++; \
+    } \
+}
+
+#define TRUE  (0 == 0)
+#define FALSE (1 == 0)
+
+int cmp(const void *a, const void *b)
+{
+    const Data *A = a;
+    const Data *B = b;
+
+    return(A->i - B->i);
+}
+
+int main(int argc, char *argv[])
+{
+    List list;
+    Data *data[6];
+
+    int i, errors = 0;
+
+    for (i = 0; i < 6; i++) {
+        data[i] = calloc(1, sizeof(Data));
+    }
+
+    listInitialize(&list);
+
+    TEST_INT(listLength(&list), 0);
+    TEST_INT(listIsEmpty(&list),  TRUE);
+
+    listAppendTail(&list, data[0]);
+    listAppendTail(&list, data[1]);
+    listAppendTail(&list, data[2]);
+    listAppendTail(&list, data[3]);
+
+    TEST_INT(listLength(&list), 4);
+    TEST_INT(listIsEmpty(&list),  FALSE);
+
+    TEST_PTR(listHead(&list), data[0]);
+    TEST_PTR(listTail(&list), data[3]);
+
+    TEST_PTR(listNext(data[0]), data[1]);
+    TEST_PTR(listNext(data[1]), data[2]);
+    TEST_PTR(listNext(data[2]), data[3]);
+    TEST_PTR(listNext(data[3]), NULL);
+
+    TEST_PTR(listPrev(data[3]), data[2]);
+    TEST_PTR(listPrev(data[2]), data[1]);
+    TEST_PTR(listPrev(data[1]), data[0]);
+    TEST_PTR(listPrev(data[0]), NULL);
+
+    listRemove(&list, data[0]);
+    listRemove(&list, data[1]);
+    listRemove(&list, data[2]);
+    listRemove(&list, data[3]);
+
+    TEST_INT(listLength(&list), 0);
+    TEST_INT(listIsEmpty(&list),  TRUE);
+
+    listInsertHead(&list, data[3]);
+    listInsertHead(&list, data[2]);
+    listInsertHead(&list, data[1]);
+    listInsertHead(&list, data[0]);
+
+    TEST_INT(listLength(&list), 4);
+    TEST_INT(listIsEmpty(&list),  FALSE);
+
+    TEST_PTR(listHead(&list), data[0]);
+    TEST_PTR(listTail(&list), data[3]);
+
+    TEST_PTR(listNext(data[0]), data[1]);
+    TEST_PTR(listNext(data[1]), data[2]);
+    TEST_PTR(listNext(data[2]), data[3]);
+    TEST_PTR(listNext(data[3]), NULL);
+
+    TEST_PTR(listPrev(data[3]), data[2]);
+    TEST_PTR(listPrev(data[2]), data[1]);
+    TEST_PTR(listPrev(data[1]), data[0]);
+    TEST_PTR(listPrev(data[0]), NULL);
+
+    TEST_PTR(listRemoveHead(&list), data[0]);
+    TEST_PTR(listRemoveHead(&list), data[1]);
+    TEST_PTR(listRemoveTail(&list), data[3]);
+    TEST_PTR(listRemoveTail(&list), data[2]);
+
+    TEST_INT(listLength(&list), 0);
+    TEST_INT(listIsEmpty(&list),  TRUE);
+
+    listAppendTail(&list, data[0]);
+    listAppendTail(&list, data[3]);
+    listAppend(&list, data[1], data[0]);
+    listInsert(&list, data[2], data[3]);
+
+    TEST_PTR(listRemoveHead(&list), data[0]);
+    TEST_PTR(listRemoveHead(&list), data[1]);
+    TEST_PTR(listRemoveTail(&list), data[3]);
+    TEST_PTR(listRemoveTail(&list), data[2]);
+
+    data[0]->i = 3;
+    data[1]->i = 4;
+    data[2]->i = 5;
+    data[3]->i = 1;
+    data[4]->i = 2;
+    data[5]->i = 3;
+
+    listAppendTail(&list, data[0]);
+    listAppendTail(&list, data[1]);
+    listAppendTail(&list, data[2]);
+    listAppendTail(&list, data[3]);
+    listAppendTail(&list, data[4]);
+    listAppendTail(&list, data[5]);
+
+    listSort(&list, cmp);
+
+    TEST_PTR(listRemoveHead(&list), data[3]);
+    TEST_PTR(listRemoveHead(&list), data[4]);
+    TEST_PTR(listRemoveHead(&list), data[0]);
+    TEST_PTR(listRemoveHead(&list), data[5]);
+    TEST_PTR(listRemoveHead(&list), data[1]);
+    TEST_PTR(listRemoveHead(&list), data[2]);
+
+    exit(errors);
+}
+#endif

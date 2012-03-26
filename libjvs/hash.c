@@ -199,3 +199,51 @@ void hashDel(HashTable *tbl, void *key, int key_len)
    free(entry->key);
    free(entry);
 }
+
+#ifdef TEST
+#include <stdio.h>
+
+static int errors = 0;
+
+void _make_sure_that(const char *file, int line, const char *str, int val)
+{
+   if (!val) {
+      fprintf(stderr, "%s:%d: Expression \"%s\" failed\n", file, line, str);
+      errors++;
+   }
+}
+
+#define make_sure_that(expr) _make_sure_that(__FILE__, __LINE__, #expr, (expr))
+
+int main(int argc, char *argv[])
+{
+    HashTable *table = hashCreateTable();
+
+    int *data1 = malloc(sizeof(int));
+    char *data2 = strdup("Hoi");
+
+    *data1 = 123;
+
+    hashAdd(table, data1, HASH_VALUE(*data1));
+    hashAdd(table, data2, HASH_STRING(data2));
+
+    make_sure_that(hashGet(table, HASH_VALUE(*data1)) == data1);
+    make_sure_that(hashGet(table, HASH_STRING(data2)) == data2);
+
+    hashSet(table, data2, HASH_VALUE(*data1));
+    hashSet(table, data1, HASH_STRING(data2));
+
+    make_sure_that(hashGet(table, HASH_VALUE(*data1)) == data2);
+    make_sure_that(hashGet(table, HASH_STRING(data2)) == data1);
+
+    hashDel(table, HASH_VALUE(*data1));
+    hashDel(table, HASH_STRING(data2));
+
+    make_sure_that(hashGet(table, HASH_VALUE(*data1)) == NULL);
+    make_sure_that(hashGet(table, HASH_STRING(data2)) == NULL);
+
+    hashDeleteTable(table);
+
+    return errors;
+}
+#endif
