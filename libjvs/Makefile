@@ -39,6 +39,7 @@ tags:
 
 test: libjvs.a
 	for f in `grep -l TEST *.c`; do \
+          echo "Testing $$f"; \
           $(CC) $(CFLAGS) -DTEST $$f libjvs.a -lm && ./a.out; \
         done
 
