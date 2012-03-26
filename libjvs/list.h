@@ -33,7 +33,7 @@ struct List {
 #define listInsertHead(l, n) f_listInsertHead((l), &(n)->_node)
 #define listAppendTail(l, n) f_listAppendTail((l), &(n)->_node)
 #define listInsert(l, n, b)  f_listInsert((l), &(n)->_node, &(b)->_node)
-#define listInsert(l, n, b)  f_listInsert((l), &(n)->_node, &(b)->_node)
+#define listAppend(l, n, a)  f_listAppend((l), &(n)->_node, &(a)->_node)
 #define listNext(n)          f_listNext(&(n)->_node)
 #define listPrev(n)          f_listPrev(&(n)->_node)
 #define listRemove(l, n)     f_listRemove((l), &(n)->_node)
