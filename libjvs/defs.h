@@ -27,6 +27,10 @@
 #define D if (0)
 #endif
 
+#ifndef END
+#define END (-1)
+#endif
+
 #ifndef FALSE
 #define FALSE 0
 #endif
