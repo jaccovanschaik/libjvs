@@ -32,15 +32,91 @@ typedef struct {
 typedef struct {
     ListNode _node;
     TokenType type;
-    TokenData data;
+    union {
+        char   *s;
+        long    l;
+        double  d;
+    } u;
 } Token;
 
 struct TokenStream {
     Buffer *buffer;
-    char *error;
+    Token last, *pushback;
+    Buffer *error;
     List stack;
-    List pushback;
 };
+
+static void token_clr(Token *token)
+{
+    if ((token->type & TT_STRING) && token->u.s != NULL)
+        free(token->u.s);
+
+    memset(&token->u, 0, sizeof(token->u));
+
+    token->type = TT_NONE;
+}
+
+static int token_set(Token *token, TokenType type, const char *data)
+{
+    char *endp;
+
+    token_clr(token);
+
+    token->type = type;
+
+    switch(type) {
+    case TT_LONG:
+        token->u.l = strtol(data, &endp, 0);
+        return (endp == data + strlen(data)) ? 0 : 1;
+    case TT_DOUBLE:
+        token->u.d = strtod(data, &endp);
+        return (endp == data + strlen(data)) ? 0 : 1;
+    default:
+        token->u.s = strdup(data);
+        return 0;
+    }
+}
+
+static Token *token_new(TokenType type, const char *data)
+{
+    Token *token = calloc(1, sizeof(Token));
+
+    token_set(token, type, data);
+
+    return token;
+}
+
+static void token_del(Token *token)
+{
+    token_clr(token);
+
+    free(token);
+}
+
+static const char *token_str(Token *token)
+{
+    Buffer buf = { };
+
+    if (!token) return NULL;
+
+    switch(token->type) {
+    case TT_NONE:
+        return "";
+    case TT_EOF:
+        return "eof";
+    case TT_ERROR:
+        return "error";
+    case TT_LONG:
+        bufSetF(&buf, "%ld", token->u.l);
+        return bufGet(&buf);
+    case TT_DOUBLE:
+        bufSetF(&buf, "%g", token->u.d);
+        return bufGet(&buf);
+    default:
+        bufSet(&buf, token->u.s, strlen(token->u.s));
+        return bufGet(&buf);
+    }
+}
 
 static void add_stack_frame(TokenStream *ts, const char *file, FILE *fp)
 {
@@ -65,14 +141,10 @@ static const char *single_token_type(TokenType type)
     switch(type) {
     case TT_NONE:
         return "none";
-    case TT_STRING:
-        return "string" ;
     case TT_USTRING:
         return "unquoted string";
     case TT_QSTRING:
         return "quoted string";
-    case TT_NUMBER:
-        return "number";
     case TT_LONG:
         return "integer";
     case TT_DOUBLE:
@@ -98,11 +170,25 @@ static const char *single_token_type(TokenType type)
     }
 }
 
+static void set_error_msg(TokenStream *ts,
+        const char *file, int line, int column, const char *fmt, ...)
+{
+    va_list ap;
+
+    if (ts->error == NULL) ts->error = bufCreate();
+
+    bufAddF(ts->error, "%s:%d:%d: ", file, line, column);
+
+    va_start(ap, fmt);
+    bufAddV(ts->error, fmt, ap);
+    va_end(ap);
+}
+
 /*
  * Return a textual representation of bitmask <mask>. Each set bit will be
  * named.
  */
-const char *tsTokenType(TokenType mask)
+const char *tsTypeString(TokenType mask)
 {
     int bit = 0, count = 0;
     unsigned int higher_bits_mask = UINT_MAX;
@@ -134,50 +220,11 @@ const char *tsTokenType(TokenType mask)
 }
 
 /*
- * Return a textual representation of TokenData <data>, where the type
- * of the token that contained it is <type>.
+ * Return a textual representation of the data in the last token.
  */
-const char *tsTokenData(TokenType type, TokenData *data)
+const char *tsDataString(TokenStream *ts)
 {
-    static char buffer[80];
-
-    if (type == TT_LONG) {
-        snprintf(buffer, 80, "%s %ld", tsTokenType(type), data->l);
-        return buffer;
-    }
-    else if (type == TT_DOUBLE) {
-        snprintf(buffer, 80, "%s %g", tsTokenType(type), data->d);
-        return buffer;
-    }
-    else if (type == TT_QSTRING || type == TT_USTRING) {
-        snprintf(buffer, 80, "%s \"%s\"", tsTokenType(type), data->s);
-        return buffer;
-    }
-    else {
-        snprintf(buffer, 80, "%s", tsTokenType(type));
-        return buffer;
-    }
-}
-
-static char *error_msg(const char *file, int line, int column,
-        const char *fmt, ...)
-{
-    va_list ap;
-
-    static Buffer *buffer = NULL;
-
-    if (buffer == NULL)
-        buffer = bufCreate();
-    else
-        bufClear(buffer);
-
-    bufAddF(buffer, "%s:%d:%d: ", file, line, column);
-
-    va_start(ap, fmt);
-    bufAddV(buffer, fmt, ap);
-    va_end(ap);
-
-    return bufGet(buffer);
+    return token_str(&ts->last);
 }
 
 /*
@@ -287,7 +334,7 @@ typedef enum {
  * In case of error, TT_ERROR is returned and the error message can be
  * retrieved using tsError(). On end-of-file, TT_EOF is returned.
  */
-TokenType tsGetToken(TokenStream *ts, TokenData *data)
+TokenType tsGetToken(TokenStream *ts)
 {
     int c;
 
@@ -298,27 +345,14 @@ TokenType tsGetToken(TokenStream *ts, TokenData *data)
 
     bufClear(ts->buffer);
 
-    if (!listIsEmpty(&ts->pushback)) {
-        Token *token = listRemoveHead(&ts->pushback);
-        TokenType type = token->type;
+    if (ts->pushback) {
+        token_set(&ts->last, ts->pushback->type, token_str(ts->pushback));
 
-        if (data != NULL) {
-            if (type == TT_LONG) {
-                data->l = token->data.l;
-            }
-            else if (type == TT_LONG) {
-                data->d = token->data.d;
-            }
-            else if (token->data.s != NULL) {
-                bufAdd(ts->buffer, token->data.s, strlen(token->data.s));
-                free(token->data.s);
-                data->s = bufGet(ts->buffer);
-            }
-        }
+        token_del(ts->pushback);
 
-        free(token);
+        ts->pushback = NULL;
 
-        return type;
+        return ts->last.type;
     }
 
     while ((curr = listHead(&ts->stack)) != NULL) {
@@ -345,28 +379,28 @@ TokenType tsGetToken(TokenStream *ts, TokenData *data)
         switch(state) {
         case ST_NONE:
             if (c == '{') {
-                if (data) data->s = "{";
-                return TT_OBRACE;
+                token_set(&ts->last, TT_OBRACE, "{");
+                return ts->last.type;
             }
             else if (c == '}') {
-                if (data) data->s = "}";
-                return TT_CBRACE;
+                token_set(&ts->last, TT_CBRACE, "}");
+                return ts->last.type;
             }
             else if (c == '[') {
-                if (data) data->s = "[";
-                return TT_OBRACKET;
+                token_set(&ts->last, TT_OBRACKET, "[");
+                return ts->last.type;
             }
             else if (c == ']') {
-                if (data) data->s = "]";
-                return TT_CBRACKET;
+                token_set(&ts->last, TT_CBRACKET, "]");
+                return ts->last.type;
             }
             else if (c == '(') {
-                if (data) data->s = "(";
-                return TT_OPAREN;
+                token_set(&ts->last, TT_OPAREN, "(");
+                return ts->last.type;
             }
             else if (c == ')') {
-                if (data) data->s = ")";
-                return TT_CPAREN;
+                token_set(&ts->last, TT_CPAREN, ")");
+                return ts->last.type;
             }
             else if (c == '"') {
                 bufClear(ts->buffer);
@@ -395,7 +429,7 @@ TokenType tsGetToken(TokenStream *ts, TokenData *data)
                 state = ST_INCLUDE;
             }
             else if (!isspace(c)) {
-                ts->error = error_msg(curr->file, curr->line, curr->column,
+                set_error_msg(ts, curr->file, curr->line, curr->column,
                         "Unexpected character '%c' (ascii %d)", c, c);
                 return TT_ERROR;
             }
@@ -410,11 +444,11 @@ TokenType tsGetToken(TokenStream *ts, TokenData *data)
                 bufAddC(ts->buffer, c);
             }
             else {
-                char *file = bufGet(ts->buffer);
+                const char *file = bufGet(ts->buffer);
                 FILE *fp;
 
                 if ((fp = fopen(file, "r")) == NULL) {
-                    ts->error = error_msg(curr->file, curr->line, curr->column,
+                    set_error_msg(ts, curr->file, curr->line, curr->column,
                             "Couldn't open file \"%s\".", file);
                     return TT_ERROR;
                 }
@@ -429,13 +463,13 @@ TokenType tsGetToken(TokenStream *ts, TokenData *data)
                 bufAddC(ts->buffer, c);
             }
             else if (!isspace(c)) {
-                ts->error = error_msg(curr->file, curr->line, curr->column,
+                set_error_msg(ts, curr->file, curr->line, curr->column,
                         "Unexpected character '%c' (ascii %d)", c, c);
                 return TT_ERROR;
             }
             else {
-                if (data) data->s = bufGet(ts->buffer);
-                return TT_USTRING;
+                token_set(&ts->last, TT_USTRING, bufGet(ts->buffer));
+                return ts->last.type;
             }
             break;
         case ST_QUOTED_STRING:
@@ -443,8 +477,8 @@ TokenType tsGetToken(TokenStream *ts, TokenData *data)
                 bufAddC(ts->buffer, c);
             }
             else {
-                if (data) data->s = bufGet(ts->buffer);
-                return TT_QSTRING;
+                token_set(&ts->last, TT_QSTRING, bufGet(ts->buffer));
+                return ts->last.type;
             }
             break;
         case ST_LONG:
@@ -456,25 +490,17 @@ TokenType tsGetToken(TokenStream *ts, TokenData *data)
                 state = ST_DOUBLE;
             }
             else if (!isspace(c)) {
-                ts->error = error_msg(curr->file, curr->line, curr->column,
+                set_error_msg(ts, curr->file, curr->line, curr->column,
                         "Unexpected character '%c' (ascii %d)", c, c);
                 return TT_ERROR;
             }
+            else if (token_set(&ts->last, TT_LONG, bufGet(ts->buffer)) != 0) {
+                set_error_msg(ts, curr->file, curr->line, curr->column,
+                        "Could not convert \"%s\" to an integer", bufGet(ts->buffer));
+                return TT_ERROR;
+            }
             else {
-                char *endp, *p = bufGet(ts->buffer);
-                static long l;
-
-                l = strtol(p, &endp, 0);
-
-                if (endp == p + bufLen(ts->buffer)) {
-                    if (data) data->l = l;
-                    return TT_LONG;
-                }
-                else {
-                    ts->error = error_msg(curr->file, curr->line, curr->column,
-                            "Could not convert \"%s\" to an integer", p);
-                    return TT_ERROR;
-                }
+                return ts->last.type;
             }
             break;
         case ST_DOUBLE:
@@ -482,25 +508,17 @@ TokenType tsGetToken(TokenStream *ts, TokenData *data)
                 bufAddC(ts->buffer, c);
             }
             else if (!isspace(c)) {
-                ts->error = error_msg(curr->file, curr->line, curr->column,
+                set_error_msg(ts, curr->file, curr->line, curr->column,
                         "Unexpected character '%c' (ascii %d)", c, c);
                 return TT_ERROR;
             }
+            else if (token_set(&ts->last, TT_DOUBLE, bufGet(ts->buffer)) != 0) {
+                set_error_msg(ts, curr->file, curr->line, curr->column,
+                        "Could not convert \"%s\" to a double", bufGet(ts->buffer));
+                return TT_ERROR;
+            }
             else {
-                char *endp, *p = bufGet(ts->buffer);
-                static double d;
-
-                d = strtod(p, &endp);
-
-                if (endp == p + bufLen(ts->buffer)) {
-                    if (data) data->d = d;
-                    return TT_DOUBLE;
-                }
-                else {
-                    ts->error = error_msg(curr->file, curr->line, curr->column,
-                            "Could not convert \"%s\" to a double", p);
-                    return TT_ERROR;
-                }
+                return ts->last.type;
             }
             break;
         }
@@ -522,30 +540,26 @@ TokenType tsGetToken(TokenStream *ts, TokenData *data)
  *  if type == TT_DOUBLE: *data points to a double;
  *  all others:           *data points to a character array.
  */
-TokenType tsExpectToken(TokenStream *ts, TokenType expected_type, TokenData *data)
+TokenType tsExpectToken(TokenStream *ts, TokenType expected_type)
 {
     TokenType actual_type;
 
-    if (ts->error) return TT_ERROR;
-
-    actual_type = tsGetToken(ts, data);
-
-    if (actual_type == TT_ERROR) return actual_type;
-
-    if ((actual_type & expected_type) ||
-        ((expected_type & TT_STRING) &&
-            ((actual_type & TT_QSTRING) || (actual_type & TT_USTRING))) ||
-        ((expected_type & TT_NUMBER) &&
-            ((actual_type & TT_LONG) || (actual_type & TT_DOUBLE))))
+    if (ts->error) {
+        return TT_ERROR;
+    }
+    else if ((actual_type = tsGetToken(ts)) == TT_ERROR) {
+        return TT_ERROR;
+    }
+    else if ((actual_type & expected_type) != 0) {
         return actual_type;
-
-    if (actual_type != expected_type) {
+    }
+    else {
         StackFrame *sf = listHead(&ts->stack);
 
-        ts->error = error_msg(sf->file, sf->line, sf->column,
+        set_error_msg(ts, sf->file, sf->line, sf->column,
                 "Expected %s, got %s.",
-                tsTokenType(expected_type),
-                tsTokenType(actual_type));
+                tsTypeString(expected_type),
+                tsTypeString(actual_type));
 
         return TT_ERROR;
     }
@@ -554,31 +568,27 @@ TokenType tsExpectToken(TokenStream *ts, TokenType expected_type, TokenData *dat
 }
 
 /*
- * Push back a token with type <type> and TokenData <data> onto <ts>.
+ * Push back the last read token.
  */
-void tsUngetToken(TokenStream *ts, TokenType type, TokenData *data)
+void tsUngetToken(TokenStream *ts)
 {
-    Token *token = calloc(1, sizeof(Token));
+    if (ts->pushback != NULL) {
+        StackFrame *sf = listHead(&ts->stack);
 
-    token->type = type;
-
-    if (data != NULL) {
-        token->data = *data;
-
-        if (type != TT_LONG && type != TT_DOUBLE) {
-            token->data.s = strdup(token->data.s);
-        }
+        set_error_msg(ts, sf->file, sf->line, sf->column,
+                "Only one level of pushback allowed.");
+        return;
     }
 
-    listInsertHead(&ts->pushback, token);
+    ts->pushback = token_new(ts->last.type, token_str(&ts->last));
 }
 
 /*
  * Retrieve the last error that occurred.
  */
-char *tsError(TokenStream *ts)
+const char *tsError(TokenStream *ts)
 {
-    return ts->error;
+    return ts->error ? bufGet(ts->error) : NULL;
 }
 
 /*

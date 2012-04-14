@@ -1,25 +1,58 @@
 /*
- * Provides growing byte buffers. Buffers can contain binary data, but are
+ * Provides growing byte buffers. Strings can contain binary data, but are
  * always null-terminated for convenience's sake.
  *
  * Copyright:	(c) 2007 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:	$Id: buffer.h 11448 2009-10-23 12:41:50Z jacco $
+ * Version:	$Id: string.h 281 2012-04-12 19:30:39Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
  */
 
-#ifndef BUFFER_H
-#define BUFFER_H
+#ifndef STRING_H
+#define STRING_H
 
 #include <stdarg.h>
 
-typedef struct Buffer Buffer;
+typedef struct {
+    char *data;
+    int   size;   /* The number of bytes allocated. */
+    int   used;   /* The number of bytes in use (incl. a trailing null byte). */
+} Buffer;
+
+/*
+ * Encode buffer <value> into <buf>.
+ */
+int bufEncode(Buffer *buf, const Buffer *value);
+
+/*
+ * Get a binary-encoded buffer from <buf> and store it in <value>. If
+ * succesful, the first part where the int8_t was stored will be
+ * stripped from <buf>.
+ */
+int bufDecode(Buffer *buf, Buffer *value);
+
+/*
+ * Get an encoded buffer from <ptr> (with <remaining> bytes
+ * remaining) and store it in <value>.
+ */
+int bufExtract(const char **ptr, int *remaining, Buffer *value);
+
+/*
+ * Return -1, 1 or 0 if <left> is smaller than, greater than or equal to
+ * <right> (according to bufcmp()).
+ */
+int bufCompare(const Buffer *left, const Buffer *right);
 
 /*
  * Create an empty buffer.
  */
 Buffer *bufCreate(void);
+
+/*
+ * Initialize buffer <buf>.
+ */
+Buffer *bufInit(Buffer *buf);
 
 /*
  * Destroy <buf>, together with the data it contains.
@@ -44,8 +77,7 @@ Buffer *bufAddC(Buffer *buf, char c);
  * Append a string to <buf>, formatted according to <fmt> and with the
  * subsequent parameters.
  */
-Buffer *bufAddF(Buffer *buf, const char *fmt, ...)
-   __attribute__ ((format (printf, 2, 3)));
+Buffer *bufAddF(Buffer *buf, const char *fmt, ...);
 
 /*
  * Append a string to <buf>, formatted according to <fmt> and with the
@@ -65,8 +97,7 @@ Buffer *bufSetC(Buffer *buf, char c);
  * Replace <buf> with a string formatted according to <fmt> and with the
  * subsequent parameters.
  */
-Buffer *bufSetF(Buffer *buf, const char *fmt, ...)
-   __attribute__ ((format (printf, 2, 3)));
+Buffer *bufSetF(Buffer *buf, const char *fmt, ...);
 
 /*
  * Replace <buf> with a string formatted according to <fmt> and with the
@@ -78,7 +109,7 @@ Buffer *bufSetV(Buffer *buf, const char *fmt, va_list ap);
  * Get a pointer to the data from <buf>. Find the size of the buffer using
  * bufLen().
  */
-char *bufGet(Buffer *buf);
+const char *bufGet(const Buffer *buf);
 
 /*
  * Clear the data in <buf>.
@@ -88,12 +119,12 @@ Buffer *bufClear(Buffer *buf);
 /*
  * Get the number of valid bytes in <buf>.
  */
-int bufLen(Buffer *buf);
+int bufLen(const Buffer *buf);
 
 /*
  * Concatenate <addition> onto <base> and return <base>.
  */
-Buffer *bufCat(Buffer *base, Buffer *addition);
+Buffer *bufCat(Buffer *base, const Buffer *addition);
 
 /*
  * Trim <left> bytes from the left and <right> bytes from the right of <buf>.

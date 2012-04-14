@@ -2,7 +2,7 @@
  * Provides growing byte buffers.
  *
  * Copyright:	(c) 2007 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:	$Id: buffer.c 11448 2009-10-23 12:41:50Z jacco $
+ * Version:	$Id: buffer.c 281 2012-04-12 19:30:39Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -10,6 +10,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <stdarg.h>
 #include <string.h>
 #include <assert.h>
@@ -18,26 +19,138 @@
 
 #define INITIAL_SIZE 1024
 
-struct Buffer {
-    char *data;
-    int   size;   /* The number of bytes allocated. */
-    int   used;   /* The number of bytes in use (incl. a trailing null byte). */
-};
+/*
+ * Encode buffer <value> into <buf>.
+ */
+int bufEncode(Buffer *buf, const Buffer *value)
+{
+    uint64_t len = bufLen(value);
+    int shift = 8 * sizeof(uint64_t) - 8;
+    uint64_t mask = 0xFF << shift;
+    uint8_t byte, bytes;
+
+    for (bytes = sizeof(uint64_t); bytes > 0; bytes--) {
+        byte = (len & mask) >> shift;
+
+        if (byte != 0) break;
+
+        mask >>= 8;
+        shift -= 8;
+    }
+
+    bufAddC(buf, bytes);
+
+    while (shift >= 0) {
+        bufAddC(buf, byte);
+
+        mask >>= 8;
+        shift -= 8;
+
+        byte = (len & mask) >> shift;
+    }
+
+    bufCat(buf, value);
+
+    return 0;
+}
+
+/*
+ * Get a binary-encoded buffer from <buf> and store it in <value>. If
+ * succesful, the first part where the int8_t was stored will be
+ * stripped from <buf>.
+ */
+int bufDecode(Buffer *buf, Buffer *value)
+{
+    const char *ptr = bufGet(buf);
+    int remaining = bufLen(buf);
+
+    if (bufExtract(&ptr, &remaining, value) == 0) {
+        bufTrim(buf, bufLen(buf) - remaining, 0);
+        return 0;
+    }
+
+    return 1;
+}
+
+/*
+ * Get an encoded buffer from <ptr> (with <remaining> bytes
+ * remaining) and store it in <value>.
+ */
+int bufExtract(const char **ptr, int *remaining, Buffer *value)
+{
+    const char *my_ptr = *ptr;
+    int i, my_remaining = *remaining;
+
+    uint64_t len;
+    uint8_t byte, bytes;
+
+    if (my_remaining < 1) return 1;
+
+    bytes = *my_ptr;
+
+    my_ptr++;
+    my_remaining--;
+
+    if (my_remaining < bytes) return 1;
+
+    len = 0;
+
+    for (i = 0; i < bytes; i++) {
+        byte = *my_ptr;
+
+        len <<= 8;
+        len += byte;
+
+        my_ptr++;
+        my_remaining--;
+    }
+
+    if (my_remaining < len) return 1;
+
+    bufSet(value, my_ptr, len);
+
+    my_ptr += len;
+    my_remaining -= len;
+
+    *ptr = my_ptr;
+    *remaining = my_remaining;
+
+    return 0;
+}
+
+/*
+ * Return -1, 1 or 0 if <left> is smaller than, greater than or equal to
+ * <right> (according to strcmp()).
+ */
+int bufCompare(const Buffer *left, const Buffer *right)
+{
+    int len1 = bufLen(left);
+    int len2 = bufLen(right);
+
+    if (len1 < len2)
+        return -1;
+    else if (len2 > len1)
+        return 1;
+    else
+        return memcmp(bufGet(left), bufGet(right), len1);
+}
 
 /*
  * Create an empty buffer.
  */
 Buffer *bufCreate(void)
 {
-    Buffer *buf = calloc(1, sizeof(Buffer));
+    return calloc(1, sizeof(Buffer));
+}
 
-    assert(buf != NULL);
-
+/*
+ * Initialize buffer <buf>.
+ */
+Buffer *bufInit(Buffer *buf)
+{
     buf->size = INITIAL_SIZE;
     buf->data = calloc(1, (size_t) buf->size);
     buf->used = 1;
-
-    assert(buf->data);
 
     return buf;
 }
@@ -70,12 +183,13 @@ char *bufFinish(Buffer *buf)
  */
 Buffer *bufAdd(Buffer *buf, const void *data, int len)
 {
-    while (buf->used + len > buf->size) {
-        buf->size *= 2;
-        buf->data = realloc(buf->data, buf->size);
+    if (buf->data == NULL) bufInit(buf);
 
-        assert(buf->data);
-    }
+    while (buf->used + len > buf->size) buf->size *= 2;
+
+    buf->data = realloc(buf->data, buf->size);
+
+    assert(buf->data);
 
     memcpy(buf->data + buf->used - 1, data, len);
 
@@ -197,7 +311,7 @@ Buffer *bufSetV(Buffer *buf, const char *fmt, va_list ap)
  * Get a pointer to the data from <buf>. Find the size of the buffer using
  * bufLen().
  */
-char *bufGet(Buffer *buf)
+const char *bufGet(const Buffer *buf)
 {
     return buf->data;
 }
@@ -207,6 +321,8 @@ char *bufGet(Buffer *buf)
  */
 Buffer *bufClear(Buffer *buf)
 {
+    if (buf->data == NULL) bufInit(buf);
+
     buf->data[0] = '\0';
     buf->used = 1;
 
@@ -216,7 +332,7 @@ Buffer *bufClear(Buffer *buf)
 /*
  * Get the number of valid bytes in <buf>.
  */
-int bufLen(Buffer *buf)
+int bufLen(const Buffer *buf)
 {
     return buf->used - 1;
 }
@@ -224,7 +340,7 @@ int bufLen(Buffer *buf)
 /*
  * Concatenate <addition> onto <base> and return <base>.
  */
-Buffer *bufCat(Buffer *base, Buffer *addition)
+Buffer *bufCat(Buffer *base, const Buffer *addition)
 {
    bufAdd(base, bufGet(addition), bufLen(addition));
 
@@ -236,6 +352,8 @@ Buffer *bufCat(Buffer *base, Buffer *addition)
  */
 Buffer *bufTrim(Buffer *buf, unsigned int left, unsigned int right)
 {
+    if (buf->data == NULL) bufInit(buf);
+
     if (left  > buf->used - 1) left = buf->used - 1;
     if (right > buf->used - left - 1) right = buf->used - left - 1;
 
@@ -326,6 +444,6 @@ int main(int argc, char *argv[])
    bufDestroy(buf1);
    bufDestroy(buf2);
 
-   return errors;
+   return 0;
 }
 #endif

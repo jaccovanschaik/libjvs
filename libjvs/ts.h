@@ -15,42 +15,35 @@
 
 typedef enum {
    TT_NONE     = 0x0000,
-   TT_STRING   = 0x0001,
-   TT_USTRING  = 0x0002,
-   TT_QSTRING  = 0x0004,
-   TT_NUMBER   = 0x0008,
-   TT_LONG     = 0x0010,
-   TT_DOUBLE   = 0x0020,
-   TT_OBRACE   = 0x0040,
-   TT_CBRACE   = 0x0080,
-   TT_OBRACKET = 0x0100,
-   TT_CBRACKET = 0x0200,
-   TT_OPAREN   = 0x0400,
-   TT_CPAREN   = 0x0800,
-   TT_EOF      = 0x1000,
-   TT_ERROR    = 0x2000,
-   TT_ALL      = 0x3FFF
+   TT_USTRING  = 0x0001,
+   TT_QSTRING  = 0x0002,
+   TT_STRING   = 0x0003,
+   TT_LONG     = 0x0004,
+   TT_DOUBLE   = 0x0008,
+   TT_NUMBER   = 0x000C,
+   TT_OBRACE   = 0x0010,
+   TT_CBRACE   = 0x0020,
+   TT_OBRACKET = 0x0040,
+   TT_CBRACKET = 0x0080,
+   TT_OPAREN   = 0x0100,
+   TT_CPAREN   = 0x0200,
+   TT_EOF      = 0x0400,
+   TT_ERROR    = 0x0800,
+   TT_ALL      = 0x0FFF
 } TokenType;
 
 typedef struct TokenStream TokenStream;
-
-typedef union {
-    char  *s;
-    long   l;
-    double d;
-} TokenData;
 
 /*
  * Return a textual representation of bitmask <mask>. Each set bit will be
  * named.
  */
-const char *tsTokenType(TokenType mask);
+const char *tsTypeString(TokenType mask);
 
 /*
- * Return a textual representation of TokenData <data>, where the type
- * of the token that contained it is <type>.
+ * Return a textual representation of the data in the last token.
  */
-const char *tsTokenData(TokenType type, TokenData *data);
+const char *tsDataString(TokenStream *ts);
 
 /*
  * Open a token stream, reading from <file>.
@@ -87,7 +80,7 @@ void tsSetFileName(TokenStream *ts, const char *file);
  * In case of error, TT_ERROR is returned and the error message can be
  * retrieved using tsError(). On end-of-file, TT_EOF is returned.
  */
-TokenType tsGetToken(TokenStream *ts, TokenData *data);
+TokenType tsGetToken(TokenStream *ts);
 
 /*
  * Get a token of type <type> from TokenStream <ts>. If successful,
@@ -102,18 +95,17 @@ TokenType tsGetToken(TokenStream *ts, TokenData *data);
  *  if type == TT_DOUBLE: *data points to a double;
  *  all others:           *data points to a character array.
  */
-TokenType tsExpectToken(TokenStream *ts, TokenType expected_type, TokenData
-                          *data);
+TokenType tsExpectToken(TokenStream *ts, TokenType expected_type);
 
 /*
- * Push back a token with type <type> and TokenData <data> onto <ts>.
+ * Push back the last read token.
  */
-void tsUngetToken(TokenStream *ts, TokenType type, TokenData *data);
+void tsUngetToken(TokenStream *ts);
 
 /*
  * Retrieve the last error that occurred.
  */
-char *tsError(TokenStream *ts);
+const char *tsError(TokenStream *ts);
 
 /*
  * Retrieve the datafile currently being read.
