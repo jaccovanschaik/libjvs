@@ -13,7 +13,7 @@
 
 #include <stdint.h>
 
-#include "string.h"
+#include "buffer.h"
 
 typedef struct {
     uint8_t  n_bytes;
