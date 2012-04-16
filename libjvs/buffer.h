@@ -9,8 +9,8 @@
  * http://www.opensource.org/licenses/mit-license.php for details.
  */
 
-#ifndef STRING_H
-#define STRING_H
+#ifndef JVS_STRING_H
+#define JVS_STRING_H
 
 #include <stdarg.h>
 
