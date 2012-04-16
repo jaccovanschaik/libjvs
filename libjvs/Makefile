@@ -1,6 +1,6 @@
 include /home/jacco/.make/make.sysdep
 
-# Makefile for Jacco's ToolKit.
+# Makefile for libjvs.
 #
 # Copyright:	(c) 2007 Jacco van Schaik (jacco@jaccovanschaik.net)
 # Version:	$Id: Makefile 244 2007-08-13 10:58:11Z jacco $
