@@ -348,6 +348,99 @@ EOF
     fi
 done
 
+for size in 32 64; do
+    short="U${size}"
+    ctype="uint${size}_t"
+
+cat << EOF
+
+/*
+ * Binary-encode $ctype <value> into buffer <buf>, preceded by a bytes
+ * count.
+ */
+EOF
+    echo -n "int tgEncode${short}C(Buffer *buf, const $ctype *value)"
+    if [ $version = h ]; then
+        echo ";"
+    else
+cat << EOF
+
+{
+    int shift = 8 * sizeof($ctype) - 8;
+    $ctype mask = 0xFF << shift;
+    uint8_t byte, bytes;
+
+    for (bytes = sizeof($ctype); bytes > 0; bytes--) {
+        byte = (*value & mask) >> shift;
+
+        if (byte != 0) break;
+
+        mask >>= 8;
+        shift -= 8;
+    }
+
+    bufAddC(buf, bytes);
+
+    while (shift >= 0) {
+        bufAddC(buf, byte);
+
+        mask >>= 8;
+        shift -= 8;
+
+        byte = (*value & mask) >> shift;
+    }
+
+    return 0;
+}
+
+/*
+ * Extract a $ctype from <ptr>, preceded by a byte count.
+ */
+EOF
+    fi
+
+    echo -n "int tgExtract${short}C(const char **ptr, int *remaining, $ctype *value)"
+    if [ $version = h ]; then
+        echo ";"
+    else
+cat << EOF
+
+{
+    const char *my_ptr = *ptr;
+    int i, my_remaining = *remaining;
+
+    uint8_t byte, bytes;
+
+    if (my_remaining < 1) return 1;
+
+    bytes = *my_ptr;
+
+    my_ptr++;
+    my_remaining--;
+
+    if (my_remaining < bytes) return 1;
+
+    *value = 0;
+
+    for (i = 0; i < bytes; i++) {
+        byte = *my_ptr;
+
+        *value <<= 8;
+        *value += byte;
+
+        my_ptr++;
+        my_remaining--;
+    }
+
+    *ptr = my_ptr;
+    *remaining = my_remaining;
+
+    return 0;
+}
+EOF
+    fi
+done
+
 if [ $version = h ]; then
 cat << EOF
 
