@@ -63,13 +63,13 @@ NX_Conn *nxConnect(NX *nx, const char *host, int port);
 void nxDisconnect(NX_Conn *conn);
 
 /* Set <handler> as the function to be called when a new connection is
- * made. Only one funcation can be set; subsequent calls will overwrite
+ * made. Only one function can be set; subsequent calls will overwrite
  * previous ones. <handler> will *not* be called for connections users
  * create themselves (using nxConnect()). */
 void nxOnConnect(NX *nx, void (*handler)(NX_Conn *conn));
 
 /* Set <handler> as the function to be called when a connection is
- * dropped. Only one funcation can be set; subsequent calls will
+ * dropped. Only one function can be set; subsequent calls will
  * overwrite previous ones. <handler> will *not* be called for
  * connections users drop themselves (using nxDisconnect()). */
 void nxOnDisconnect(NX *nx, void (*handler)(NX_Conn *conn));
