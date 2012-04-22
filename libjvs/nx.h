@@ -105,4 +105,16 @@ NX *nxFor(NX_Conn *conn);
  * timeouts left. */
 int nxRun(NX *nx);
 
+/* Add the file descriptors opened by <nx> to <rfds> and <wfds>, and update <nfds>. */
+void nxAddFds(NX *nx, int *nfds, fd_set *rfds, fd_set *wfds);
+
+/* Return TRUE if <nx> owns <fd>, FALSE otherwise. */
+int nxOwnsFd(NX *nx, int fd);
+
+struct timeval *nxGetTimeout(NX *nx);
+
+void nxHandleData(NX *nx, int fd);
+
+void nxHandleTimeout(NX *nx);
+
 #endif
