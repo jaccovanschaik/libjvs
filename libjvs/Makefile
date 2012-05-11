@@ -32,8 +32,8 @@ libjvs.tgz: clean
 install: libjvs.a libjvs.so
 	if [ ! -d $(INSTALL_LIB) ]; then mkdir -p $(INSTALL_LIB); fi
 	cp libjvs.a libjvs.so $(INSTALL_LIB)
-	if [ ! -d $(INSTALL_INC)/jvs ]; then mkdir -p $(INSTALL_INC)/jvs; fi
-	cp *.h $(INSTALL_INC)/jvs
+	if [ ! -d $(INSTALL_INC)/libjvs ]; then mkdir -p $(INSTALL_INC)/libjvs; fi
+	cp *.h $(INSTALL_INC)/libjvs
 
 tags:
 	ctags -R . /usr/include
