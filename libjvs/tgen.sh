@@ -157,6 +157,22 @@ EOF
         echo -n "int tgExtract$short(const char **ptr, int *remaining, $ctype *value)"
         if [ $version = h ]; then
             echo ";"
+        elif [ $size -eq 8 ]; then
+cat << EOF
+
+{
+    int i;
+
+    if (*remaining < sizeof($ctype)) return 1;
+
+    *value = (unsigned char) **ptr;
+
+    (*ptr)++;
+    (*remaining)--;
+
+    return 0;
+}
+EOF
         else
 cat << EOF
 
