@@ -1,5 +1,5 @@
 /*
- * cx.c: Communications Exchange
+ * cx.c: Communications Exchange.
  *
  * Copyright:	(c) 2012 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Version:	$Id$

@@ -2,7 +2,7 @@
 #define DX_H
 
 /*
- * dx.h: Description
+ * cx.h: Communications Exchange.
  *
  * Copyright:	(c) 2012 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Version:	$Id$

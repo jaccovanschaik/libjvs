@@ -575,6 +575,8 @@ void on_data(NX_Conn *conn)
         nxQueue(conn, "Bye!", 4);
     }
     else if (strncmp(buffer, "Bye!", 4) == 0) {
+        dbgPrint(stderr, "Calling nxClose()\n");
+
         nxClose(nxFor(conn));
     }
 }
