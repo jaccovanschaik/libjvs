@@ -77,7 +77,7 @@ Buffer *bufAddC(Buffer *buf, char c);
  * Append a string to <buf>, formatted according to <fmt> and with the
  * subsequent parameters.
  */
-Buffer *bufAddF(Buffer *buf, const char *fmt, ...);
+Buffer *bufAddF(Buffer *buf, const char *fmt, ...) __attribute__ ((format (printf, 2, 3)));
 
 /*
  * Append a string to <buf>, formatted according to <fmt> and with the
@@ -97,7 +97,7 @@ Buffer *bufSetC(Buffer *buf, char c);
  * Replace <buf> with a string formatted according to <fmt> and with the
  * subsequent parameters.
  */
-Buffer *bufSetF(Buffer *buf, const char *fmt, ...);
+Buffer *bufSetF(Buffer *buf, const char *fmt, ...) __attribute__ ((format (printf, 2, 3)));
 
 /*
  * Replace <buf> with a string formatted according to <fmt> and with the
