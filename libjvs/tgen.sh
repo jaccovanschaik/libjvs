@@ -161,8 +161,6 @@ EOF
 cat << EOF
 
 {
-    int i;
-
     if (*remaining < sizeof($ctype)) return 1;
 
     *value = (unsigned char) **ptr;
