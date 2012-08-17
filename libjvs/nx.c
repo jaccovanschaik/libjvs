@@ -475,7 +475,7 @@ void nxAddFds(NX *nx, int *nfds, fd_set *rfds, fd_set *wfds)
 
 int nxOwnsFd(NX *nx, int fd)
 {
-    return nx->connection[fd] != NULL;
+    return fd == nx->listen_fd || nx->connection[fd] != NULL;
 }
 
 struct timeval *nxGetTimeout(NX *nx)
