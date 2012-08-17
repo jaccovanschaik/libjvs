@@ -58,6 +58,8 @@ static int net_bind(int socket, const char *host, int port)
     struct sockaddr_in myaddr_in;      /* for local socket address */
     struct hostent *host_ptr;
 
+    if (port < 0) return 0;
+
     memset(&myaddr_in, 0, sizeof(myaddr_in));
 
     if (host == NULL) {

@@ -10,10 +10,12 @@ include /home/jacco/.make/make.sysdep
 
 .PHONY: tags test
 
+CC = gcc
+
 LIBJVS = vector.o buffer.o hash.o list.o net.o sdr.o ts.o debug.o cx.o \
          nx.o utils.o tgen.o bitmask.o
 
-CFLAGS = -g -fPIC
+CFLAGS = -g -fPIC -O -Wall
 
 all: libjvs.a libjvs.so
 

@@ -133,10 +133,10 @@ static void nx_callback(NX_Conn *conn, void (*handler)(NX_Conn *conn))
     if (handler != NULL) handler(conn);
 }
 
-/* Create a Network Exchange on <host> and <port>. <host> may be NULL,
- * in which case the Exchange will listen on all interfaces. <port> may
- * be -1, in which case the system will choose a port number. Use
- * nxListenPort to find out which port was chosen. */
+/* Create a Network Exchange listening on <host> and <port>. <host> may
+ * be NULL, in which case the Exchange will listen on all interfaces.
+ * <port> may be -1, in which case the system will choose a port number.
+ * Use nxListenPort to find out which port was chosen. */
 
 NX *nxCreate(const char *host, int port)
 {
@@ -225,33 +225,26 @@ const char *nxRemoteHost(NX_Conn *conn)
  * <conn>. Returns the number of bytes queued (which is always <len>).
  */
 
-int nxQueue(NX_Conn *conn, const char *data, int len)
+int nxQueue(NX_Conn *conn, const Buffer *data)
 {
-    bufAdd(conn->outgoing, data, len);
+    bufCat(conn->outgoing, data);
 
-    return len;
+    return bufLen(data);
 }
 
 /* Put <len> bytes received from <conn> into <data>. Returns the actual
  * number of bytes put in <data>, which may be less than <len> (even 0).
  */
 
-int nxGet(NX_Conn *conn, char *data, int len)
+int nxGet(NX_Conn *conn, Buffer *data)
 {
-    len = MIN(len, bufLen(conn->incoming));
+    int len = bufLen(conn->incoming);
 
-    memcpy(data, bufGet(conn->incoming), len);
+    bufCat(data, conn->incoming);
+
+    bufClear(conn->incoming);
 
     return len;
-}
-
-/* Drop the first <len> bytes from the incoming buffer on <conn>. */
-
-int nxDrop(NX_Conn *conn, int len)
-{
-    bufTrim(conn->incoming, len, 0);
-
-    return 0;
 }
 
 /* Make and return a connection to port <port> on host <host>. */
@@ -327,7 +320,7 @@ double nxNow(void)
 /* Add a timeout at UTC time t, calling <handler> with <nx>, time <t>
  * and <udata>. */
 
-void nxTimeout(NX *nx, double t, void *udata,
+void nxAddTimeout(NX *nx, double t, void *udata,
         void (*handler)(NX *nx, double t, void *udata))
 {
     NX_Timeout *tm = calloc(1, sizeof(NX_Timeout));
@@ -348,6 +341,101 @@ NX *nxFor(NX_Conn *conn)
     return conn->nx;
 }
 
+/* Return an array of file descriptor that <nx> wants to listen on. The number of returned file
+ * descriptors is returned through <count>. */
+
+int *nxFdsForReading(NX *nx, int *count)
+{
+    int fd;
+
+    static int nfds = 0, *fds = NULL;
+
+    if (fds == NULL || nfds < nx->nfds) {
+        nfds = nx->nfds;
+        fds = calloc(nfds, sizeof(int));
+    }
+
+    *count = 0;
+
+    for (fd = 0; fd < nx->nfds; fd++) {
+        if (nx->connection[fd]) {
+            fds[*count] = fd;
+            (*count)++;
+        }
+    }
+
+    return fds;
+}
+
+/* Return an array of file descriptor that <nx> wants to write to. The number of returned file
+ * descriptors is returned through <count>. */
+
+int *nxFdsForWriting(NX *nx, int *count)
+{
+    int fd;
+
+    static int nfds = 0, *fds = NULL;
+
+    if (fds == NULL || nfds < nx->nfds) {
+        nfds = nx->nfds;
+        fds = calloc(nfds, sizeof(int));
+    }
+
+    *count = 0;
+
+    for (fd = 0; fd < nx->nfds; fd++) {
+        if (nx->connection[fd] && bufLen(nx->connection[fd]->outgoing) > 0) {
+            fds[*count] = fd;
+            (*count)++;
+        }
+    }
+
+    return fds;
+}
+
+/* Prepare arguments for a call to select() on behalf of <nx>. Returned are the nfds, rfds and wfds
+ * parameters and a pointer to a struct timeval pointer. */
+
+int nxPrepareSelect(NX *nx, int *nfds, fd_set *rfds, fd_set *wfds, struct timeval **tvpp)
+{
+    int fd;
+
+    NX_Timeout *tm;
+
+    static struct timeval tv;
+
+    if (nx->listen_fd >= 0) {
+        FD_SET(nx->listen_fd, rfds);
+    }
+
+    for (fd = 0; fd < nx->nfds; fd++) {
+        NX_Conn *conn = nx->connection[fd];
+
+        if (conn == NULL) continue;
+
+        FD_SET(conn->fd, rfds);
+
+        if (bufLen(conn->outgoing) > 0) FD_SET(conn->fd, wfds);
+    }
+
+    if (nfds != NULL) *nfds = MAX(*nfds, nx->nfds);
+
+    if ((tm = listHead(&nx->timeouts)) == NULL) {
+        *tvpp = NULL;
+    }
+    else {
+        double dt = tm->t - nxNow();
+
+        if (dt < 0) dt = 0;
+
+        nx_double_to_timeval(dt, &tv);
+
+        *tvpp = &tv;
+    }
+
+    return 0;
+}
+
 /* Run the Network Exchange. New connection requests from external
  * parties will be accepted automatically, calling the on_connect
  * handler. On errors and end-of-file conditions connections will
@@ -363,12 +451,18 @@ int nxRun(NX *nx)
     struct timeval *tv;
 
     for ever {
+        int i, *fds, num_fds;
+
         FD_ZERO(&rfds);
         FD_ZERO(&wfds);
 
-        nxAddFds(nx, NULL, &rfds, &wfds);
+        fds = nxFdsForReading(nx, &num_fds);
+        for (i = 0; i < num_fds; i++) FD_SET(fds[i], &rfds);
 
-        tv = nxGetTimeout(nx);
+        fds = nxFdsForWriting(nx, &num_fds);
+        for (i = 0; i < num_fds; i++) FD_SET(fds[i], &wfds);
+
+        nxPrepareSelect(nx, NULL, &rfds, &wfds, &tv);
 
         if (nx->nfds > 0) {
             r = select(nx->nfds, &rfds, &wfds, NULL, tv);
@@ -448,54 +542,84 @@ int nxRun(NX *nx)
     return r;
 }
 
-/* Add the file descriptors opened by <nx> to <rfds> and <wfds>, and update <nfds>. */
 
-void nxAddFds(NX *nx, int *nfds, fd_set *rfds, fd_set *wfds)
-{
-    int fd;
-
-    if (nx->listen_fd >= 0) {
-        FD_SET(nx->listen_fd, rfds);
-    }
-
-    for (fd = 0; fd < nx->nfds; fd++) {
-        NX_Conn *conn = nx->connection[fd];
-
-        if (conn == NULL) continue;
-
-        FD_SET(conn->fd, rfds);
-
-        if (bufLen(conn->outgoing) > 0) FD_SET(conn->fd, wfds);
-    }
-
-    if (nfds != NULL) *nfds = MAX(*nfds, nx->nfds);
-}
-
-/* Return TRUE if <nx> owns <fd>, FALSE otherwise. */
-
+#if 0
 int nxOwnsFd(NX *nx, int fd)
 {
     return fd == nx->listen_fd || nx->connection[fd] != NULL;
 }
 
-struct timeval *nxGetTimeout(NX *nx)
+double nxNextTimeout(NX *nx)
 {
-    static struct timeval tv;
+    NX_Timeout *timeout = listHead(&nx->timeouts);
 
-    NX_Timeout *tm;
+    return timeout ? timeout->t : INFINITY;
+}
 
-    if ((tm = listHead(&nx->timeouts)) == NULL) {
-        return NULL;
+int nxHandleSelect(NX *nx, int return_value, fd_set *rfds, fd_set *wfds)
+{
+    int fd;
+
+    NX_Conn *conn;
+
+    if (return_value > 0) {
+        if (FD_ISSET(nx->listen_fd, rfds)) {
+            fd = netAccept(nx->listen_fd);
+
+            conn = nx_create_connection(nx, fd);
+
+            nx_callback(conn, nx->on_connect);
+        }
+
+        for (fd = 0; fd < nx->nfds; fd++) {
+            conn = nx->connection[fd];
+
+            if (conn == NULL) continue;
+
+            if (FD_ISSET(conn->fd, wfds)) {
+                return_value = write(conn->fd, bufGet(conn->outgoing), bufLen(conn->outgoing));
+
+                if (return_value == -1) {
+                    if (nx->on_error) nx->on_error(conn, errno);
+                    nxDisconnect(conn);
+                }
+                else {
+                    bufTrim(conn->outgoing, return_value, 0);
+                }
+            }
+
+            if (FD_ISSET(conn->fd, rfds)) {
+                char buffer[9000];
+
+                return_value = read(conn->fd, buffer, sizeof(buffer));
+
+                if (return_value == -1) {
+                    if (nx->on_error) nx->on_error(conn, errno);
+                    nxDisconnect(conn);
+                }
+                else if (return_value == 0) {
+                    nx_callback(conn, nx->on_disconnect);
+                    nxDisconnect(conn);
+                }
+                else {
+                    bufAdd(conn->incoming, buffer, return_value);
+                    nx_callback(conn, nx->on_data);
+                }
+            }
+        }
     }
-    else {
-        double dt = tm->t - nxNow();
+    else if (return_value == 0) {
+        NX_Timeout *tm = listRemoveHead(&nx->timeouts);
 
-        if (dt < 0) dt = 0;
+        tm->handler(nx, tm->t, tm->udata);
 
-        nx_double_to_timeval(dt, &tv);
-
-        return &tv;
+        free(tm);
     }
+    else if (errno != EINTR) {
+        return_value = errno;
+    }
+
+    return 0;
 }
 
 void nxHandleRead(NX *nx, int fd)
@@ -548,6 +672,7 @@ void nxHandleWrite(NX *nx, int fd)
 void nxHandleTimeout(NX *nx)
 {
 }
+#endif
 
 #ifdef TEST
 void on_connect(NX_Conn *conn)
@@ -564,17 +689,17 @@ void on_disconnect(NX_Conn *conn)
 
 void on_data(NX_Conn *conn)
 {
-    char buffer[80];
-    int n = nxGet(conn, buffer, sizeof(buffer));
+    Buffer *buffer = bufCreate();
+    int n = nxGet(conn, buffer);
 
-    nxDrop(conn, n);
+    dbgPrint(stderr, "Got %d bytes: \"%.*s\"\n", n, n, bufGet(buffer));
 
-    dbgPrint(stderr, "Got %d bytes: \"%.*s\"\n", n, n, buffer);
+    if (strncmp(bufGet(buffer), "Hoi!", 4) == 0) {
+        bufSet(buffer, "Bye!", 4);
 
-    if (strncmp(buffer, "Hoi!", 4) == 0) {
-        nxQueue(conn, "Bye!", 4);
+        nxQueue(conn, buffer);
     }
-    else if (strncmp(buffer, "Bye!", 4) == 0) {
+    else if (strncmp(bufGet(buffer), "Bye!", 4) == 0) {
         dbgPrint(stderr, "Calling nxClose()\n");
 
         nxClose(nxFor(conn));
@@ -588,16 +713,19 @@ void on_error(NX_Conn *conn, int err)
 
 void on_timeout(NX *nx, double t, void *udata)
 {
+    Buffer *buffer = bufCreate();
     NX_Conn *conn = udata;
 
     dbgPrint(stderr, "timeout, sending welcome string\n");
 
-    nxQueue(conn, "Hoi!", 4);
+    bufSet(buffer, "Hoi!", 4);
+
+    nxQueue(conn, buffer);
 }
 
 int main(int argc, char *argv[])
 {
-    int r;
+    int r, listen_port;
 
     NX *nx;
     NX_Conn *conn;
@@ -609,17 +737,19 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    dbgPrint(stderr, "Listening on host %s\n", nxListenHost(nx));
-    dbgPrint(stderr, "Listening on port %d\n", nxListenPort(nx));
+    listen_port = nxListenPort(nx);
 
-    conn = nxConnect(nx, "localhost", 1234);
+    dbgPrint(stderr, "Listening on host %s\n", nxListenHost(nx));
+    dbgPrint(stderr, "Listening on port %d\n", listen_port);
+
+    conn = nxConnect(nx, "localhost", listen_port);
 
     nxOnConnect(nx, on_connect);
     nxOnDisconnect(nx, on_disconnect);
     nxOnData(nx, on_data);
     nxOnError(nx, on_error);
 
-    nxTimeout(nx, nxNow() + 1, conn, on_timeout);
+    nxAddTimeout(nx, nxNow() + 1, conn, on_timeout);
 
     r = nxRun(nx);
 

@@ -10,13 +10,15 @@
  * http://www.opensource.org/licenses/mit-license.php for details.
  */
 
+#include "buffer.h"
+
 typedef struct NX NX;
 typedef struct NX_Conn NX_Conn;
 
-/* Create a Network Exchange on <host> and <port>. <host> may be NULL,
- * in which case the Exchange will listen on all interfaces. <port> may
- * be -1, in which case the system will choose a port number. Use
- * nxListenPort to find out which port was chosen. */
+/* Create a Network Exchange listening on <host> and <port>. <host> may
+ * be NULL, in which case the Exchange will listen on all interfaces.
+ * <port> may be -1, in which case the system will choose a port number.
+ * Use nxListenPort to find out which port was chosen. */
 NX *nxCreate(const char *host, int port);
 
 /* Close down this Network Exchange. Closes the listen port and all
@@ -46,15 +48,12 @@ const char *nxRemoteHost(NX_Conn *conn);
 /* Queue the first <len> bytes from <data> to be sent over connection
  * <conn>. Returns the number of bytes queued (which is always <len>).
  */
-int nxQueue(NX_Conn *conn, const char *data, int len);
+int nxQueue(NX_Conn *conn, const Buffer *data);
 
 /* Put <len> bytes received from <conn> into <data>. Returns the actual
  * number of bytes put in <data>, which may be less than <len> (even 0).
  */
-int nxGet(NX_Conn *conn, char *data, int len);
-
-/* Drop the first <len> bytes from the incoming buffer on <conn>. */
-int nxDrop(NX_Conn *conn, int len);
+int nxGet(NX_Conn *conn, Buffer *data);
 
 /* Make and return a connection to port <port> on host <host>. */
 NX_Conn *nxConnect(NX *nx, const char *host, int port);
@@ -90,11 +89,24 @@ double nxNow(void);
 
 /* Add a timeout at UTC time t, calling <handler> with <nx>, time <t>
  * and <udata>. */
-void nxTimeout(NX *nx, double t, void *udata, void (*handler)(NX *nx, double t,
-                 void *udata));
+void nxAddTimeout(NX *nx, double t, void *udata, void (*handler)(NX *nx, double t,
+                    void *udata));
 
 /* Return the NX for <conn>. */
 NX *nxFor(NX_Conn *conn);
+
+/* Return an array of file descriptor that <nx> wants to listen on. The number of returned file
+ * descriptors is returned through <count>. */
+int *nxFdsForReading(NX *nx, int *count);
+
+/* Return an array of file descriptor that <nx> wants to write to. The number of returned file
+ * descriptors is returned through <count>. */
+int *nxFdsForWriting(NX *nx, int *count);
+
+/* Prepare arguments for a call to select() on behalf of <nx>. Returned are the nfds, rfds and wfds
+ * parameters and a pointer to a struct timeval pointer. */
+int nxPrepareSelect(NX *nx, int *nfds, fd_set *rfds, fd_set *wfds, struct timeval
+                      **tvpp);
 
 /* Run the Network Exchange. New connection requests from external
  * parties will be accepted automatically, calling the on_connect
@@ -104,17 +116,5 @@ NX *nxFor(NX_Conn *conn);
  * fails (returning errno) or when there are no more connections and
  * timeouts left. */
 int nxRun(NX *nx);
-
-/* Add the file descriptors opened by <nx> to <rfds> and <wfds>, and update <nfds>. */
-void nxAddFds(NX *nx, int *nfds, fd_set *rfds, fd_set *wfds);
-
-/* Return TRUE if <nx> owns <fd>, FALSE otherwise. */
-int nxOwnsFd(NX *nx, int fd);
-
-struct timeval *nxGetTimeout(NX *nx);
-
-void nxHandleData(NX *nx, int fd);
-
-void nxHandleTimeout(NX *nx);
 
 #endif
