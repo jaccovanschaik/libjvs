@@ -46,7 +46,7 @@ void vDel(Vector *v)
 double vLen(Vector *v)
 {
    int i;
-   double sum;
+   double sum = 0;
 
    for (i = 0; i < v->n_rows; i++) {
       sum += SQR(v->row[i]);
@@ -170,7 +170,7 @@ double vDotP(Vector *v1, Vector *v2)
 {
    int i;
 
-   double sum;
+   double sum = 0;
 
    assert(v1->n_rows == v2->n_rows);
 

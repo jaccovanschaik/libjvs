@@ -237,26 +237,26 @@ static sdrObject *create_number_object(int c, FILE *fp, char *name, sdrObject
    return NULL;
 }
 
-static sdrObject *create_container_object(FILE *fp, char *name, sdrObject *gramps)
+static sdrObject *create_container_object(FILE *fp, char *name, sdrObject *grandparent)
 {
    int c;
 
-   sdrObject *new_obj, *last, *parent = calloc(1, sizeof(sdrObject));
+   sdrObject *new_obj, *last = NULL, *parent = calloc(1, sizeof(sdrObject));
 
    parent->type = SDR_CONTAINER;
    parent->name = name ? strdup(name) : "";
    parent->file = strdup(file);
    parent->line = line;
-   parent->parent = gramps;
+   parent->parent = grandparent;
 
    name = NULL;
 
    while (TRUE) {
       if ((c = fgetc(fp)) == '\n') line++;
 
-      if (c == EOF && gramps == NULL)
+      if (c == EOF && grandparent == NULL)
          return parent;
-      else if (c == '}' && gramps != NULL)
+      else if (c == '}' && grandparent != NULL)
          return parent;
       else if (c == EOF) {
          sdr_error("Unexpected end of file");
@@ -290,7 +290,7 @@ static sdrObject *create_container_object(FILE *fp, char *name, sdrObject *gramp
 
       if (new_obj == NULL) return NULL;
 
-      if (parent->data.o == NULL)
+      if (last == NULL)
          parent->data.o = new_obj;
       else
          last->next = new_obj;
