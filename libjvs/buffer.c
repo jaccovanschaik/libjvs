@@ -120,7 +120,7 @@ int bufExtract(const char **ptr, int *remaining, Buffer *value)
 
 /*
  * Return -1, 1 or 0 if <left> is smaller than, greater than or equal to
- * <right> (according to strcmp()).
+ * <right> (according to memcmp()).
  */
 int bufCompare(const Buffer *left, const Buffer *right)
 {
@@ -156,13 +156,17 @@ Buffer *bufInit(Buffer *buf)
 }
 
 /*
- * Destroy <buf>, together with the data it contains.
+ * Detach the contents of <buf>. The buffer is re-initialized and the
+ * old contents are returned. The caller is responsible for the contents
+ * after this and should free() them when finished.
  */
-void bufDestroy(Buffer *buf)
+char *bufDetach(Buffer *buf)
 {
-    if (buf->data) free(buf->data);
+    char *data = buf->data;
 
-    free(buf);
+    bufInit(buf);
+
+    return data;
 }
 
 /*
@@ -176,6 +180,16 @@ char *bufFinish(Buffer *buf)
    free(buf);
 
    return data;
+}
+
+/*
+ * Destroy <buf>, together with the data it contains.
+ */
+void bufDestroy(Buffer *buf)
+{
+    if (buf->data) free(buf->data);
+
+    free(buf);
 }
 
 /*
@@ -270,8 +284,9 @@ Buffer *bufSet(Buffer *buf, const void *data, int len)
     return bufAdd(buf, data, len);
 }
 
-/* Replace <buf> with the single character <c>. */
-
+/*
+ * Set <buf> to the single character <c>.
+ */
 Buffer *bufSetC(Buffer *buf, char c)
 {
    bufClear(buf);
@@ -280,7 +295,7 @@ Buffer *bufSetC(Buffer *buf, char c)
 }
 
 /*
- * Replace <buf> with a string formatted according to <fmt> and with the
+ * Set <buf> to a string formatted according to <fmt> and with the
  * subsequent parameters.
  */
 Buffer *bufSetF(Buffer *buf, const char *fmt, ...)

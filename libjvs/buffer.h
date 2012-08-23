@@ -55,15 +55,22 @@ Buffer *bufCreate(void);
 Buffer *bufInit(Buffer *buf);
 
 /*
- * Destroy <buf>, together with the data it contains.
+ * Detach the contents of <buf>. The buffer is re-initialized and the
+ * old contents are returned. The caller is responsible for the contents
+ * after this and should free() them when finished.
  */
-void bufDestroy(Buffer *buf);
+char *bufDetach(Buffer *buf);
 
 /*
  * Destroy <buf>, but save and return its contents. The caller is responsible
  * for the contents after this and should free() them when finished.
  */
 char *bufFinish(Buffer *buf);
+
+/*
+ * Destroy <buf>, together with the data it contains.
+ */
+void bufDestroy(Buffer *buf);
 
 /*
  * Add <len> bytes, starting at <data> to <buf>.
