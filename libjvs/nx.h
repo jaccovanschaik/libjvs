@@ -15,106 +15,157 @@
 typedef struct NX NX;
 typedef struct NX_Conn NX_Conn;
 
-/* Create a Network Exchange listening on <host> and <port>. <host> may
+/*
+ * Create a Network Exchange listening on <host> and <port>. <host> may
  * be NULL, in which case the Exchange will listen on all interfaces.
  * <port> may be -1, in which case the system will choose a port number.
- * Use nxListenPort to find out which port was chosen. */
+ * Use nxListenPort to find out which port was chosen.
+ */
 NX *nxCreate(const char *host, int port);
 
-/* Close down this Network Exchange. Closes the listen port and all
+/*
+ * Close down this Network Exchange. Closes the listen port and all
  * other connections and cancels all timeouts. The nxRun() mainloop will
- * then exit. */
+ * then exit.
+ */
 void nxClose(NX *nx);
 
-/* Return the port that <nx> listens on. */
+/*
+ * Destroy Network Exchange <nx>. It is a bad idea to call this inside a
+ * callback function. Instead, call nxClose() inside the callback, then
+ * call nxDestroy once nxRun() has returned.
+ */
+void nxDestroy(NX *nx);
+
+/*
+ * Return the port that <nx> listens on.
+ */
 int nxListenPort(NX *nx);
 
-/* Return the hostname that <nx> listens on. May be "0.0.0.0", in which
- * case <nx> listens on all interfaces. */
+/*
+ * Return the hostname that <nx> listens on. May be "0.0.0.0", in which
+ * case <nx> listens on all interfaces.
+ */
 const char *nxListenHost(NX *nx);
 
-/* Return the local port for <conn>. */
+/*
+ * Return the local port for <conn>.
+ */
 int nxLocalPort(NX_Conn *conn);
 
-/* Return the local hostname for <conn>. */
+/*
+ * Return the local hostname for <conn>.
+ */
 const char *nxLocalHost(NX_Conn *conn);
 
-/* Return the remote port for <conn>. */
+/*
+ * Return the remote port for <conn>.
+ */
 int nxRemotePort(NX_Conn *conn);
 
-/* Return the remote hostname for <conn>. */
+/*
+ * Return the remote hostname for <conn>.
+ */
 const char *nxRemoteHost(NX_Conn *conn);
 
-/* Queue the first <len> bytes from <data> to be sent over connection
+/*
+ * Queue the first <len> bytes from <data> to be sent over connection
  * <conn>. Returns the number of bytes queued (which is always <len>).
  */
 int nxQueue(NX_Conn *conn, const Buffer *data);
 
-/* Put <len> bytes received from <conn> into <data>. Returns the actual
+/*
+ * Put <len> bytes received from <conn> into <data>. Returns the actual
  * number of bytes put in <data>, which may be less than <len> (even 0).
  */
 int nxGet(NX_Conn *conn, Buffer *data);
 
-/* Make and return a connection to port <port> on host <host>. */
+/*
+ * Make and return a connection to port <port> on host <host>.
+ */
 NX_Conn *nxConnect(NX *nx, const char *host, int port);
 
-/* Disconnect connection <conn>. */
+/*
+ * Disconnect connection <conn>.
+ */
 void nxDisconnect(NX_Conn *conn);
 
-/* Set <handler> as the function to be called when a new connection is
+/*
+ * Set <handler> as the function to be called when a new connection is
  * made. Only one function can be set; subsequent calls will overwrite
  * previous ones. <handler> will *not* be called for connections users
- * create themselves (using nxConnect()). */
+ * create themselves (using nxConnect()).
+ */
 void nxOnConnect(NX *nx, void (*handler)(NX_Conn *conn));
 
-/* Set <handler> as the function to be called when a connection is
+/*
+ * Set <handler> as the function to be called when a connection is
  * dropped. Only one function can be set; subsequent calls will
  * overwrite previous ones. <handler> will *not* be called for
- * connections users drop themselves (using nxDisconnect()). */
+ * connections users drop themselves (using nxDisconnect()).
+ */
 void nxOnDisconnect(NX *nx, void (*handler)(NX_Conn *conn));
 
-/* Set <handler> as the function to be called when new data comes in.
+/*
+ * Set <handler> as the function to be called when new data comes in.
  * Only one function can be set; subsequent calls will overwrite
- * previous ones. */
+ * previous ones.
+ */
 void nxOnData(NX *nx, void (*handler)(NX_Conn *conn));
 
-/* Set <handler> as the function to be called when an error occurs. The
+/*
+ * Set <handler> as the function to be called when an error occurs. The
  * connection on which it occurred and the errno code will be passed to
- * the handler. */
+ * the handler.
+ */
 void nxOnError(NX *nx, void (*handler)(NX_Conn *conn, int err));
 
-/* Return the current *UTC* time (number of seconds since
- * 1970-01-01/00:00:00 UTC) as a double. */
+/*
+ * Return the current *UTC* time (number of seconds since
+ * 1970-01-01/00:00:00 UTC) as a double.
+ */
 double nxNow(void);
 
-/* Add a timeout at UTC time t, calling <handler> with <nx>, time <t>
- * and <udata>. */
+/*
+ * Add a timeout at UTC time t, calling <handler> with <nx>, time <t>
+ * and <udata>.
+ */
 void nxAddTimeout(NX *nx, double t, void *udata, void (*handler)(NX *nx, double t,
                     void *udata));
 
-/* Return the NX for <conn>. */
+/*
+ * Return the NX for <conn>.
+ */
 NX *nxFor(NX_Conn *conn);
 
-/* Return an array of file descriptor that <nx> wants to listen on. The number of returned file
- * descriptors is returned through <count>. */
+/*
+ * Return an array of file descriptor that <nx> wants to listen on. The number of returned file
+ * descriptors is returned through <count>.
+ */
 int *nxFdsForReading(NX *nx, int *count);
 
-/* Return an array of file descriptor that <nx> wants to write to. The number of returned file
- * descriptors is returned through <count>. */
+/*
+ * Return an array of file descriptor that <nx> wants to write to. The number of returned file
+ * descriptors is returned through <count>.
+ */
 int *nxFdsForWriting(NX *nx, int *count);
 
-/* Prepare arguments for a call to select() on behalf of <nx>. Returned are the nfds, rfds and wfds
- * parameters and a pointer to a struct timeval pointer. */
+/*
+ * Prepare arguments for a call to select() on behalf of <nx>. Returned are the nfds, rfds and wfds
+ * parameters and a pointer to a struct timeval pointer.
+ */
 int nxPrepareSelect(NX *nx, int *nfds, fd_set *rfds, fd_set *wfds, struct timeval
                       **tvpp);
 
-/* Run the Network Exchange. New connection requests from external
+/*
+ * Run the Network Exchange. New connection requests from external
  * parties will be accepted automatically, calling the on_connect
  * handler. On errors and end-of-file conditions connections will
  * automatically be closed, calling the on_error and on_disconnect
  * handlers. This function will return either when the select inside
  * fails (returning errno) or when there are no more connections and
- * timeouts left. */
+ * timeouts left.
+ */
 int nxRun(NX *nx);
 
 #endif
