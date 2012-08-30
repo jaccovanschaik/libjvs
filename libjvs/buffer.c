@@ -25,29 +25,22 @@
 int bufEncode(Buffer *buf, const Buffer *value)
 {
     uint64_t len = bufLen(value);
-    int shift = 8 * sizeof(uint64_t) - 8;
-    uint64_t mask = 0xFF << shift;
-    uint8_t byte, bytes;
+    int zeros, shift = 8 * sizeof(uint64_t) - 8;
+    uint8_t bytes = 0, byte[sizeof(uint64_t)];
 
-    for (bytes = sizeof(uint64_t); bytes > 0; bytes--) {
-        byte = (len & mask) >> shift;
-
-        if (byte != 0) break;
-
-        mask >>= 8;
-        shift -= 8;
+    for (shift = 8 * sizeof(uint64_t) - 8; shift >= 0; shift -= 8) {
+        byte[bytes++] = (len >> shift) & 0xFF;
     }
+
+    for (zeros = 0; zeros < sizeof(uint64_t); zeros++) {
+        if (byte[zeros] != 0) break;
+    }
+
+    bytes -= zeros;
 
     bufAddC(buf, bytes);
 
-    while (shift >= 0) {
-        bufAddC(buf, byte);
-
-        mask >>= 8;
-        shift -= 8;
-
-        byte = (len & mask) >> shift;
-    }
+    bufAdd(buf, byte + zeros, bytes);
 
     bufCat(buf, value);
 
@@ -458,6 +451,14 @@ int main(int argc, char *argv[])
 
    bufDestroy(buf1);
    bufDestroy(buf2);
+
+   buf1 = bufCreate();
+   buf2 = bufCreate();
+
+   bufSet(buf1, "Hoi!", 4);
+   bufEncode(buf2, buf1);
+
+   make_sure_that(memcmp(bufGet(buf2), "\01\04Hoi!", 6) == 0);
 
    return 0;
 }
