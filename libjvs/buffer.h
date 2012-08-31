@@ -16,8 +16,8 @@
 
 typedef struct {
     char *data;
-    int   size;   /* The number of bytes allocated. */
-    int   used;   /* The number of bytes in use (incl. a trailing null byte). */
+    int   act_length;   /* The number of bytes in use (excluding a trailing null byte!). */
+    int   max_length;   /* The number of bytes allocated. */
 } Buffer;
 
 /*

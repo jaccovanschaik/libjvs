@@ -141,9 +141,9 @@ Buffer *bufCreate(void)
  */
 Buffer *bufInit(Buffer *buf)
 {
-    buf->size = INITIAL_SIZE;
-    buf->data = calloc(1, (size_t) buf->size);
-    buf->used = 1;
+    buf->max_length = INITIAL_SIZE;
+    buf->data = calloc(1, (size_t) buf->max_length);
+    buf->act_length = 0;
 
     return buf;
 }
@@ -192,17 +192,17 @@ Buffer *bufAdd(Buffer *buf, const void *data, int len)
 {
     if (buf->data == NULL) bufInit(buf);
 
-    while (buf->used + len > buf->size) buf->size *= 2;
+    while (buf->act_length + len + 1 > buf->max_length) buf->max_length *= 2;
 
-    buf->data = realloc(buf->data, buf->size);
+    buf->data = realloc(buf->data, buf->max_length);
 
     assert(buf->data);
 
-    memcpy(buf->data + buf->used - 1, data, len);
+    memcpy(buf->data + buf->act_length, data, len);
 
-    buf->used += len;
+    buf->act_length += len;
 
-    buf->data[buf->used - 1] = '\0';
+    buf->data[buf->act_length] = '\0';
 
     return buf;
 }
@@ -332,7 +332,7 @@ Buffer *bufClear(Buffer *buf)
     if (buf->data == NULL) bufInit(buf);
 
     buf->data[0] = '\0';
-    buf->used = 1;
+    buf->act_length = 0;
 
     return buf;
 }
@@ -342,7 +342,7 @@ Buffer *bufClear(Buffer *buf)
  */
 int bufLen(const Buffer *buf)
 {
-    return buf->used - 1;
+    return buf->act_length;
 }
 
 /*
@@ -362,14 +362,14 @@ Buffer *bufTrim(Buffer *buf, unsigned int left, unsigned int right)
 {
     if (buf->data == NULL) bufInit(buf);
 
-    if (left  > buf->used - 1) left = buf->used - 1;
-    if (right > buf->used - left - 1) right = buf->used - left - 1;
+    if (left  > buf->act_length) left = buf->act_length;
+    if (right > buf->act_length - left) right = buf->act_length - left;
 
-    memmove(buf->data, buf->data + left, buf->used - left - right - 1);
+    memmove(buf->data, buf->data + left, buf->act_length - left - right);
 
-    buf->used -= (left + right);
+    buf->act_length -= (left + right);
 
-    *(buf->data + buf->used - 1) = '\0';
+    *(buf->data + buf->act_length) = '\0';
 
     return buf;
 }
