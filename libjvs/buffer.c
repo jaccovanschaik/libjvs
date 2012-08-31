@@ -321,7 +321,7 @@ Buffer *bufSetV(Buffer *buf, const char *fmt, va_list ap)
  */
 const char *bufGet(const Buffer *buf)
 {
-    return buf->data;
+    return buf->data ? buf->data : "";
 }
 
 /*
@@ -389,76 +389,72 @@ void _make_sure_that(const char *file, int line, const char *str, int val)
 
 int main(int argc, char *argv[])
 {
-   Buffer *buf1 = bufCreate();
-   Buffer *buf2 = bufCreate();
+   Buffer buf1 = { };
+   Buffer buf2 = { };
    Buffer *buf3;
 
-   bufAdd(buf1, "ABCDEF", 3);
+   bufSet(&buf1, "Hoi!", 4);
+   bufEncode(&buf2, &buf1);
 
-   make_sure_that(bufLen(buf1) == 3);
-   make_sure_that(strcmp(bufGet(buf1), "ABC") == 0);
+   make_sure_that(memcmp(bufGet(&buf2), "\01\04Hoi!", 6) == 0);
 
-   bufAddC(buf1, 'D');
+   bufClear(&buf1);
 
-   make_sure_that(bufLen(buf1) == 4);
-   make_sure_that(strcmp(bufGet(buf1), "ABCD") == 0);
+   bufAdd(&buf1, "ABCDEF", 3);
 
-   bufAddF(buf1, "%d", 1234);
+   make_sure_that(bufLen(&buf1) == 3);
+   make_sure_that(strcmp(bufGet(&buf1), "ABC") == 0);
 
-   make_sure_that(bufLen(buf1) == 8);
-   make_sure_that(strcmp(bufGet(buf1), "ABCD1234") == 0);
+   bufAddC(&buf1, 'D');
 
-   bufSet(buf1, "ABCDEF", 3);
+   make_sure_that(bufLen(&buf1) == 4);
+   make_sure_that(strcmp(bufGet(&buf1), "ABCD") == 0);
 
-   make_sure_that(bufLen(buf1) == 3);
-   make_sure_that(strcmp(bufGet(buf1), "ABC") == 0);
+   bufAddF(&buf1, "%d", 1234);
 
-   bufSetC(buf1, 'D');
+   make_sure_that(bufLen(&buf1) == 8);
+   make_sure_that(strcmp(bufGet(&buf1), "ABCD1234") == 0);
 
-   make_sure_that(bufLen(buf1) == 1);
-   make_sure_that(strcmp(bufGet(buf1), "D") == 0);
+   bufSet(&buf1, "ABCDEF", 3);
 
-   bufSetF(buf1, "%d", 1234);
+   make_sure_that(bufLen(&buf1) == 3);
+   make_sure_that(strcmp(bufGet(&buf1), "ABC") == 0);
 
-   make_sure_that(bufLen(buf1) == 4);
-   make_sure_that(strcmp(bufGet(buf1), "1234") == 0);
+   bufSetC(&buf1, 'D');
 
-   bufClear(buf1);
+   make_sure_that(bufLen(&buf1) == 1);
+   make_sure_that(strcmp(bufGet(&buf1), "D") == 0);
 
-   make_sure_that(bufLen(buf1) == 0);
-   make_sure_that(strcmp(bufGet(buf1), "") == 0);
+   bufSetF(&buf1, "%d", 1234);
 
-   bufSet(buf1, "ABC", 3);
-   bufSet(buf2, "DEF", 3);
+   make_sure_that(bufLen(&buf1) == 4);
+   make_sure_that(strcmp(bufGet(&buf1), "1234") == 0);
 
-   buf3 = bufCat(buf1, buf2);
+   bufClear(&buf1);
 
-   make_sure_that(buf1 == buf3);
+   make_sure_that(bufLen(&buf1) == 0);
+   make_sure_that(strcmp(bufGet(&buf1), "") == 0);
 
-   make_sure_that(bufLen(buf1) == 6);
-   make_sure_that(strcmp(bufGet(buf1), "ABCDEF") == 0);
+   bufSet(&buf1, "ABC", 3);
+   bufSet(&buf2, "DEF", 3);
 
-   make_sure_that(bufLen(buf2) == 3);
-   make_sure_that(strcmp(bufGet(buf2), "DEF") == 0);
+   buf3 = bufCat(&buf1, &buf2);
 
-   bufSetF(buf1, "ABCDEF");
+   make_sure_that(&buf1 == buf3);
 
-   make_sure_that(strcmp(bufGet(bufTrim(buf1, 0, 0)), "ABCDEF") == 0);
-   make_sure_that(strcmp(bufGet(bufTrim(buf1, 1, 0)), "BCDEF") == 0);
-   make_sure_that(strcmp(bufGet(bufTrim(buf1, 0, 1)), "BCDE") == 0);
-   make_sure_that(strcmp(bufGet(bufTrim(buf1, 1, 1)), "CD") == 0);
-   make_sure_that(strcmp(bufGet(bufTrim(buf1, 3, 3)), "") == 0);
+   make_sure_that(bufLen(&buf1) == 6);
+   make_sure_that(strcmp(bufGet(&buf1), "ABCDEF") == 0);
 
-   bufDestroy(buf1);
-   bufDestroy(buf2);
+   make_sure_that(bufLen(&buf2) == 3);
+   make_sure_that(strcmp(bufGet(&buf2), "DEF") == 0);
 
-   buf1 = bufCreate();
-   buf2 = bufCreate();
+   bufSetF(&buf1, "ABCDEF");
 
-   bufSet(buf1, "Hoi!", 4);
-   bufEncode(buf2, buf1);
-
-   make_sure_that(memcmp(bufGet(buf2), "\01\04Hoi!", 6) == 0);
+   make_sure_that(strcmp(bufGet(bufTrim(&buf1, 0, 0)), "ABCDEF") == 0);
+   make_sure_that(strcmp(bufGet(bufTrim(&buf1, 1, 0)), "BCDEF") == 0);
+   make_sure_that(strcmp(bufGet(bufTrim(&buf1, 0, 1)), "BCDE") == 0);
+   make_sure_that(strcmp(bufGet(bufTrim(&buf1, 1, 1)), "CD") == 0);
+   make_sure_that(strcmp(bufGet(bufTrim(&buf1, 3, 3)), "") == 0);
 
    return 0;
 }
