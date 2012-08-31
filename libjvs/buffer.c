@@ -141,9 +141,9 @@ Buffer *bufCreate(void)
  */
 Buffer *bufInit(Buffer *buf)
 {
-    buf->max_length = INITIAL_SIZE;
-    buf->data = calloc(1, (size_t) buf->max_length);
-    buf->act_length = 0;
+    buf->max_len = INITIAL_SIZE;
+    buf->data = calloc(1, (size_t) buf->max_len);
+    buf->act_len = 0;
 
     return buf;
 }
@@ -192,17 +192,17 @@ Buffer *bufAdd(Buffer *buf, const void *data, int len)
 {
     if (buf->data == NULL) bufInit(buf);
 
-    while (buf->act_length + len + 1 > buf->max_length) buf->max_length *= 2;
+    while (buf->act_len + len + 1 > buf->max_len) buf->max_len *= 2;
 
-    buf->data = realloc(buf->data, buf->max_length);
+    buf->data = realloc(buf->data, buf->max_len);
 
     assert(buf->data);
 
-    memcpy(buf->data + buf->act_length, data, len);
+    memcpy(buf->data + buf->act_len, data, len);
 
-    buf->act_length += len;
+    buf->act_len += len;
 
-    buf->data[buf->act_length] = '\0';
+    buf->data[buf->act_len] = '\0';
 
     return buf;
 }
@@ -332,7 +332,7 @@ Buffer *bufClear(Buffer *buf)
     if (buf->data == NULL) bufInit(buf);
 
     buf->data[0] = '\0';
-    buf->act_length = 0;
+    buf->act_len = 0;
 
     return buf;
 }
@@ -342,7 +342,7 @@ Buffer *bufClear(Buffer *buf)
  */
 int bufLen(const Buffer *buf)
 {
-    return buf->act_length;
+    return buf->act_len;
 }
 
 /*
@@ -362,14 +362,14 @@ Buffer *bufTrim(Buffer *buf, unsigned int left, unsigned int right)
 {
     if (buf->data == NULL) bufInit(buf);
 
-    if (left  > buf->act_length) left = buf->act_length;
-    if (right > buf->act_length - left) right = buf->act_length - left;
+    if (left  > buf->act_len) left = buf->act_len;
+    if (right > buf->act_len - left) right = buf->act_len - left;
 
-    memmove(buf->data, buf->data + left, buf->act_length - left - right);
+    memmove(buf->data, buf->data + left, buf->act_len - left - right);
 
-    buf->act_length -= (left + right);
+    buf->act_len -= (left + right);
 
-    *(buf->data + buf->act_length) = '\0';
+    *(buf->data + buf->act_len) = '\0';
 
     return buf;
 }
