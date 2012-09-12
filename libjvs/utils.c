@@ -9,8 +9,11 @@
  */
 
 #include <stdio.h>
+#include <stdio.h>
 #include <stdarg.h>
+#include <ctype.h>
 
+#include "defs.h"
 #include "utils.h"
 
 /*
@@ -44,3 +47,34 @@ int ifprintf(FILE *fp, int indent, const char *fmt, ...)
     return r;
 }
 
+#define HEXDUMP_BYTES_PER_LINE 16
+
+/*
+ * Dump <size> bytes from <data> as a hexdump to <fp>.
+ */
+void hexdump(FILE *fp, const char *data, int size)
+{
+    int i, offset = 0;
+    char buffer[80];
+
+    while (offset < size) {
+        sprintf(buffer, "%06X  ", offset);
+
+        for (i = offset; i < MIN(offset + HEXDUMP_BYTES_PER_LINE, size); i++) {
+            sprintf(buffer + 8 + (i - offset) * 3, "%02hhX ", data[i]);
+        }
+
+        memset(buffer + 8 + (i - offset) * 3, ' ',
+               sizeof(buffer) - (8 + (i - offset) * 3));
+
+        for (i = offset; i < MIN(offset + HEXDUMP_BYTES_PER_LINE, size); i++) {
+            sprintf(buffer + 9 + HEXDUMP_BYTES_PER_LINE * 3 + (i - offset),
+                    "%c", isprint(data[i]) ? data[i] : '.');
+        }
+
+        fputs(buffer, fp);
+        fputc('\n', fp);
+
+        offset += HEXDUMP_BYTES_PER_LINE;
+    }
+}

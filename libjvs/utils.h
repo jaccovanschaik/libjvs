@@ -26,4 +26,9 @@ void findent(FILE *fp, int level);
 int ifprintf(FILE *fp, int indent, const char *fmt, ...)
     __attribute__ ((format (printf, 3, 4)));
 
+/*
+ * Dump <size> bytes from <data> as a hexdump to <fp>.
+ */
+void hexdump(FILE *fp, const char *data, int size);
+
 #endif
