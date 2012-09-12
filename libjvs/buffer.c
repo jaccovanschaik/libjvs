@@ -16,6 +16,7 @@
 #include <assert.h>
 
 #include "buffer.h"
+#include "defs.h"
 
 #define INITIAL_SIZE 1024
 
@@ -207,7 +208,9 @@ Buffer *bufAdd(Buffer *buf, const void *data, int len)
     return buf;
 }
 
-/* Add the single character <c>. */
+/*
+ * Add the single character <c>.
+ */
 
 Buffer *bufAddC(Buffer *buf, char c)
 {
@@ -370,6 +373,187 @@ Buffer *bufTrim(Buffer *buf, unsigned int left, unsigned int right)
     buf->act_len -= (left + right);
 
     *(buf->data + buf->act_len) = '\0';
+
+    return buf;
+}
+
+/*
+ * Pack <buf> according to the arguments that follow, *without* clearing
+ * the buffer first. The argument list consists of type/value pairs,
+ * followed by END. The following types are allowed, accompanied by
+ * values of the given type.
+ *
+ *  Type        Value       Value added to buffer
+ *  ----        -----       ---------------------
+ *  PACK_UINT8  uint32_t    unsigned 8-bit int
+ *  PACK_UINT16 uint32_t    unsigned 16-bit big-endian int
+ *  PACK_UINT32 uint32_t    unsigned 32-bit big-endian int
+ *  PACK_UINT64 uint64_t    unsigned 64-bit big-endian int
+ *  PACK_FLOAT  double      IEEE-754 32-bit big-endian floating point
+ *  PACK_DOUBLE double      IEEE-754 64-bit big-endian floating point
+ *  PACK_STRING char *      unsigned 32-bit big-endian length from strlen(),
+ *                          followed by the contents of the string.
+ *  PACK_BUFFER Buffer *    unsigned 32-bit big-endian length from bufLen(),
+ *                          followed by the contents of the buffer.
+ */
+Buffer *bufPack(Buffer *buf, ...)
+{
+    int len;
+    char *cp;
+    Buffer *bp;
+    uint16_t u16;
+    uint32_t u32;
+    uint64_t u64;
+
+    union {
+        float f32;
+        uint32_t u32;
+    } x32;
+
+    union {
+        double f64;
+        uint64_t u64;
+    } x64;
+
+    int type;
+
+    va_list ap;
+
+    va_start(ap, buf);
+
+    while ((type = va_arg(ap, int)) != END) {
+        switch(type) {
+        case PACK_UINT8:
+            bufAddC(buf, va_arg(ap, uint32_t));
+            break;
+        case PACK_UINT16:
+            u16 = htobe16(va_arg(ap, uint32_t));
+            bufAdd(buf, &u16, sizeof(uint16_t));
+            break;
+        case PACK_UINT32:
+            u32 = htobe32(va_arg(ap, uint32_t));
+            bufAdd(buf, &u32, sizeof(uint32_t));
+            break;
+        case PACK_UINT64:
+            u64 = htobe64(va_arg(ap, uint64_t));
+            bufAdd(buf, &u64, sizeof(uint64_t));
+            break;
+        case PACK_FLOAT:
+            x32.f32 = va_arg(ap, double);
+            x32.u32 = htobe32(x32.u32);
+            bufAdd(buf, &x32.u32, sizeof(uint32_t));
+            break;
+        case PACK_DOUBLE:
+            x64.f64 = va_arg(ap, double);
+            x64.u64 = htobe64(x64.u64);
+            bufAdd(buf, &x64.u64, sizeof(uint32_t));
+            break;
+        case PACK_STRING:
+            cp = va_arg(ap, char *);
+            len = strlen(cp);
+            u32 = htobe32(len);
+            bufAdd(buf, &u32, sizeof(uint32_t));
+            bufAdd(buf, cp, len);
+            break;
+        case PACK_BUFFER:
+            bp = va_arg(ap, Buffer *);
+            len = bufLen(bp);
+            u32 = htobe32(len);
+            bufAdd(buf, &u32, sizeof(uint32_t));
+            bufCat(buf, bp);
+            break;
+        default:
+            break;
+        }
+    }
+
+    va_end(ap);
+
+    return buf;
+}
+
+/*
+ * Unpack <buf> into to the arguments that follow. The argument list
+ * consists of type/value pairs, followed by END. The following types
+ * are allowed, accompanied by values of the given type.
+ *
+ *  Descriptor  Argument type   Value read from buffer
+ *  ----------  -------------   ---------------------
+ *  PACK_UINT8  uint32_t *      unsigned 8-bit int
+ *  PACK_UINT16 uint32_t *      unsigned 16-bit big-endian int
+ *  PACK_UINT32 uint32_t *      unsigned 32-bit big-endian int
+ *  PACK_UINT64 uint64_t *      unsigned 64-bit big-endian int
+ *  PACK_FLOAT  double *        IEEE-754 32-bit big-endian floating point
+ *  PACK_DOUBLE double *        IEEE-754 64-bit big-endian floating point
+ *  PACK_STRING char **         unsigned 32-bit big-endian length,
+ *                              followed by the contents of the string.
+ *  PACK_BUFFER Buffer *        unsigned 32-bit big-endian length,
+ *                              followed by the contents of the buffer.
+ */
+Buffer *bufUnpack(Buffer *buf, ...)
+{
+    union {
+        float f32;
+        uint32_t u32;
+    } x32;
+
+    union {
+        double f64;
+        uint64_t u64;
+    } x64;
+
+    int type, len;
+
+    va_list ap;
+
+    const char *ptr = bufGet(buf);
+
+    va_start(ap, buf);
+
+    while ((type = va_arg(ap, int)) != END) {
+        switch(type) {
+        case PACK_UINT8:
+            *va_arg(ap, uint8_t *) = *((uint8_t *) ptr);
+            ptr += sizeof(uint8_t);
+            break;
+        case PACK_UINT16:
+            *va_arg(ap, uint16_t *) = be16toh(*((uint16_t *) ptr));
+            ptr += sizeof(uint16_t);
+            break;
+        case PACK_UINT32:
+            *va_arg(ap, uint32_t *) = be32toh(*((uint32_t *) ptr));
+            ptr += sizeof(uint32_t);
+            break;
+        case PACK_UINT64:
+            *va_arg(ap, uint64_t *) = be64toh(*((uint64_t *) ptr));
+            ptr += sizeof(uint64_t);
+            break;
+        case PACK_FLOAT:
+            x32.u32 = be32toh(*((uint32_t *) ptr));
+            *va_arg(ap, float *) = x32.f32;
+            ptr += sizeof(uint32_t);
+            break;
+        case PACK_DOUBLE:
+            x64.u64 = be64toh(*((uint64_t *) ptr));
+            *va_arg(ap, double *) = x64.f64;
+            ptr += sizeof(uint64_t);
+            break;
+        case PACK_STRING:
+            len = be32toh(*((uint32_t *) ptr));
+            ptr += sizeof(uint32_t);
+            *va_arg(ap, char **) = strndup(ptr, len);
+            ptr += len;
+            break;
+        case PACK_BUFFER:
+            len = be32toh(*((uint32_t *) ptr));
+            ptr += sizeof(uint32_t);
+            bufAdd(va_arg(ap, Buffer *), ptr, len);
+            ptr += len;
+            break;
+        }
+    }
+
+    va_end(ap);
 
     return buf;
 }
