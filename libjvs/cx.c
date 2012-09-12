@@ -248,6 +248,25 @@ int cxRun(CX *cx)
     return 0;
 }
 
+/*
+ * Close down Communications Exchange <cx>.
+ */
+int cxClose(CX *cx)
+{
+    CX_Timeout *tm;
+    CX_Connection *conn;
+
+    while ((tm = listRemoveHead(&cx->timeouts)) != NULL) {
+        free(tm);
+    }
+
+    while ((conn = listRemoveHead(&cx->connections)) != NULL) {
+        free(conn);
+    }
+
+    return 0;
+}
+
 #if 0
 void cxFDSet(CX *cx, fd_set *fds)
 {

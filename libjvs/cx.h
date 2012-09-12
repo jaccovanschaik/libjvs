@@ -11,7 +11,6 @@
  * http://www.opensource.org/licenses/mit-license.php for details.
  */
 
-
 typedef struct CX CX;
 
 /* Create a communications exchange. */
@@ -33,5 +32,10 @@ void cxDropTime(CX *cx, double t, int (*handler)(CX *cx, double t, void *udata))
 
 /* Run the communications exchange. */
 int cxRun(CX *cx);
+
+/*
+ * Close down Communications Exchange <cx>.
+ */
+int cxClose(CX *cx);
 
 #endif
