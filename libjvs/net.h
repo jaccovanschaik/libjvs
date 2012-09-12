@@ -44,6 +44,6 @@ int netLocalPort(int sd);
 int netRead(int fd, void *buf, int len);
 
 /* Write all of <buf> */
-int netWrite(int fd, void *buf, int len);
+int netWrite(int fd, const void *buf, int len);
 
 #endif
