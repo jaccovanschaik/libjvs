@@ -27,6 +27,7 @@ enum {
     PACK_UINT64,
     PACK_FLOAT,
     PACK_DOUBLE,
+    PACK_TEXT,
     PACK_STRING,
     PACK_BUFFER
 };

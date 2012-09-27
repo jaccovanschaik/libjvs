@@ -391,6 +391,8 @@ Buffer *bufTrim(Buffer *buf, unsigned int left, unsigned int right)
  *  PACK_UINT64 uint64_t    unsigned 64-bit big-endian int
  *  PACK_FLOAT  double      IEEE-754 32-bit big-endian floating point
  *  PACK_DOUBLE double      IEEE-754 64-bit big-endian floating point
+ *  PACK_TEXT   char*, int  unsigned 32-bit big-endian length from <int>,
+ *                          followed by <int> bytes from the string.
  *  PACK_STRING char *      unsigned 32-bit big-endian length from strlen(),
  *                          followed by the contents of the string.
  *  PACK_BUFFER Buffer *    unsigned 32-bit big-endian length from bufLen(),
@@ -447,6 +449,13 @@ Buffer *bufPack(Buffer *buf, ...)
             x64.f64 = va_arg(ap, double);
             x64.u64 = htobe64(x64.u64);
             bufAdd(buf, &x64.u64, sizeof(uint32_t));
+            break;
+        case PACK_TEXT:
+            cp = va_arg(ap, char *);
+            len = va_arg(ap, uint32_t);
+            u32 = htobe32(len);
+            bufAdd(buf, &u32, sizeof(uint32_t));
+            bufAdd(buf, cp, len);
             break;
         case PACK_STRING:
             cp = va_arg(ap, char *);
