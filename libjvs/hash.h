@@ -11,6 +11,21 @@
 #ifndef HASH_H
 #define HASH_H
 
+#include "list.h"
+
+/* The number of significant bits in a hash key and the resulting number of
+ * buckets in the hash table. */
+
+#define HASH_BITS 12
+#define HASH_BUCKETS (1 << (HASH_BITS))
+
+/* A hash table. Contains <HASH_BUCKETS> buckets, each of which consists of a
+ * list of HashEntry structs. */
+
+typedef struct {
+   List bucket[HASH_BUCKETS];
+} HashTable;
+
 /* Use these macros to provide the <key> and <key_len> parameters in the
  * hashAdd(), hashSet(), hashGet() and hashDel() functions. HASH_STRING can be
  * used to supply a string and its corresponding length, HASH_VALUE can be used
@@ -19,34 +34,49 @@
 #define HASH_STRING(s) s, strlen(s)
 #define HASH_VALUE(k)  &(k), sizeof(k)
 
-typedef struct HashTable HashTable;
+/*
+ * Initialize hash table <table>.
+ */
+void hashInitTable(HashTable *table);
 
-/* Create a new hash table. */
+/*
+ * Create a new hash table.
+ */
 HashTable *hashCreateTable(void);
 
-/* Delete hash table <tbl> and its contents. The data that the entries in it
- * point to is *not* removed. */
+/*
+ * Delete hash table <tbl> and its contents. The data that the entries in it
+ * point to is *not* removed.
+ */
 void hashDeleteTable(HashTable *tbl);
 
-/* Add an entry that points to <data> to <tbl>. Associate it with <key>, whose
+/*
+ * Add an entry that points to <data> to <tbl>. Associate it with <key>, whose
  * length is <key_len>. <tbl>, <data> and <key> must not be NULL, <key_len> must
  * be greater than 0. If an entry with the same key already exists this function
- * calls abort(). */
-void hashAdd(HashTable *tbl, void *data, void *key, int key_len);
+ * calls abort().
+ */
+void hashAdd(HashTable *tbl, const void *data, const void *key, int key_len);
 
-/* Set the existing entry in <tbl> for <key>, whose length is <key_len>, to
+/*
+ * Set the existing entry in <tbl> for <key>, whose length is <key_len>, to
  * <data>. <tbl>, <data> and <key> must not be NULL, <key_len> must
- * be greater than 0. If no such entry exists this function calls abort(). */
-void hashSet(HashTable *tbl, void *data, void *key, int key_len);
+ * be greater than 0. If no such entry exists this function calls abort().
+ */
+void hashSet(HashTable *tbl, const void *data, const void *key, int key_len);
 
-/* Get the data associated with <key>, whose length is <key_len> from <tbl>. If
+/*
+ * Get the data associated with <key>, whose length is <key_len> from <tbl>. If
  * no such entry exists NULL is returned. <tbl> and <key> must not be NULL,
- * <key_len> must be greater than 0. */
-void *hashGet(HashTable *tbl, void *key, int key_len);
+ * <key_len> must be greater than 0.
+ */
+void *hashGet(HashTable *tbl, const void *key, int key_len);
 
-/* Delete the entry in <tbl> for <key> with length <key_len>. <tbl> and <key>
+/*
+ * Delete the entry in <tbl> for <key> with length <key_len>. <tbl> and <key>
  * must not be NULL, <key_len> must be greater than 0. If no such entry exists
- * this function calls abort(). */
-void hashDel(HashTable *tbl, void *key, int key_len);
+ * this function calls abort().
+ */
+void hashDel(HashTable *tbl, const void *key, int key_len);
 
 #endif
