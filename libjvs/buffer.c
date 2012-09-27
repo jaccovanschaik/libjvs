@@ -452,7 +452,7 @@ Buffer *bufPack(Buffer *buf, ...)
             break;
         case PACK_TEXT:
             cp = va_arg(ap, char *);
-            len = va_arg(ap, uint32_t);
+            len = va_arg(ap, int);
             u32 = htobe32(len);
             bufAdd(buf, &u32, sizeof(uint32_t));
             bufAdd(buf, cp, len);
