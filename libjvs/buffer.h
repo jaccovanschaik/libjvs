@@ -27,7 +27,7 @@ enum {
     PACK_UINT64,
     PACK_FLOAT,
     PACK_DOUBLE,
-    PACK_TEXT,
+    PACK_DATA,
     PACK_STRING,
     PACK_BUFFER
 };
@@ -65,6 +65,12 @@ Buffer *bufCreate(void);
  * Initialize buffer <buf>.
  */
 Buffer *bufInit(Buffer *buf);
+
+/*
+ * Reset buffer <buf> to a virgin state, freeing its internal data. Use this if you have an
+ * automatically allocated Buffer and want to discard it.
+ */
+void bufReset(Buffer *buf);
 
 /*
  * Detach the contents of <buf>. The buffer is re-initialized and the

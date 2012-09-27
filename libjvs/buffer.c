@@ -150,6 +150,17 @@ Buffer *bufInit(Buffer *buf)
 }
 
 /*
+ * Reset buffer <buf> to a virgin state, freeing its internal data. Use this if you have an
+ * automatically allocated Buffer and want to discard it.
+ */
+void bufReset(Buffer *buf)
+{
+    if (buf->data) free(buf->data);
+
+    memset(buf, 0, sizeof(Buffer));
+}
+
+/*
  * Detach the contents of <buf>. The buffer is re-initialized and the
  * old contents are returned. The caller is responsible for the contents
  * after this and should free() them when finished.
@@ -160,7 +171,7 @@ char *bufDetach(Buffer *buf)
 
     bufInit(buf);
 
-    return data;
+    return data ? data : strdup("");
 }
 
 /*
@@ -169,11 +180,11 @@ char *bufDetach(Buffer *buf)
  */
 char *bufFinish(Buffer *buf)
 {
-   char *data = buf->data;
+    char *data = buf->data;
 
-   free(buf);
+    free(buf);
 
-   return data;
+    return data ? data : strdup("");
 }
 
 /*
@@ -221,23 +232,6 @@ Buffer *bufAddC(Buffer *buf, char c)
 
 /*
  * Append a string to <buf>, formatted according to <fmt> and with the
- * subsequent parameters.
- */
-Buffer *bufAddF(Buffer *buf, const char *fmt, ...)
-{
-   va_list ap;
-
-   va_start(ap, fmt);
-
-   bufAddV(buf, fmt, ap);
-
-   va_end(ap);
-
-   return buf;
-}
-
-/*
- * Append a string to <buf>, formatted according to <fmt> and with the
  * subsequent parameters contained in <ap>.
  */
 Buffer *bufAddV(Buffer *buf, const char *fmt, va_list ap)
@@ -266,6 +260,23 @@ Buffer *bufAddV(Buffer *buf, const char *fmt, va_list ap)
    }
 
    bufAdd(buf, scratch_pad, len);
+
+   return buf;
+}
+
+/*
+ * Append a string to <buf>, formatted according to <fmt> and with the
+ * subsequent parameters.
+ */
+Buffer *bufAddF(Buffer *buf, const char *fmt, ...)
+{
+   va_list ap;
+
+   va_start(ap, fmt);
+
+   bufAddV(buf, fmt, ap);
+
+   va_end(ap);
 
    return buf;
 }
@@ -378,25 +389,24 @@ Buffer *bufTrim(Buffer *buf, unsigned int left, unsigned int right)
 }
 
 /*
- * Pack <buf> according to the arguments that follow, *without* clearing
- * the buffer first. The argument list consists of type/value pairs,
- * followed by END. The following types are allowed, accompanied by
- * values of the given type.
+ * Append to <buf> the arguments that follow. The argument list consists of type/value pairs (or a
+ * type/value/size triplet). End the argument list with END. The following types are allowed,
+ * accompanied by values of the given type.
  *
- *  Type        Value       Value added to buffer
- *  ----        -----       ---------------------
- *  PACK_UINT8  uint32_t    unsigned 8-bit int
- *  PACK_UINT16 uint32_t    unsigned 16-bit big-endian int
- *  PACK_UINT32 uint32_t    unsigned 32-bit big-endian int
- *  PACK_UINT64 uint64_t    unsigned 64-bit big-endian int
- *  PACK_FLOAT  double      IEEE-754 32-bit big-endian floating point
- *  PACK_DOUBLE double      IEEE-754 64-bit big-endian floating point
- *  PACK_TEXT   char*, int  unsigned 32-bit big-endian length from <int>,
- *                          followed by <int> bytes from the string.
- *  PACK_STRING char *      unsigned 32-bit big-endian length from strlen(),
- *                          followed by the contents of the string.
- *  PACK_BUFFER Buffer *    unsigned 32-bit big-endian length from bufLen(),
- *                          followed by the contents of the buffer.
+ *  Type        Value(s)        Addition to buffer
+ *  ----        --------        ---------------------
+ *  PACK_UINT8  uint32_t value  unsigned 8-bit int
+ *  PACK_UINT16 uint32_t value  unsigned 16-bit big-endian int
+ *  PACK_UINT32 uint32_t value  unsigned 32-bit big-endian int
+ *  PACK_UINT64 uint64_t value  unsigned 64-bit big-endian int
+ *  PACK_FLOAT  double value    IEEE-754 32-bit big-endian floating point
+ *  PACK_DOUBLE double value    IEEE-754 64-bit big-endian floating point
+ *  PACK_STRING char *value     unsigned 32-bit big-endian length from strlen(),
+ *                              followed by the contents of the string.
+ *  PACK_BUFFER Buffer *value   unsigned 32-bit big-endian length from bufLen(),
+ *                              followed by the contents of the buffer.
+ *  PACK_DATA   char *value,    unsigned 32-bit big-endian <len>,
+ *              int len         followed by <len> bytes from <value>.
  */
 Buffer *bufPack(Buffer *buf, ...)
 {
@@ -450,13 +460,6 @@ Buffer *bufPack(Buffer *buf, ...)
             x64.u64 = htobe64(x64.u64);
             bufAdd(buf, &x64.u64, sizeof(uint32_t));
             break;
-        case PACK_TEXT:
-            cp = va_arg(ap, char *);
-            len = va_arg(ap, int);
-            u32 = htobe32(len);
-            bufAdd(buf, &u32, sizeof(uint32_t));
-            bufAdd(buf, cp, len);
-            break;
         case PACK_STRING:
             cp = va_arg(ap, char *);
             len = strlen(cp);
@@ -470,6 +473,13 @@ Buffer *bufPack(Buffer *buf, ...)
             u32 = htobe32(len);
             bufAdd(buf, &u32, sizeof(uint32_t));
             bufCat(buf, bp);
+            break;
+        case PACK_DATA:
+            cp = va_arg(ap, char *);
+            len = va_arg(ap, int);
+            u32 = htobe32(len);
+            bufAdd(buf, &u32, sizeof(uint32_t));
+            bufAdd(buf, cp, len);
             break;
         default:
             break;
@@ -498,6 +508,8 @@ Buffer *bufPack(Buffer *buf, ...)
  *                              followed by the contents of the string.
  *  PACK_BUFFER Buffer *        unsigned 32-bit big-endian length,
  *                              followed by the contents of the buffer.
+ *  PACK_DATA   char **,        <len> bytes.
+ *              int len
  */
 Buffer *bufUnpack(Buffer *buf, ...)
 {
@@ -516,6 +528,7 @@ Buffer *bufUnpack(Buffer *buf, ...)
     va_list ap;
 
     const char *ptr = bufGet(buf);
+    char **tmp;
 
     va_start(ap, buf);
 
@@ -557,6 +570,12 @@ Buffer *bufUnpack(Buffer *buf, ...)
             len = be32toh(*((uint32_t *) ptr));
             ptr += sizeof(uint32_t);
             bufAdd(va_arg(ap, Buffer *), ptr, len);
+            ptr += len;
+            break;
+        case PACK_DATA:
+            tmp = va_arg(ap, char **);
+            len = va_arg(ap, int);
+            *tmp = strndup(ptr, len);
             ptr += len;
             break;
         }
