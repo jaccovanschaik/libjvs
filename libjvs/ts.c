@@ -136,7 +136,7 @@ static void add_stack_frame(TokenStream *ts, const char *file, FILE *fp)
  */
 static const char *single_token_type(TokenType type)
 {
-    dbgAssert(stderr, (type & TT_ALL) != 0, "Invalid token type");
+    dbgAssert(stderr, (type & TT_ALL) != 0, "Invalid token type 0x%x\n", type);
 
     switch(type) {
     case TT_NONE:
