@@ -13,6 +13,21 @@
 
 #include <stdio.h>
 
+enum {
+    PACK_INT8,
+    PACK_UINT8,
+    PACK_INT16,
+    PACK_UINT16,
+    PACK_INT32,
+    PACK_UINT32,
+    PACK_INT64,
+    PACK_UINT64,
+    PACK_FLOAT,
+    PACK_DOUBLE,
+    PACK_STRING,
+    PACK_DATA
+};
+
 /*
  * Output <level> levels of indent to <fp>.
  */
@@ -30,5 +45,13 @@ int ifprintf(FILE *fp, int indent, const char *fmt, ...)
  * Dump <size> bytes from <data> as a hexdump to <fp>.
  */
 void hexdump(FILE *fp, const char *data, int size);
+
+int vstrpack(char *str, int size, va_list ap);
+
+int strpack(char *str, int size, ...);
+
+int vstrunpack(char *str, int size, va_list ap);
+
+int strunpack(char *str, int size, ...);
 
 #endif
