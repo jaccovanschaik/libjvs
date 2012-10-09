@@ -151,7 +151,7 @@ Buffer *bufInit(Buffer *buf)
 
 /*
  * Reset buffer <buf> to a virgin state, freeing its internal data. Use this if you have an
- * automatically allocated Buffer and want to discard it.
+ * automatically allocated Buffer and want to completely discard its contents.
  */
 void bufReset(Buffer *buf)
 {
