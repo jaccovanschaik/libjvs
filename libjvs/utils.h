@@ -15,13 +15,9 @@
 
 enum {
     PACK_INT8,
-    PACK_UINT8,
     PACK_INT16,
-    PACK_UINT16,
     PACK_INT32,
-    PACK_UINT32,
     PACK_INT64,
-    PACK_UINT64,
     PACK_FLOAT,
     PACK_DOUBLE,
     PACK_STRING,
@@ -46,12 +42,34 @@ int ifprintf(FILE *fp, int indent, const char *fmt, ...)
  */
 void hexdump(FILE *fp, const char *data, int size);
 
+/*
+ * Pack data from <ap> into <str>, which has size <size>.
+ */
 int vstrpack(char *str, int size, va_list ap);
 
+/*
+ * Pack data into <str>, which has size <size>.
+ */
 int strpack(char *str, int size, ...);
 
+/*
+ * Pack data from <ap> into an allocated string, which is returned through <str>.
+ */
+int vastrpack(char **str, va_list ap);
+
+/*
+ * Pack data into an allocated string, which is returned through <str>.
+ */
+int astrpack(char **str, ...);
+
+/*
+ * Unpack data from <str> (which has size <size>) into the pointers in <ap>.
+ */
 int vstrunpack(char *str, int size, va_list ap);
 
+/*
+ * Unpack data from <str> (which has size <size>) into the pointers following "size".
+ */
 int strunpack(char *str, int size, ...);
 
 #endif
