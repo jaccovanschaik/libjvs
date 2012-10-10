@@ -96,6 +96,29 @@ static void pack(void *data, int size, char **dest, int *remaining)
 
 /*
  * Pack data from <ap> into <str>, which has size <size>.
+ *
+ * The pack functions take type/value pairs (closed by END) to specify
+ * what to pack into the string. The types, values and packed data are
+ * as follows:
+ *
+ * type         value       packs
+ * ----         -----       -----
+ * PACK_INT8    int         1 byte int
+ * PACK_INT16   int         2 byte int
+ * PACK_INT32   int         4 byte int
+ * PACK_INT64   uint64_t    8 byte int
+ * PACK_FLOAT   double      4 byte float
+ * PACK_DOUBLE  double      8 byte double
+ * PACK_STRING  char *      4-byte length (from strlen) followed by as many bytes.
+ * PACK_DATA    char *, int 4-byte length (as given) followed by as many bytes.
+ *
+ * All ints (including the lengths) are packed with big-endian byte order.
+ *
+ * All pack function return the number of bytes necessary to pack the
+ * given data, which may be more than <size>. In that case they are
+ * telling you that more bytes were needed than you gave them, and you
+ * should call the function again with a bigger data buffer. It will,
+ * however, never write more than <size> bytes into <str>.
  */
 int vstrpack(char *str, int size, va_list ap)
 {
@@ -170,7 +193,7 @@ int vstrpack(char *str, int size, va_list ap)
 }
 
 /*
- * Pack data into <str>, which has size <size>.
+ * Pack data into <str>, using a variable number of arguments.
  */
 int strpack(char *str, int size, ...)
 {
@@ -185,11 +208,12 @@ int strpack(char *str, int size, ...)
 }
 
 /*
- * Pack data from <ap> into an allocated string, which is returned through <str>.
+ * This function does the same as vstrpack, but it will allocate a
+ * sufficiently sized data buffer for you and return it through <str>.
  */
 int vastrpack(char **str, va_list ap)
 {
-    int   len = 0;
+    int len = 0;
 
     len = vstrpack(*str, len, ap);
 
@@ -199,7 +223,8 @@ int vastrpack(char **str, va_list ap)
 }
 
 /*
- * Pack data into an allocated string, which is returned through <str>.
+ * This function does the same as strpack, but it will allocate a
+ * sufficiently sized data buffer for you and return it through <str>.
  */
 int astrpack(char **str, ...)
 {
@@ -214,7 +239,28 @@ int astrpack(char **str, ...)
 }
 
 /*
- * Unpack data from <str> (which has size <size>) into the pointers in <ap>.
+ * Unpack data from <str>, which has length <size>.
+ *
+ * The unpack functions take type/pointer pairs (closed by END) where
+ * data is extracted from <str> and put into the addresses that the
+ * pointers point to. The types, pointers and unpacked data are as
+ * follows:
+ *
+ * type         pointer         unpacks
+ * ----         -------         -----
+ * PACK_INT8    uint8_t *       1 byte int
+ * PACK_INT16   uint16_t *      2 byte int
+ * PACK_INT32   uint32_t *      4 byte int
+ * PACK_INT64   uint64_t *      8 byte int
+ * PACK_FLOAT   float *         4 byte float
+ * PACK_DOUBLE  double *        8 byte double
+ * PACK_STRING  char **         4-byte length (from strlen) followed by as many bytes.
+ * PACK_DATA    char **, int *  4-byte length (as given) followed by as many bytes.
+ *
+ * Note that PACK_STRING and PACK_DATA allocate space to put the data
+ * in, and it is the caller's responsibility to free that space again.
+ * PACK_STRING creates a null-terminated string. PACK_DATA requires an
+ * additional int * where it writes the length of the allocated data.
  */
 int vstrunpack(char *str, int size, va_list ap)
 {
