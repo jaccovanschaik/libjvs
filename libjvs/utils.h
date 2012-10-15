@@ -12,6 +12,7 @@
  */
 
 #include <stdio.h>
+#include <stdarg.h>
 
 enum {
     PACK_INT8,

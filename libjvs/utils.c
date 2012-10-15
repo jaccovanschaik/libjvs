@@ -15,6 +15,7 @@
 #include <ctype.h>
 
 #include "defs.h"
+#include "debug.h"
 #include "utils.h"
 
 /*
@@ -185,7 +186,7 @@ int vstrpack(char *str, int size, va_list ap)
             }
             break;
         default:
-            fprintf(stderr, "Unknown pack type %d\n", type);
+            dbgAbort(stderr, "Unknown pack type %d\n", type);
         }
     }
 

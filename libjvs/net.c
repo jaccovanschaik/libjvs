@@ -179,7 +179,7 @@ int netConnect(const char *host, int port)
     if (connect
         (sd, (struct sockaddr *) &peeraddr_in,
          sizeof(struct sockaddr_in)) != 0) {
-        dbgError(stderr, "connect failed");
+        dbgError(stderr, "connect to %s:%d failed", host, port);
         close(sd);
         return -1;
     }

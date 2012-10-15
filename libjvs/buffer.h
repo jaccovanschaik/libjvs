@@ -20,18 +20,6 @@ typedef struct {
     int   max_len;  /* The number of bytes allocated. */
 } Buffer;
 
-enum {
-    PACK_UINT8,
-    PACK_UINT16,
-    PACK_UINT32,
-    PACK_UINT64,
-    PACK_FLOAT,
-    PACK_DOUBLE,
-    PACK_DATA,
-    PACK_STRING,
-    PACK_BUFFER
-};
-
 /*
  * Encode buffer <value> into <buf>.
  */
@@ -157,43 +145,14 @@ Buffer *bufCat(Buffer *base, const Buffer *addition);
 Buffer *bufTrim(Buffer *buf, unsigned int left, unsigned int right);
 
 /*
- * Pack <buf> according to the arguments that follow, *without* clearing
- * the buffer first. The argument list consists of type/value pairs,
- * followed by END. The following types are allowed, accompanied by
- * values of the given type.
- *
- *  Descriptor  Argument type   Value added to buffer
- *  ----------  -------------   ---------------------
- *  PACK_UINT8  uint32_t        unsigned 8-bit int
- *  PACK_UINT16 uint32_t        unsigned 16-bit big-endian int
- *  PACK_UINT32 uint32_t        unsigned 32-bit big-endian int
- *  PACK_UINT64 uint64_t        unsigned 64-bit big-endian int
- *  PACK_FLOAT  double          IEEE-754 32-bit big-endian floating point
- *  PACK_DOUBLE double          IEEE-754 64-bit big-endian floating point
- *  PACK_STRING char *          unsigned 32-bit big-endian length as reported by strlen(),
- *                              followed by the contents of the string.
- *  PACK_BUFFER Buffer *        unsigned 32-bit big-endian length as reported by bufLen(),
- *                              followed by the contents of the buffer.
+ * This function does the same as strpack from utils.[ch] but on a
+ * Buffer instead of a char *.
  */
 Buffer *bufPack(Buffer *buf, ...);
 
 /*
- * Unpack <buf> into to the arguments that follow. The argument list
- * consists of type/value pairs, followed by END. The following types
- * are allowed, accompanied by values of the given type.
- *
- *  Descriptor  Argument type   Value read from buffer
- *  ----------  -------------   ---------------------
- *  PACK_UINT8  uint32_t *      unsigned 8-bit int
- *  PACK_UINT16 uint32_t *      unsigned 16-bit big-endian int
- *  PACK_UINT32 uint32_t *      unsigned 32-bit big-endian int
- *  PACK_UINT64 uint64_t *      unsigned 64-bit big-endian int
- *  PACK_FLOAT  double *        IEEE-754 32-bit big-endian floating point
- *  PACK_DOUBLE double *        IEEE-754 64-bit big-endian floating point
- *  PACK_STRING char **         unsigned 32-bit big-endian length,
- *                              followed by the contents of the string.
- *  PACK_BUFFER Buffer *        unsigned 32-bit big-endian length,
- *                              followed by the contents of the buffer.
+ * This function does the same as strunpack from utils.[ch] but on a
+ * Buffer instead of a char *.
  */
 Buffer *bufUnpack(Buffer *buf, ...);
 
