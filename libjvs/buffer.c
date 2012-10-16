@@ -397,6 +397,8 @@ Buffer *bufPack(Buffer *buf, ...)
 {
     va_list ap;
 
+    if (buf->data == NULL) bufInit(buf);
+
     va_start(ap, buf);
 
     while (1) {
@@ -407,6 +409,8 @@ Buffer *bufPack(Buffer *buf, ...)
         va_copy(ap_copy, ap);
         r = vstrpack(buf->data + buf->act_len, avail, ap_copy);
         va_end(ap_copy);
+
+        buf->act_len = MIN(r, buf->max_len);
 
         if (r <= avail) break;
 
@@ -428,6 +432,8 @@ Buffer *bufUnpack(Buffer *buf, ...)
 {
     va_list ap;
     int r;
+
+    if (buf->data == NULL) bufInit(buf);
 
     va_start(ap, buf);
     r = vstrunpack(buf->data, buf->act_len, ap);

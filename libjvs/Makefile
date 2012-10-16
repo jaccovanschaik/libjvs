@@ -15,7 +15,7 @@ CC = gcc
 LIBJVS = vector.o buffer.o hash.o list.o net.o sdr.o ts.o debug.o cx.o \
          nx.o utils.o tgen.o bitmask.o
 
-CFLAGS = -g -fPIC -Wall -O
+CFLAGS = -g -fPIC -Wall # -O
 
 all: libjvs.a libjvs.so
 
@@ -38,7 +38,7 @@ install: libjvs.a libjvs.so
 	cp *.h $(INSTALL_INC)/libjvs
 
 tags:
-	ctags -R . /usr/include
+	ctags -R .
 
 tgen.c: tgen.sh
 	./tgen.sh -c > $@
