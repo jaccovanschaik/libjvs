@@ -83,6 +83,19 @@ void hexdump(FILE *fp, const char *data, int size)
 }
 
 /*
+ * Duplicate <size> bytes starting at <src> and return a pointer to the
+ * duplicate.
+ */
+void *memdup(const void *src, unsigned int size)
+{
+    char *dupe = malloc(size);
+
+    memcpy(dupe, src, size);
+
+    return dupe;
+}
+
+/*
  * Pack <data>, whose size is <size>, into <*dest> which has
  * <*remaining> bytes remaining. Update <*dest> and <*remaining> to
  * the new situation, *even* if there is not enough room (although

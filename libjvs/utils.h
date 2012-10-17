@@ -44,6 +44,12 @@ int ifprintf(FILE *fp, int indent, const char *fmt, ...)
 void hexdump(FILE *fp, const char *data, int size);
 
 /*
+ * Duplicate <size> bytes starting at <src> and return a pointer to the
+ * duplicate.
+ */
+void *memdup(const void *src, unsigned int size);
+
+/*
  * Pack data from <ap> into <str>, which has size <size>.
  *
  * The pack functions take type/value pairs (closed by END) to specify
