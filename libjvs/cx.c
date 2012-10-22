@@ -179,7 +179,7 @@ int cxRun(CX *cx)
 
         for (conn = listHead(&cx->connections);
                 conn; conn = listNext(conn)) {
-            dbgPrint(stderr, "Adding fd %d\n", conn->fd);
+P           dbgPrint(stderr, "Adding fd %d\n", conn->fd);
 
             FD_SET(conn->fd, &rfds);
 
@@ -193,11 +193,11 @@ int cxRun(CX *cx)
                 return 0;
             }
             else {
-                dbgPrint(stderr, "No timeouts, calling select\n");
+P               dbgPrint(stderr, "No timeouts, calling select\n");
 
                 r = select(nfds, &rfds, NULL, NULL, NULL);
 
-                dbgPrint(stderr, "select returned %d\n", r);
+P               dbgPrint(stderr, "select returned %d\n", r);
             }
         }
         else {
@@ -288,12 +288,12 @@ int handle_data(CX *cx, int fd, void *udata)
     int r = read(fd, buffer, sizeof(buffer));
 
     if (r == 0) {
-        dbgPrint(stderr, "End of file on fd %d\n", fd);
+P       dbgPrint(stderr, "End of file on fd %d\n", fd);
         close(fd);
         cxDropFile(cx, fd, handle_data);
     }
     else {
-        dbgPrint(stderr, "Got %d bytes: \"%s\"\n", r, buffer);
+P       dbgPrint(stderr, "Got %d bytes: \"%s\"\n", r, buffer);
     }
 
     return 0;
@@ -301,7 +301,7 @@ int handle_data(CX *cx, int fd, void *udata)
 
 int accept_connection(CX *cx, int fd, void *udata)
 {
-    dbgPrint(stderr, "accept_connection\n");
+P   dbgPrint(stderr, "accept_connection\n");
 
     fd = netAccept(fd);
 
