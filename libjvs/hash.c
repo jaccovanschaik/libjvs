@@ -61,7 +61,7 @@ static HashKey hash(const char *key, int key_len)
 /*
  * Find the entry for <key> with length <key_len> in <bucket>.
  */
-static HashEntry *find_entry_in_bucket(List *bucket, const char *key, int key_len)
+static HashEntry *find_entry_in_bucket(const List *bucket, const char *key, int key_len)
 {
    HashEntry *entry;
 
@@ -165,7 +165,7 @@ void hashSet(HashTable *tbl, const void *data, const void *key, int key_len)
  * no such entry exists NULL is returned. <tbl> and <key> must not be NULL,
  * <key_len> must be greater than 0.
  */
-void *hashGet(HashTable *tbl, const void *key, int key_len)
+void *hashGet(const HashTable *tbl, const void *key, int key_len)
 {
    HashEntry *entry;
    HashKey hash_key = hash(key, key_len);

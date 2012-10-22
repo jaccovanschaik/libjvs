@@ -70,7 +70,7 @@ void hashSet(HashTable *tbl, const void *data, const void *key, int key_len);
  * no such entry exists NULL is returned. <tbl> and <key> must not be NULL,
  * <key_len> must be greater than 0.
  */
-void *hashGet(HashTable *tbl, const void *key, int key_len);
+void *hashGet(const HashTable *tbl, const void *key, int key_len);
 
 /*
  * Delete the entry in <tbl> for <key> with length <key_len>. <tbl> and <key>
