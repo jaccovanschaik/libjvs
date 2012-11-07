@@ -45,8 +45,14 @@ void hashInitTable(HashTable *table);
 HashTable *hashCreateTable(void);
 
 /*
- * Delete hash table <tbl> and its contents. The data that the entries in it
- * point to is *not* removed.
+ * Clear table <tbl> i.e. remove all its entries. The user data that the
+ * entries point to is *not* removed.
+ */
+void hashClearTable(HashTable *tbl);
+
+/*
+ * Delete hash table <tbl> and its contents. The user data that its
+ * entries point to is *not* removed.
  */
 void hashDeleteTable(HashTable *tbl);
 

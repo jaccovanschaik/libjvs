@@ -40,7 +40,7 @@ int bufExtract(const char **ptr, int *remaining, Buffer *value);
 
 /*
  * Return -1, 1 or 0 if <left> is smaller than, greater than or equal to
- * <right> (according to bufcmp()).
+ * <right> (according to memcmp()).
  */
 int bufCompare(const Buffer *left, const Buffer *right);
 
@@ -56,7 +56,7 @@ Buffer *bufInit(Buffer *buf);
 
 /*
  * Reset buffer <buf> to a virgin state, freeing its internal data. Use this if you have an
- * automatically allocated Buffer and want to discard it.
+ * automatically allocated Buffer and want to completely discard its contents.
  */
 void bufReset(Buffer *buf);
 
@@ -83,14 +83,10 @@ void bufDestroy(Buffer *buf);
  */
 Buffer *bufAdd(Buffer *buf, const void *data, int len);
 
-/* Add the single character <c>. */
-Buffer *bufAddC(Buffer *buf, char c);
-
 /*
- * Append a string to <buf>, formatted according to <fmt> and with the
- * subsequent parameters.
+ * Add the single character <c>.
  */
-Buffer *bufAddF(Buffer *buf, const char *fmt, ...) __attribute__ ((format (printf, 2, 3)));
+Buffer *bufAddC(Buffer *buf, char c);
 
 /*
  * Append a string to <buf>, formatted according to <fmt> and with the
@@ -99,18 +95,26 @@ Buffer *bufAddF(Buffer *buf, const char *fmt, ...) __attribute__ ((format (print
 Buffer *bufAddV(Buffer *buf, const char *fmt, va_list ap);
 
 /*
+ * Append a string to <buf>, formatted according to <fmt> and with the
+ * subsequent parameters.
+ */
+Buffer *bufAddF(Buffer *buf, const char *fmt, ...);
+
+/*
  * Replace <buf> with the <len> bytes starting at <data>.
  */
 Buffer *bufSet(Buffer *buf, const void *data, int len);
 
-/* Replace <buf> with the single character <c>. */
+/*
+ * Set <buf> to the single character <c>.
+ */
 Buffer *bufSetC(Buffer *buf, char c);
 
 /*
- * Replace <buf> with a string formatted according to <fmt> and with the
+ * Set <buf> to a string formatted according to <fmt> and with the
  * subsequent parameters.
  */
-Buffer *bufSetF(Buffer *buf, const char *fmt, ...) __attribute__ ((format (printf, 2, 3)));
+Buffer *bufSetF(Buffer *buf, const char *fmt, ...);
 
 /*
  * Replace <buf> with a string formatted according to <fmt> and with the
@@ -145,6 +149,12 @@ Buffer *bufCat(Buffer *base, const Buffer *addition);
 Buffer *bufTrim(Buffer *buf, unsigned int left, unsigned int right);
 
 /*
+ * This function does the same as vstrpack from utils.[ch] but on a
+ * Buffer instead of a char *.
+ */
+Buffer *bufVaPack(Buffer *buf, va_list ap);
+
+/*
  * This function does the same as strpack from utils.[ch] but on a
  * Buffer instead of a char *.
  */
@@ -152,6 +162,12 @@ Buffer *bufPack(Buffer *buf, ...);
 
 /*
  * This function does the same as strunpack from utils.[ch] but on a
+ * Buffer instead of a char *.
+ */
+Buffer *bufVaUnpack(Buffer *buf, va_list ap);
+
+/*
+ * This function does the same as vstrunpack from utils.[ch] but on a
  * Buffer instead of a char *.
  */
 Buffer *bufUnpack(Buffer *buf, ...);

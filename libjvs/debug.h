@@ -21,6 +21,7 @@ static char *__func__ = NULL;
 /* call the functions below using these macros. They set the current position in
  * the source code and then call the associated function. */
 
+#define dbgTrace  (_dbgSetPos(__FILE__, __LINE__, __func__), _dbgTrace)
 #define dbgAbort  (_dbgSetPos(__FILE__, __LINE__, __func__), _dbgAbort)
 #define dbgPrint  (_dbgSetPos(__FILE__, __LINE__, __func__), _dbgPrint)
 #define dbgAssert (_dbgSetPos(__FILE__, __LINE__, __func__), _dbgAssert)
@@ -28,6 +29,12 @@ static char *__func__ = NULL;
 
 /* Set the current position for subsequent error messages. */
 void _dbgSetPos(char *file, int line, const char *func);
+
+/*
+ * Print the given debugging message, indented to the current stack depth/
+ */
+void _dbgTrace(FILE *fp, const char *fmt, ...)
+        __attribute__ ((format (printf, 2, 3)));
 
 /* Call abort(), preceded with the given message. */
 void _dbgAbort(FILE *fp, const char *fmt, ...)

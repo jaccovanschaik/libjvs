@@ -8,6 +8,7 @@
  * http://www.opensource.org/licenses/mit-license.php for details.
  */
 
+#include <execinfo.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdarg.h>
@@ -15,6 +16,7 @@
 #include <errno.h>
 
 #include "debug.h"
+#include "utils.h"
 
 static const char *_err_file;
 static int         _err_line;
@@ -33,9 +35,27 @@ void _dbgSetPos(char *file, int line, const char *func)
 
 static void print_position(FILE *fp)
 {
-   fprintf(fp, "%s:%d: ", _err_file, _err_line);
+   if (_err_func) fprintf(fp, "%s ", _err_func);
 
-   if (_err_func) fprintf(fp, "(%s) ", _err_func);
+   fprintf(fp, "(%s:%d): ", _err_file, _err_line);
+}
+
+/*
+ * Print the given debugging message, indented to the current stack depth/
+ */
+void _dbgTrace(FILE *fp, const char *fmt, ...)
+{
+   va_list ap;
+
+   findent(fp, stackdepth() - 1);
+
+   print_position(fp);
+
+   va_start(ap, fmt);
+   vfprintf(fp, fmt, ap);
+   va_end(ap);
+
+   fflush(fp);
 }
 
 /* Call abort(), preceded with the given message. */

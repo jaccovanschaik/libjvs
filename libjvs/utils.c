@@ -8,6 +8,7 @@
  * http://www.opensource.org/licenses/mit-license.php for details.
  */
 
+#include <execinfo.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <endian.h>
@@ -16,8 +17,17 @@
 #include <ctype.h>
 
 #include "defs.h"
-#include "debug.h"
 #include "utils.h"
+
+/*
+ * Return the current stack depth.
+ */
+int stackdepth(void)
+{
+    void *bt_buffer[100];
+
+    return backtrace(bt_buffer, sizeof(bt_buffer)) - 1;
+}
 
 /*
  * Output <level> levels of indent to <fp>.
@@ -27,7 +37,7 @@ void findent(FILE *fp, int level)
     int i;
 
     for (i = 0; i < level; i++) {
-        fputs("    ", fp);
+        fputs("  ", fp);
     }
 }
 
@@ -55,7 +65,7 @@ int ifprintf(FILE *fp, int indent, const char *fmt, ...)
 /*
  * Dump <size> bytes from <data> as a hexdump to <fp>.
  */
-void hexdump(FILE *fp, const char *data, int size)
+void ihexdump(FILE *fp, const char *data, int size, int indent)
 {
     int i, offset = 0;
     char buffer[80];
@@ -75,6 +85,7 @@ void hexdump(FILE *fp, const char *data, int size)
                     "%c", isprint(data[i]) ? data[i] : '.');
         }
 
+        findent(fp, indent);
         fputs(buffer, fp);
         fputc('\n', fp);
 
@@ -200,7 +211,8 @@ int vstrpack(char *str, int size, va_list ap)
             }
             break;
         default:
-            dbgAbort(stderr, "Unknown pack type %d\n", type);
+            fprintf(stderr, "Unknown pack type %d\n", type);
+            abort();
         }
     }
 
@@ -277,11 +289,11 @@ int astrpack(char **str, ...)
  * PACK_STRING creates a null-terminated string. PACK_DATA requires an
  * additional int * where it writes the length of the allocated data.
  */
-int vstrunpack(char *str, int size, va_list ap)
+int vstrunpack(const char *str, int size, va_list ap)
 {
     int type;
 
-    char *ptr = str;
+    const char *ptr = str;
 
     while ((type = va_arg(ap, int)) != END) {
         switch(type) {
@@ -379,7 +391,7 @@ int vstrunpack(char *str, int size, va_list ap)
 /*
  * Unpack data from <str> (which has size <size>) into the pointers following "size".
  */
-int strunpack(char *str, int size, ...)
+int strunpack(const char *str, int size, ...)
 {
     int r;
     va_list ap;

@@ -237,8 +237,11 @@ P               dbgPrint(stderr, "select returned %d\n", r);
             free(tm);
         }
         else {
-            for (conn = listHead(&cx->connections);
-                    conn; conn = listNext(conn)) {
+            CX_Connection *next;
+
+            for (conn = listHead(&cx->connections); conn; conn = next) {
+                next = listNext(conn);
+
                 if (FD_ISSET(conn->fd, &rfds)) {
                     conn->handler(cx, conn->fd, conn->udata);
                 }

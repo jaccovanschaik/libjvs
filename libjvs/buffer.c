@@ -170,7 +170,9 @@ char *bufDetach(Buffer *buf)
 {
     char *data = buf->data;
 
-    bufInit(buf);
+    buf->data = NULL;
+    buf->max_len = 0;
+    buf->act_len = 0;
 
     return data ? data : strdup("");
 }
@@ -203,13 +205,16 @@ void bufDestroy(Buffer *buf)
  */
 Buffer *bufAdd(Buffer *buf, const void *data, int len)
 {
-    if (buf->data == NULL) bufInit(buf);
+    while (buf->act_len + len + 1 > buf->max_len) {
+        if (buf->max_len == 0)
+            buf->max_len = INITIAL_SIZE;
+        else
+            buf->max_len = 2 * buf->max_len;
 
-    while (buf->act_len + len + 1 > buf->max_len) buf->max_len *= 2;
+        buf->data = realloc(buf->data, buf->max_len);
 
-    buf->data = realloc(buf->data, buf->max_len);
-
-    assert(buf->data);
+        assert(buf->max_len == 0 || buf->data != NULL);
+    }
 
     memcpy(buf->data + buf->act_len, data, len);
 
@@ -344,9 +349,8 @@ const char *bufGet(const Buffer *buf)
  */
 Buffer *bufClear(Buffer *buf)
 {
-    if (buf->data == NULL) bufInit(buf);
+    if (buf->data != NULL) buf->data[0] = 0;
 
-    buf->data[0] = '\0';
     buf->act_len = 0;
 
     return buf;
@@ -375,7 +379,7 @@ Buffer *bufCat(Buffer *base, const Buffer *addition)
  */
 Buffer *bufTrim(Buffer *buf, unsigned int left, unsigned int right)
 {
-    if (buf->data == NULL) bufInit(buf);
+    if (buf->data == NULL) return buf;
 
     if (left  > buf->act_len) left = buf->act_len;
     if (right > buf->act_len - left) right = buf->act_len - left;
@@ -390,16 +394,12 @@ Buffer *bufTrim(Buffer *buf, unsigned int left, unsigned int right)
 }
 
 /*
- * This function does the same as strpack from utils.[ch] but on a
+ * This function does the same as vstrpack from utils.[ch] but on a
  * Buffer instead of a char *.
  */
-Buffer *bufPack(Buffer *buf, ...)
+Buffer *bufVaPack(Buffer *buf, va_list ap)
 {
-    va_list ap;
-
     if (buf->data == NULL) bufInit(buf);
-
-    va_start(ap, buf);
 
     while (1) {
         va_list ap_copy;
@@ -419,6 +419,19 @@ Buffer *bufPack(Buffer *buf, ...)
         buf->data = realloc(buf->data, buf->max_len);
     }
 
+    return buf;
+}
+
+/*
+ * This function does the same as strpack from utils.[ch] but on a
+ * Buffer instead of a char *.
+ */
+Buffer *bufPack(Buffer *buf, ...)
+{
+    va_list ap;
+
+    va_start(ap, buf);
+    bufVaPack(buf, ap);
     va_end(ap);
 
     return buf;
@@ -428,15 +441,27 @@ Buffer *bufPack(Buffer *buf, ...)
  * This function does the same as strunpack from utils.[ch] but on a
  * Buffer instead of a char *.
  */
-Buffer *bufUnpack(Buffer *buf, ...)
+Buffer *bufVaUnpack(Buffer *buf, va_list ap)
 {
-    va_list ap;
     int r;
 
     if (buf->data == NULL) bufInit(buf);
 
-    va_start(ap, buf);
     r = vstrunpack(buf->data, buf->act_len, ap);
+
+    return buf;
+}
+
+/*
+ * This function does the same as vstrunpack from utils.[ch] but on a
+ * Buffer instead of a char *.
+ */
+Buffer *bufUnpack(Buffer *buf, ...)
+{
+    va_list ap;
+
+    va_start(ap, buf);
+    bufVaUnpack(buf, ap);
     va_end(ap);
 
     return buf;
@@ -523,6 +548,28 @@ int main(int argc, char *argv[])
    make_sure_that(strcmp(bufGet(bufTrim(&buf1, 0, 1)), "BCDE") == 0);
    make_sure_that(strcmp(bufGet(bufTrim(&buf1, 1, 1)), "CD") == 0);
    make_sure_that(strcmp(bufGet(bufTrim(&buf1, 3, 3)), "") == 0);
+
+   bufPack(&buf1,
+           PACK_INT8,   0x01,
+           PACK_INT16,  0x0123,
+           PACK_INT32,  0x01234567,
+           PACK_INT64,  0x0123456789ABCDEF,
+           PACK_FLOAT,  0.0,
+           PACK_DOUBLE, 0.0,
+           PACK_STRING, "Hoi1",
+           PACK_DATA,   "Hoi2", 4,
+           END);
+
+   make_sure_that(bufLen(&buf1) == 43);
+   make_sure_that(memcmp(bufGet(&buf1),
+       "\x01"
+       "\x01\x23"
+       "\x01\x23\x45\x67"
+       "\x01\x23\x45\x67\x89\xAB\xCD\xEF"
+       "\x00\x00\x00\x00"
+       "\x00\x00\x00\x00\x00\x00\x00\x00"
+       "\x00\x00\x00\x04Hoi1"
+       "\x00\x00\x00\x04Hoi2", 43) == 0);
 
    return 0;
 }

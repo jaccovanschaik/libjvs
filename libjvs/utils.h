@@ -26,6 +26,11 @@ enum {
 };
 
 /*
+ * Return the current stack depth.
+ */
+int stackdepth(void);
+
+/*
  * Output <level> levels of indent to <fp>.
  */
 void findent(FILE *fp, int level);
@@ -41,7 +46,9 @@ int ifprintf(FILE *fp, int indent, const char *fmt, ...)
 /*
  * Dump <size> bytes from <data> as a hexdump to <fp>.
  */
-void hexdump(FILE *fp, const char *data, int size);
+void ihexdump(FILE *fp, const char *data, int size, int indent);
+
+#define hexdump(fp, data, size) (ihexdump((fp), (data), (size), 0))
 
 /*
  * Duplicate <size> bytes starting at <src> and return a pointer to the
@@ -118,11 +125,11 @@ int astrpack(char **str, ...);
  * PACK_STRING creates a null-terminated string. PACK_DATA requires an
  * additional int * where it writes the length of the allocated data.
  */
-int vstrunpack(char *str, int size, va_list ap);
+int vstrunpack(const char *str, int size, va_list ap);
 
 /*
  * Unpack data from <str> (which has size <size>) into the pointers following "size".
  */
-int strunpack(char *str, int size, ...);
+int strunpack(const char *str, int size, ...);
 
 #endif
