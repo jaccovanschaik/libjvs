@@ -448,8 +448,8 @@ int main(int argc, char *argv[])
         0, 2,
         0, 0, 0, 3,
         0, 0, 0, 0, 0, 0, 0, 4,
-        0x00, 0x00, 0x80, 0x4B,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x43,
+        0x3F, 0x80, 0x00, 0x00,
+        0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         0, 0, 0, 3, 'H', 'o', 'i',
         0, 0, 0, 5, 'H', 'e', 'l', 'l', 'o'
     };
@@ -465,13 +465,9 @@ int main(int argc, char *argv[])
             PACK_DATA,      "Hello", 5,
             END);
 
-    fprintf(stderr, "r = %d\n", r);
-
-    hexdump(stderr, buffer, r);
-
     make_sure_that(r == 43);
 
-    /* make_sure_that(memcmp(buffer, expected, 43) == 0); */
+    make_sure_that(memcmp(buffer, expected, 43) == 0);
 
     r = strunpack(buffer, sizeof(buffer),
             PACK_INT8,      &u8,
