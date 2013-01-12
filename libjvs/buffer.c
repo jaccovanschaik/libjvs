@@ -443,11 +443,9 @@ Buffer *bufPack(Buffer *buf, ...)
  */
 Buffer *bufVaUnpack(Buffer *buf, va_list ap)
 {
-    int r;
-
     if (buf->data == NULL) bufInit(buf);
 
-    r = vstrunpack(buf->data, buf->act_len, ap);
+    vstrunpack(buf->data, buf->act_len, ap);
 
     return buf;
 }
