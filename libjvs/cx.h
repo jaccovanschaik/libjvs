@@ -38,4 +38,9 @@ int cxRun(CX *cx);
  */
 int cxClose(CX *cx);
 
+/*
+ * Free the memory occupied by <cx>.
+ */
+int cxFree(CX *cx);
+
 #endif

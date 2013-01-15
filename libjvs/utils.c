@@ -114,7 +114,7 @@ void *memdup(const void *src, unsigned int size)
  */
 static void pack(void *data, int size, char **dest, int *remaining)
 {
-    if (*remaining > size) memcpy(*dest, data, size);
+    if (*remaining >= size) memcpy(*dest, data, size);
 
     *dest += size;
     *remaining -= size;

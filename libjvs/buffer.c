@@ -19,7 +19,7 @@
 #include "utils.h"
 #include "defs.h"
 
-#define INITIAL_SIZE 1024
+#define INITIAL_SIZE 16
 
 /*
  * Encode buffer <value> into <buf>.
@@ -404,17 +404,25 @@ Buffer *bufVaPack(Buffer *buf, va_list ap)
     while (1) {
         va_list ap_copy;
 
-        int r, avail = buf->max_len - buf->act_len;
+        int required, available = buf->max_len - buf->act_len;
 
         va_copy(ap_copy, ap);
-        r = vstrpack(buf->data + buf->act_len, avail, ap_copy);
+        required = vstrpack(buf->data + buf->act_len, available, ap_copy);
         va_end(ap_copy);
 
-        buf->act_len = MIN(r, buf->max_len);
+        if (available >= required + 1) {    /* Room for "required" plus a null-byte? */
+            buf->act_len += required;       /* Yes! Update actual length...          */
+            buf->data[buf->act_len] = '\0'; /* ... and add the null-byte.            */
+            break;
+        }
 
-        if (r <= avail) break;
+        /* Not enough room: increase max_len until it fits. */
 
-        buf->max_len = buf->act_len + r;
+        while (buf->max_len < buf->act_len + required + 1) {
+            buf->max_len *= 2;
+        }
+
+        /* Then realloc and try again. */
 
         buf->data = realloc(buf->data, buf->max_len);
     }

@@ -270,6 +270,18 @@ int cxClose(CX *cx)
     return 0;
 }
 
+/*
+ * Free the memory occupied by <cx>.
+ */
+int cxFree(CX *cx)
+{
+    cxClose(cx);
+
+    free(cx);
+
+    return 0;
+}
+
 #if 0
 void cxFDSet(CX *cx, fd_set *fds)
 {
