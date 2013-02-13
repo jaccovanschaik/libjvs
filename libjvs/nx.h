@@ -48,34 +48,33 @@ int nxListenPort(NX *nx);
 const char *nxListenHost(NX *nx);
 
 /*
- * Return the local port for <conn>.
+ * Return the local port for the connection on <fd>.
  */
 int nxLocalPort(int fd);
 
 /*
- * Return the local hostname for <conn>.
+ * Return the local hostname for the connection on <fd>.
  */
 const char *nxLocalHost(int fd);
 
 /*
- * Return the remote port for <conn>.
+ * Return the remote port for the connection on <fd>.
  */
 int nxRemotePort(int fd);
 
 /*
- * Return the remote hostname for <conn>.
+ * Return the remote hostname for the connection on <fd>.
  */
 const char *nxRemoteHost(int fd);
 
 /*
- * Queue the first <len> bytes from <data> to be sent over connection
- * <conn>. Returns the number of bytes queued (which is always <len>).
+ * Queue the first <len> bytes from <data> to be sent over <fd>. Returns
+ * the number of bytes queued (which is always <len>).
  */
 int nxQueue(NX *nx, int fd, const Buffer *data);
 
 /*
- * Put <len> bytes received from <conn> into <data>. Returns the actual
- * number of bytes put in <data>, which may be less than <len> (even 0).
+ * Add data received on <fd> to <data>. Returns the number of bytes added.
  */
 int nxGet(NX *nx, int fd, Buffer *data);
 
@@ -85,7 +84,7 @@ int nxGet(NX *nx, int fd, Buffer *data);
 int nxConnect(NX *nx, const char *host, int port);
 
 /*
- * Disconnect connection <conn>.
+ * Disconnect connection the connection on <fd>.
  */
 void nxDisconnect(NX *nx, int fd);
 
