@@ -13,7 +13,6 @@
 #include "buffer.h"
 
 typedef struct NX NX;
-typedef struct NX_Conn NX_Conn;
 
 /*
  * Create a Network Exchange listening on <host> and <port>. <host> may
@@ -51,44 +50,44 @@ const char *nxListenHost(NX *nx);
 /*
  * Return the local port for <conn>.
  */
-int nxLocalPort(NX_Conn *conn);
+int nxLocalPort(int fd);
 
 /*
  * Return the local hostname for <conn>.
  */
-const char *nxLocalHost(NX_Conn *conn);
+const char *nxLocalHost(int fd);
 
 /*
  * Return the remote port for <conn>.
  */
-int nxRemotePort(NX_Conn *conn);
+int nxRemotePort(int fd);
 
 /*
  * Return the remote hostname for <conn>.
  */
-const char *nxRemoteHost(NX_Conn *conn);
+const char *nxRemoteHost(int fd);
 
 /*
  * Queue the first <len> bytes from <data> to be sent over connection
  * <conn>. Returns the number of bytes queued (which is always <len>).
  */
-int nxQueue(NX_Conn *conn, const Buffer *data);
+int nxQueue(NX *nx, int fd, const Buffer *data);
 
 /*
  * Put <len> bytes received from <conn> into <data>. Returns the actual
  * number of bytes put in <data>, which may be less than <len> (even 0).
  */
-int nxGet(NX_Conn *conn, Buffer *data);
+int nxGet(NX *nx, int fd, Buffer *data);
 
 /*
  * Make and return a connection to port <port> on host <host>.
  */
-NX_Conn *nxConnect(NX *nx, const char *host, int port);
+int nxConnect(NX *nx, const char *host, int port);
 
 /*
  * Disconnect connection <conn>.
  */
-void nxDisconnect(NX_Conn *conn);
+void nxDisconnect(NX *nx, int fd);
 
 /*
  * Set <handler> as the function to be called when a new connection is
@@ -96,7 +95,7 @@ void nxDisconnect(NX_Conn *conn);
  * previous ones. <handler> will *not* be called for connections users
  * create themselves (using nxConnect()).
  */
-void nxOnConnect(NX *nx, void (*handler)(NX_Conn *conn));
+void nxOnConnect(NX *nx, void (*handler)(NX *nx, int fd));
 
 /*
  * Set <handler> as the function to be called when a connection is
@@ -104,21 +103,21 @@ void nxOnConnect(NX *nx, void (*handler)(NX_Conn *conn));
  * overwrite previous ones. <handler> will *not* be called for
  * connections users drop themselves (using nxDisconnect()).
  */
-void nxOnDisconnect(NX *nx, void (*handler)(NX_Conn *conn));
+void nxOnDisconnect(NX *nx, void (*handler)(NX *nx, int fd));
 
 /*
  * Set <handler> as the function to be called when new data comes in.
  * Only one function can be set; subsequent calls will overwrite
  * previous ones.
  */
-void nxOnData(NX *nx, void (*handler)(NX_Conn *conn));
+void nxOnData(NX *nx, void (*handler)(NX *nx, int fd));
 
 /*
  * Set <handler> as the function to be called when an error occurs. The
  * connection on which it occurred and the errno code will be passed to
  * the handler.
  */
-void nxOnError(NX *nx, void (*handler)(NX_Conn *conn, int err));
+void nxOnError(NX *nx, void (*handler)(NX *nx, int fd, int err));
 
 /*
  * Return the current *UTC* time (number of seconds since
@@ -132,11 +131,6 @@ double nxNow(void);
  */
 void nxAddTimeout(NX *nx, double t, void *udata, void (*handler)(NX *nx, double t,
                     void *udata));
-
-/*
- * Return the NX for <conn>.
- */
-NX *nxFor(NX_Conn *conn);
 
 /*
  * Return an array of file descriptor that <nx> wants to listen on. The number of returned file
