@@ -10,6 +10,8 @@
  * http://www.opensource.org/licenses/mit-license.php for details.
  */
 
+#include <sys/select.h>
+
 #include "buffer.h"
 
 typedef struct NX NX;
@@ -160,5 +162,7 @@ int nxPrepareSelect(NX *nx, int *nfds, fd_set *rfds, fd_set *wfds, struct timeva
  * timeouts left.
  */
 int nxRun(NX *nx);
+
+int nxHandleSelect(NX *nx, int r, fd_set *rfds, fd_set *wfds);
 
 #endif

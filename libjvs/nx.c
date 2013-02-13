@@ -484,6 +484,77 @@ int nxPrepareSelect(NX *nx, int *nfds, fd_set *rfds, fd_set *wfds, struct timeva
 }
 
 /*
+ * Handle the result of a select call. <r> is the return value of the call and <rfds> and <wfds> are
+ * the values of the read and write fd set after the call.
+ */
+int nxHandleSelect(NX *nx, int r, fd_set *rfds, fd_set *wfds)
+{
+    if (r > 0) {
+        int fd;
+
+        if (FD_ISSET(nx->listen_fd, rfds)) {
+            int fd = netAccept(nx->listen_fd);
+
+            NX_Conn *conn = nx_create_connection(nx, fd);
+
+            nx_callback(conn, nx->on_connect);
+
+            FD_CLR(nx->listen_fd, rfds);
+        }
+
+        for (fd = 0; fd < nx->nfds; fd++) {
+            NX_Conn *conn = nx->connection[fd];
+
+            if (conn == NULL) continue;
+
+            if (FD_ISSET(conn->fd, wfds)) {
+                r = write(conn->fd, bufGet(conn->outgoing),
+                        bufLen(conn->outgoing));
+
+                if (r == -1) {
+                    if (nx->on_error) nx->on_error(nx, conn->fd, errno);
+                    nxDisconnect(nx, conn->fd);
+                }
+                else {
+                    bufTrim(conn->outgoing, r, 0);
+                }
+            }
+
+            if (FD_ISSET(conn->fd, rfds)) {
+                char buffer[9000];
+
+                r = read(conn->fd, buffer, sizeof(buffer));
+
+                if (r == -1) {
+                    if (nx->on_error) nx->on_error(nx, conn->fd, errno);
+                    nxDisconnect(nx, conn->fd);
+                }
+                else if (r == 0) {
+                    nx_callback(conn, nx->on_disconnect);
+                    nxDisconnect(nx, conn->fd);
+                }
+                else {
+                    bufAdd(conn->incoming, buffer, r);
+                    nx_callback(conn, nx->on_data);
+                }
+            }
+        }
+    }
+    else if (r == 0) {
+        NX_Timeout *tm = listRemoveHead(&nx->timeouts);
+
+        tm->handler(nx, tm->t, tm->udata);
+
+        free(tm);
+    }
+    else if (errno != EINTR) {
+        r = errno;
+    }
+
+    return r;
+}
+
+/*
  * Run the Network Exchange. New connection requests from external
  * parties will be accepted automatically, calling the on_connect
  * handler. On errors and end-of-file conditions connections will
@@ -494,7 +565,7 @@ int nxPrepareSelect(NX *nx, int *nfds, fd_set *rfds, fd_set *wfds, struct timeva
  */
 int nxRun(NX *nx)
 {
-    int fd, r;
+    int r;
     fd_set rfds, wfds;
     struct timeval *tv;
 
@@ -528,66 +599,9 @@ int nxRun(NX *nx)
             break;
         }
 
-        if (r > 0) {
-            if (FD_ISSET(nx->listen_fd, &rfds)) {
-                int fd = netAccept(nx->listen_fd);
+        r = nxHandleSelect(nx, r, &rfds, &wfds);
 
-                NX_Conn *conn = nx_create_connection(nx, fd);
-
-                nx_callback(conn, nx->on_connect);
-
-                FD_CLR(nx->listen_fd, &rfds);
-            }
-
-            for (fd = 0; fd < nx->nfds; fd++) {
-                NX_Conn *conn = nx->connection[fd];
-
-                if (conn == NULL) continue;
-
-                if (FD_ISSET(conn->fd, &wfds)) {
-                    r = write(conn->fd, bufGet(conn->outgoing),
-                            bufLen(conn->outgoing));
-
-                    if (r == -1) {
-                        if (nx->on_error) nx->on_error(nx, conn->fd, errno);
-                        nxDisconnect(nx, conn->fd);
-                    }
-                    else {
-                        bufTrim(conn->outgoing, r, 0);
-                    }
-                }
-
-                if (FD_ISSET(conn->fd, &rfds)) {
-                    char buffer[9000];
-
-                    r = read(conn->fd, buffer, sizeof(buffer));
-
-                    if (r == -1) {
-                        if (nx->on_error) nx->on_error(nx, conn->fd, errno);
-                        nxDisconnect(nx, conn->fd);
-                    }
-                    else if (r == 0) {
-                        nx_callback(conn, nx->on_disconnect);
-                        nxDisconnect(nx, conn->fd);
-                    }
-                    else {
-                        bufAdd(conn->incoming, buffer, r);
-                        nx_callback(conn, nx->on_data);
-                    }
-                }
-            }
-        }
-        else if (r == 0) {
-            NX_Timeout *tm = listRemoveHead(&nx->timeouts);
-
-            tm->handler(nx, tm->t, tm->udata);
-
-            free(tm);
-        }
-        else if (errno != EINTR) {
-            r = errno;
-            break;
-        }
+        if (r < 0 && errno != EINTR) break;
     }
 
     return r;
@@ -605,72 +619,6 @@ double nxNextTimeout(NX *nx)
     NX_Timeout *timeout = listHead(&nx->timeouts);
 
     return timeout ? timeout->t : INFINITY;
-}
-
-int nxHandleSelect(NX *nx, int return_value, fd_set *rfds, fd_set *wfds)
-{
-    int fd;
-
-    NX_Conn *conn;
-
-    if (return_value > 0) {
-        if (FD_ISSET(nx->listen_fd, rfds)) {
-            fd = netAccept(nx->listen_fd);
-
-            conn = nx_create_connection(nx, fd);
-
-            nx_callback(conn, nx->on_connect);
-        }
-
-        for (fd = 0; fd < nx->nfds; fd++) {
-            conn = nx->connection[fd];
-
-            if (conn == NULL) continue;
-
-            if (FD_ISSET(conn->fd, wfds)) {
-                return_value = write(conn->fd, bufGet(conn->outgoing), bufLen(conn->outgoing));
-
-                if (return_value == -1) {
-                    if (nx->on_error) nx->on_error(conn, errno);
-                    nxDisconnect(conn);
-                }
-                else {
-                    bufTrim(conn->outgoing, return_value, 0);
-                }
-            }
-
-            if (FD_ISSET(conn->fd, rfds)) {
-                char buffer[9000];
-
-                return_value = read(conn->fd, buffer, sizeof(buffer));
-
-                if (return_value == -1) {
-                    if (nx->on_error) nx->on_error(conn, errno);
-                    nxDisconnect(conn);
-                }
-                else if (return_value == 0) {
-                    nx_callback(conn, nx->on_disconnect);
-                    nxDisconnect(conn);
-                }
-                else {
-                    bufAdd(conn->incoming, buffer, return_value);
-                    nx_callback(conn, nx->on_data);
-                }
-            }
-        }
-    }
-    else if (return_value == 0) {
-        NX_Timeout *tm = listRemoveHead(&nx->timeouts);
-
-        tm->handler(nx, tm->t, tm->udata);
-
-        free(tm);
-    }
-    else if (errno != EINTR) {
-        return_value = errno;
-    }
-
-    return 0;
 }
 
 void nxHandleRead(NX *nx, int fd)
@@ -728,7 +676,7 @@ void nxHandleTimeout(NX *nx)
 #ifdef TEST
 void on_connect(NX *nx, int fd)
 {
-    dbgPrint(stderr, "local: %s:%d, remote: %s:%d\n",
+    dbgPrint(stderr, "New connection. Local: %s:%d, remote: %s:%d\n",
             nxLocalHost(fd), nxLocalPort(fd),
             nxRemoteHost(fd), nxRemotePort(fd));
 }
