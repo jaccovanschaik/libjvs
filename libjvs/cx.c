@@ -331,7 +331,7 @@ int main(int argc, char *argv[])
 
     return 0;
 
-    int fd = netOpenPort("localhost", 1234);
+    int fd = netListen("localhost", 1234);
 
     cxAddFile(cx, fd, NULL, accept_connection);
 

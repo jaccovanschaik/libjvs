@@ -14,9 +14,9 @@
 /* Open a listen port on <host> and <port> and return the corresponding
  * file descriptor. If <host> is NULL the socket will listen on all
  * interfaces. If <port> is less than 0, the socket will be bound to a
- * random local port. You can use netLocalPort() afterwards to find out
- * which one. */
-int netOpenPort(const char *host, int port);
+ * random local port (use netLocalPort() on the returned fd to find out
+ * which). */
+int netListen(const char *host, int port);
 
 /* Make a connection to <port> on <host> and return the corresponding
  * file descriptor. */

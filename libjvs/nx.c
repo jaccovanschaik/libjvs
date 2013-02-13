@@ -160,10 +160,10 @@ NX *nxCreate(const char *host, int port)
 {
     NX *nx = calloc(1, sizeof(NX));
 
-    nx->listen_fd = netOpenPort(host, port);
+    nx->listen_fd = netListen(host, port);
 
     if (nx->listen_fd == -1) {
-        dbgError(stderr, "netOpenPort failed");
+        dbgError(stderr, "netListen failed");
         free(nx);
         return NULL;
     }
