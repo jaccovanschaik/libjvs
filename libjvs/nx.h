@@ -154,7 +154,8 @@ int nxPrepareSelect(NX *nx, int *nfds, fd_set *rfds, fd_set *wfds, struct timeva
 
 /*
  * Handle the result of a select call. <r> is the return value of the call and <rfds> and <wfds> are
- * the values of the read and write fd set after the call.
+ * the values of the read and write fd set after the call. File descriptors that were handled are
+ * removed from <rfds> and <wfds>.
  */
 int nxHandleSelect(NX *nx, int r, fd_set *rfds, fd_set *wfds);
 
