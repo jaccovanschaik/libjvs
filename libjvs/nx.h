@@ -153,16 +153,40 @@ int nxPrepareSelect(NX *nx, int *nfds, fd_set *rfds, fd_set *wfds, struct timeva
                       **tvpp);
 
 /*
+ * Handle the result of a select call. <r> is the return value of the call and <rfds> and <wfds> are
+ * the values of the read and write fd set after the call.
+ */
+int nxHandleSelect(NX *nx, int r, fd_set *rfds, fd_set *wfds);
+
+/*
+ * Apparently, there is data ready for reading at <fd>. Handle this.
+ */
+void nxHandleRead(NX *nx, int fd);
+
+/*
+ * File descriptor <fd> is writable. Handle this.
+ */
+void nxHandleWrite(NX *nx, int fd);
+
+/*
+ * A timeout occurred. Handle this.
+ */
+void nxHandleTimeout(NX *nx);
+
+/*
  * Run the Network Exchange. New connection requests from external
  * parties will be accepted automatically, calling the on_connect
  * handler. On errors and end-of-file conditions connections will
  * automatically be closed, calling the on_error and on_disconnect
  * handlers. This function will return either when the select inside
  * fails (returning errno) or when there are no more connections and
- * timeouts left.
+ * timeouts left (returning 0).
  */
 int nxRun(NX *nx);
 
-int nxHandleSelect(NX *nx, int r, fd_set *rfds, fd_set *wfds);
+/*
+ * Return TRUE if <fd> is managed by <nx>, otherwise FALSE.
+ */
+int nxOwnsFd(NX *nx, int fd);
 
 #endif
