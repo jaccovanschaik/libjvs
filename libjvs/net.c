@@ -51,14 +51,12 @@ static int net_socket(void)
 }
 
 /* Bind a socket to <port> and <host>. If <host> is NULL, the socket
- * will be bound to INADDR_ANY. */
+ * will be bound to INADDR_ANY. If port is 0, it will be bound to a random port. */
 
 static int net_bind(int socket, const char *host, int port)
 {
     struct sockaddr_in myaddr_in;      /* for local socket address */
     struct hostent *host_ptr;
-
-    if (port < 0) return 0;
 
     memset(&myaddr_in, 0, sizeof(myaddr_in));
 
@@ -118,7 +116,7 @@ static const char *net_host_name(struct sockaddr_in *peeraddr)
 
 /* Open a listen port on <host> and <port> and return the corresponding
  * file descriptor. If <host> is NULL the socket will listen on all
- * interfaces. If <port> is less than 0, the socket will be bound to a
+ * interfaces. If <port> is equal to 0, the socket will be bound to a
  * random local port (use netLocalPort() on the returned fd to find out
  * which). */
 
@@ -126,13 +124,12 @@ int netListen(const char *host, int port)
 {
     int lsd;
 
-    lsd = net_socket();
-    if (lsd == -1) {
+    if ((lsd = net_socket()) == -1) {
         dbgError(stderr, "net_socket failed");
         return -1;
     }
 
-    if (port >= 0 && net_bind(lsd, host, port) != 0) {
+    if (net_bind(lsd, host, port) != 0) {
         dbgError(stderr, "net_bind failed");
         return -1;
     }
