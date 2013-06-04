@@ -137,13 +137,13 @@ void nxAddTimeout(NX *nx, double t, void *udata, void (*handler)(NX *nx, double 
  * Return an array of file descriptor that <nx> wants to listen on. The number of returned file
  * descriptors is returned through <count>.
  */
-int *nxFdsForReading(NX *nx, int *count);
+const int *nxFdsForReading(NX *nx, int *count);
 
 /*
  * Return an array of file descriptor that <nx> wants to write to. The number of returned file
  * descriptors is returned through <count>.
  */
-int *nxFdsForWriting(NX *nx, int *count);
+const int *nxFdsForWriting(NX *nx, int *count);
 
 /*
  * Prepare arguments for a call to select() on behalf of <nx>. Returned are the nfds, rfds and wfds

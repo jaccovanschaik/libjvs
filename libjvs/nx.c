@@ -389,7 +389,7 @@ void nxAddTimeout(NX *nx, double t, void *udata,
  * Return an array of file descriptor that <nx> wants to listen on. The number of returned file
  * descriptors is returned through <count>.
  */
-int *nxFdsForReading(NX *nx, int *count)
+const int *nxFdsForReading(NX *nx, int *count)
 {
     int fd;
 
@@ -416,7 +416,7 @@ int *nxFdsForReading(NX *nx, int *count)
  * Return an array of file descriptor that <nx> wants to write to. The number of returned file
  * descriptors is returned through <count>.
  */
-int *nxFdsForWriting(NX *nx, int *count)
+const int *nxFdsForWriting(NX *nx, int *count)
 {
     int fd;
 
@@ -597,7 +597,8 @@ int nxRun(NX *nx)
     struct timeval *tv;
 
     for ever {
-        int i, *fds, num_fds;
+        const int *fds;
+        int i, num_fds;
 
         FD_ZERO(&rfds);
         FD_ZERO(&wfds);
