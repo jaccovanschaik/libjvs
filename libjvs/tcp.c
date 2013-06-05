@@ -18,7 +18,7 @@
 #include <netdb.h>
 #include <errno.h>
 
-#include "net.h"
+#include "tcp.h"
 #include "debug.h"
 
 static struct linger linger = { 1, 5 }; /* 5 second linger */
@@ -31,8 +31,7 @@ static int net_socket(void)
 {
     int sd;                            /* socket descriptor */
 
-    sd = socket(AF_INET, SOCK_STREAM, 0);
-    if (sd == -1) {
+    if ((sd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
         dbgError(stderr, "unable to create socket");
         return -1;
     }

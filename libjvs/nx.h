@@ -130,8 +130,7 @@ double nxNow(void);
  * Add a timeout at UTC time t, calling <handler> with <nx>, time <t>
  * and <udata>.
  */
-void nxAddTimeout(NX *nx, double t, void *udata, void (*handler)(NX *nx, double t,
-                    void *udata));
+void nxAddTimeout(NX *nx, double t, void *udata, void (*handler)(NX *nx, double t, void *udata));
 
 /*
  * Return an array of file descriptor that <nx> wants to listen on. The number of returned file
@@ -149,8 +148,7 @@ const int *nxFdsForWriting(NX *nx, int *count);
  * Prepare arguments for a call to select() on behalf of <nx>. Returned are the nfds, rfds and wfds
  * parameters and a pointer to a struct timeval pointer.
  */
-int nxPrepareSelect(NX *nx, int *nfds, fd_set *rfds, fd_set *wfds, struct timeval
-                      **tvpp);
+int nxPrepareSelect(NX *nx, int *nfds, fd_set *rfds, fd_set *wfds, struct timeval **tvpp);
 
 /*
  * Handle the result of a select call. <r> is the return value of the call and <rfds> and <wfds> are

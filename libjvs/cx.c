@@ -20,7 +20,7 @@
 
 #include "buffer.h"
 #include "list.h"
-#include "net.h"
+#include "tcp.h"
 #include "defs.h"
 #include "debug.h"
 

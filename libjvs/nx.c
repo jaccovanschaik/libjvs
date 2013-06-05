@@ -22,7 +22,7 @@
 #include "buffer.h"
 #include "list.h"
 #include "defs.h"
-#include "net.h"
+#include "tcp.h"
 #include "nx.h"
 
 typedef struct {
