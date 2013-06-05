@@ -18,6 +18,7 @@
 #include <netdb.h>
 #include <errno.h>
 
+#include "net.h"
 #include "tcp.h"
 #include "debug.h"
 
@@ -49,38 +50,6 @@ static int tcp_socket(void)
     return sd;
 }
 
-/* Bind a socket to <port> and <host>. If <host> is NULL, the socket
- * will be bound to INADDR_ANY. If port is 0, it will be bound to a random port. */
-
-static int tcp_bind(int socket, const char *host, int port)
-{
-    struct sockaddr_in myaddr_in;      /* for local socket address */
-    struct hostent *host_ptr;
-
-    memset(&myaddr_in, 0, sizeof(myaddr_in));
-
-    if (host == NULL) {
-        myaddr_in.sin_addr.s_addr = INADDR_ANY;
-    }
-    else if ((host_ptr = gethostbyname(host)) != NULL) {
-        myaddr_in.sin_addr.s_addr = ((struct in_addr *) (host_ptr->h_addr))->s_addr;
-    }
-    else {
-        dbgError(stderr, "gethostbyname(%s) failed", host);
-        return -1;
-    }
-
-    myaddr_in.sin_port = htons(port);
-    myaddr_in.sin_family = AF_INET;
-
-    if (bind(socket, (struct sockaddr *) &myaddr_in, sizeof(struct sockaddr_in)) != 0) {
-        dbgError(stderr, "bind failed");
-        return -1;
-    }
-
-    return 0;
-}
-
 /* Tell a socket to be a listener */
 
 static int tcp_listen(int socket)
@@ -91,26 +60,6 @@ static int tcp_listen(int socket)
     }
 
     return 0;
-}
-
-static const char *net_host_name(struct sockaddr_in *peeraddr)
-{
-    struct hostent *ent = gethostbyaddr((char *) &peeraddr->sin_addr,
-            sizeof(peeraddr->sin_addr), AF_INET);
-
-    if (ent == NULL) {
-        static char text_buffer[16];
-
-        snprintf(text_buffer, sizeof(text_buffer), "%d.%d.%d.%d",
-                 (peeraddr->sin_addr.s_addr & 0xFF000000) >> 24,
-                 (peeraddr->sin_addr.s_addr & 0x00FF0000) >> 16,
-                 (peeraddr->sin_addr.s_addr & 0x0000FF00) >> 8,
-                 (peeraddr->sin_addr.s_addr & 0x000000FF));
-
-        return text_buffer;
-    }
-
-    return ent->h_name;
 }
 
 /* Open a listen port on <host> and <port> and return the corresponding
@@ -128,8 +77,8 @@ int tcpListen(const char *host, int port)
         return -1;
     }
 
-    if (tcp_bind(lsd, host, port) != 0) {
-        dbgError(stderr, "tcp_bind failed");
+    if (netBind(lsd, host, port) != 0) {
+        dbgError(stderr, "netBind failed");
         return -1;
     }
 
@@ -183,22 +132,6 @@ int tcpConnect(const char *host, int port)
     return sd;
 }
 
-/* Get the port that corresponds to service <service>. */
-
-int netPortFor(char *service)
-{
-    struct servent *serv_ptr;          /* pointer to service information */
-
-    serv_ptr = getservbyname(service, "tcp");
-
-    if (serv_ptr == NULL) {
-        dbgError(stderr, "getservbyname(%s) failed", service);
-        return -1;
-    }
-
-    return serv_ptr->s_port;
-}
-
 /* Accept an incoming connection request on a listen socket */
 
 int tcpAccept(int sd)
@@ -221,58 +154,6 @@ int tcpAccept(int sd)
         dbgError(stderr, "accept failed");
 
     return csd;
-}
-
-/* Get hostname of peer */
-
-const char *netPeerHost(int sd)
-{
-    struct sockaddr_in peeraddr;
-
-    socklen_t len = sizeof(struct sockaddr_in);
-
-    getpeername(sd, (struct sockaddr *) &peeraddr, &len);
-
-    return net_host_name(&peeraddr);
-}
-
-/* Get port number used by peer */
-
-int netPeerPort(int sd)
-{
-    struct sockaddr_in peeraddr;
-
-    socklen_t len = sizeof(struct sockaddr_in);
-
-    getpeername(sd, (struct sockaddr *) &peeraddr, &len);
-
-    return peeraddr.sin_port;
-}
-
-/* Get local hostname */
-
-const char *netLocalHost(int sd)
-{
-    struct sockaddr_in sockaddr;
-
-    socklen_t len = sizeof(struct sockaddr_in);
-
-    getsockname(sd, (struct sockaddr *) &sockaddr, &len);
-
-    return net_host_name(&sockaddr);
-}
-
-/* Get local port number. */
-
-int netLocalPort(int sd)
-{
-    struct sockaddr_in peeraddr;
-
-    socklen_t len = sizeof(struct sockaddr_in);
-
-    getsockname(sd, (struct sockaddr *) &peeraddr, &len);
-
-    return ntohs(peeraddr.sin_port);
 }
 
 /* Read from <fd> until <buf> contains exactly <len> bytes. */

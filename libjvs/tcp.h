@@ -8,8 +8,8 @@
  * http://www.opensource.org/licenses/mit-license.php for details.
  */
 
-#ifndef NET_H
-#define NET_H
+#ifndef TCP_H
+#define TCP_H
 
 /* Open a listen port on <host> and <port> and return the corresponding
  * file descriptor. If <host> is NULL the socket will listen on all
@@ -22,23 +22,8 @@ int tcpListen(const char *host, int port);
  * file descriptor. */
 int tcpConnect(const char *host, int port);
 
-/* Get the port that corresponds to service <service>. */
-int netPortFor(char *service);
-
 /* Accept an incoming connection request on a listen socket */
 int tcpAccept(int sd);
-
-/* Get hostname of peer */
-const char *netPeerHost(int sd);
-
-/* Get port number used by peer */
-int netPeerPort(int sd);
-
-/* Get local hostname */
-const char *netLocalHost(int sd);
-
-/* Get local port number. */
-int netLocalPort(int sd);
 
 /* Read from <fd> until <buf> contains exactly <len> bytes. */
 int tcpRead(int fd, void *buf, int len);

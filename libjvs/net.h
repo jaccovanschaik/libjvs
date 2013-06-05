@@ -18,19 +18,35 @@
  */
 const char *netHost(uint32_t big_endian_ip);
 
-/* Get the port that corresponds to service <service>. */
+/*
+ * Get the port that corresponds to service <service>.
+ */
 int netPort(char *service);
 
-/* Get hostname of peer */
+/*
+ * Bind a socket to <port> and <host>. If <host> is NULL, the socket
+ * will be bound to INADDR_ANY. If port is 0, it will be bound to a random port.
+ */
+int netBind(int socket, const char *host, int port);
+
+/*
+ * Get hostname of peer.
+ */
 const char *netPeerHost(int sd);
 
-/* Get port number used by peer */
+/*
+ * Get port number used by peer.
+ */
 int netPeerPort(int sd);
 
-/* Get local hostname */
+/*
+ * Get local hostname.
+ */
 const char *netLocalHost(int sd);
 
-/* Get local port number. */
+/*
+ * Get local port number.
+ */
 int netLocalPort(int sd);
 
 #endif

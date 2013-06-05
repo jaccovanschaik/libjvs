@@ -8,8 +8,8 @@
  * http://www.opensource.org/licenses/mit-license.php for details.
  */
 
-#ifndef NET_H
-#define NET_H
+#ifndef UDP_H
+#define UDP_H
 
 /* Make a connection to <port> on <host> and return the corresponding
  * file descriptor. */

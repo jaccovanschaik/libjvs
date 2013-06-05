@@ -7,7 +7,12 @@
  * Version:	$Id$
  */
 
+#include <netdb.h>
+#include <stdio.h>
+
+#include "defs.h"
 #include "net.h"
+#include "debug.h"
 
 /*
  * Get the host name that belongs to IP address <big_endian_ip>. Returns the fqdn if it can be
@@ -15,7 +20,7 @@
  */
 const char *netHost(uint32_t big_endian_ip)
 {
-    struct hostent *ent = gethostbyaddr((char *) big_endian_ip, sizeof(big_endian_ip), AF_INET);
+    struct hostent *ent = gethostbyaddr((char *) &big_endian_ip, sizeof(big_endian_ip), AF_INET);
 
     if (ent == NULL) {
         static char text_buffer[16];
@@ -32,8 +37,9 @@ const char *netHost(uint32_t big_endian_ip)
     return ent->h_name;
 }
 
-/* Get the port that corresponds to service <service>. */
-
+/*
+ * Get the port that corresponds to service <service>.
+ */
 int netPort(char *service)
 {
     struct servent *serv_ptr;          /* pointer to service information */
@@ -48,8 +54,42 @@ int netPort(char *service)
     return serv_ptr->s_port;
 }
 
-/* Get hostname of peer */
+/*
+ * Bind a socket to <port> and <host>. If <host> is NULL, the socket
+ * will be bound to INADDR_ANY. If port is 0, it will be bound to a random port.
+ */
+int netBind(int socket, const char *host, int port)
+{
+    struct sockaddr_in myaddr_in;      /* for local socket address */
+    struct hostent *host_ptr;
 
+    memset(&myaddr_in, 0, sizeof(myaddr_in));
+
+    if (host == NULL) {
+        myaddr_in.sin_addr.s_addr = INADDR_ANY;
+    }
+    else if ((host_ptr = gethostbyname(host)) != NULL) {
+        myaddr_in.sin_addr.s_addr = ((struct in_addr *) (host_ptr->h_addr))->s_addr;
+    }
+    else {
+        dbgError(stderr, "gethostbyname(%s) failed", host);
+        return -1;
+    }
+
+    myaddr_in.sin_port = htons(port);
+    myaddr_in.sin_family = AF_INET;
+
+    if (bind(socket, (struct sockaddr *) &myaddr_in, sizeof(struct sockaddr_in)) != 0) {
+        dbgError(stderr, "bind failed");
+        return -1;
+    }
+
+    return 0;
+}
+
+/*
+ * Get hostname of peer.
+ */
 const char *netPeerHost(int sd)
 {
     struct sockaddr_in peeraddr;
@@ -58,11 +98,12 @@ const char *netPeerHost(int sd)
 
     getpeername(sd, (struct sockaddr *) &peeraddr, &len);
 
-    return net_host_name(&peeraddr);
+    return netHost(peeraddr.sin_addr.s_addr);
 }
 
-/* Get port number used by peer */
-
+/*
+ * Get port number used by peer.
+ */
 int netPeerPort(int sd)
 {
     struct sockaddr_in peeraddr;
@@ -74,8 +115,9 @@ int netPeerPort(int sd)
     return peeraddr.sin_port;
 }
 
-/* Get local hostname */
-
+/*
+ * Get local hostname.
+ */
 const char *netLocalHost(int sd)
 {
     struct sockaddr_in sockaddr;
@@ -84,11 +126,12 @@ const char *netLocalHost(int sd)
 
     getsockname(sd, (struct sockaddr *) &sockaddr, &len);
 
-    return net_host_name(&sockaddr);
+    return netHost(sockaddr.sin_addr.s_addr);
 }
 
-/* Get local port number. */
-
+/*
+ * Get local port number.
+ */
 int netLocalPort(int sd)
 {
     struct sockaddr_in peeraddr;
