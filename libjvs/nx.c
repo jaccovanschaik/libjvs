@@ -160,10 +160,10 @@ NX *nxCreate(const char *host, int port)
 {
     NX *nx = calloc(1, sizeof(NX));
 
-    nx->listen_fd = netListen(host, port);
+    nx->listen_fd = tcpListen(host, port);
 
     if (nx->listen_fd == -1) {
-        dbgError(stderr, "netListen failed");
+        dbgError(stderr, "tcpListen failed");
         free(nx);
         return NULL;
     }
@@ -293,7 +293,7 @@ int nxGet(NX *nx, int fd, Buffer *data)
  */
 int nxConnect(NX *nx, const char *host, int port)
 {
-    int fd = netConnect(host, port);
+    int fd = tcpConnect(host, port);
 
     nx_create_connection(nx, fd);
 
@@ -523,7 +523,7 @@ int nxHandleSelect(NX *nx, int r, fd_set *rfds, fd_set *wfds)
 void nxHandleRead(NX *nx, int fd)
 {
     if (fd == nx->listen_fd) {
-        fd = netAccept(nx->listen_fd);
+        fd = tcpAccept(nx->listen_fd);
 
         NX_Conn *conn = nx_create_connection(nx, fd);
 
@@ -706,7 +706,7 @@ int main(int argc, char *argv[])
     NX *nx;
     int fd;
 
-    nx = nxCreate("localhost", 1234);
+    nx = nxCreate(NULL, 0); /* "localhost", 1234); */
 
     if (nx == NULL) {
         dbgError(stderr, "nxCreate failed");

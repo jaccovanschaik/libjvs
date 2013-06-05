@@ -318,7 +318,7 @@ int accept_connection(CX *cx, int fd, void *udata)
 {
 P   dbgPrint(stderr, "accept_connection\n");
 
-    fd = netAccept(fd);
+    fd = tcpAccept(fd);
 
     cxAddFile(cx, fd, NULL, handle_data);
 
@@ -331,7 +331,7 @@ int main(int argc, char *argv[])
 
     return 0;
 
-    int fd = netListen("localhost", 1234);
+    int fd = tcpListen("localhost", 1234);
 
     cxAddFile(cx, fd, NULL, accept_connection);
 

@@ -27,7 +27,7 @@ static int one = 1;
 
 /* Create a socket */
 
-static int net_socket(void)
+static int tcp_socket(void)
 {
     int sd;                            /* socket descriptor */
 
@@ -52,7 +52,7 @@ static int net_socket(void)
 /* Bind a socket to <port> and <host>. If <host> is NULL, the socket
  * will be bound to INADDR_ANY. If port is 0, it will be bound to a random port. */
 
-static int net_bind(int socket, const char *host, int port)
+static int tcp_bind(int socket, const char *host, int port)
 {
     struct sockaddr_in myaddr_in;      /* for local socket address */
     struct hostent *host_ptr;
@@ -83,7 +83,7 @@ static int net_bind(int socket, const char *host, int port)
 
 /* Tell a socket to be a listener */
 
-static int net_listen(int socket)
+static int tcp_listen(int socket)
 {
     if (listen(socket, 5) == -1) {
         dbgError(stderr, "listen failed");
@@ -116,25 +116,25 @@ static const char *net_host_name(struct sockaddr_in *peeraddr)
 /* Open a listen port on <host> and <port> and return the corresponding
  * file descriptor. If <host> is NULL the socket will listen on all
  * interfaces. If <port> is equal to 0, the socket will be bound to a
- * random local port (use netLocalPort() on the returned fd to find out
+ * random local port (use tcpLocalPort() on the returned fd to find out
  * which). */
 
-int netListen(const char *host, int port)
+int tcpListen(const char *host, int port)
 {
     int lsd;
 
-    if ((lsd = net_socket()) == -1) {
-        dbgError(stderr, "net_socket failed");
+    if ((lsd = tcp_socket()) == -1) {
+        dbgError(stderr, "tcp_socket failed");
         return -1;
     }
 
-    if (net_bind(lsd, host, port) != 0) {
-        dbgError(stderr, "net_bind failed");
+    if (tcp_bind(lsd, host, port) != 0) {
+        dbgError(stderr, "tcp_bind failed");
         return -1;
     }
 
-    if (net_listen(lsd) != 0) {
-        dbgError(stderr, "net_listen failed");
+    if (tcp_listen(lsd) != 0) {
+        dbgError(stderr, "tcp_listen failed");
         return -1;
     }
 
@@ -144,7 +144,7 @@ int netListen(const char *host, int port)
 /* Make a connection to <port> on <host> and return the corresponding
  * file descriptor. */
 
-int netConnect(const char *host, int port)
+int tcpConnect(const char *host, int port)
 {
     struct hostent *host_ptr;          /* pointer to host info for remote host */
 
@@ -165,10 +165,10 @@ int netConnect(const char *host, int port)
     peeraddr_in.sin_addr.s_addr =
         ((struct in_addr *) (host_ptr->h_addr))->s_addr;
 
-    sd = net_socket();
+    sd = tcp_socket();
 
     if (sd == -1) {
-        dbgError(stderr, "net_socket failed");
+        dbgError(stderr, "tcp_socket failed");
         return -1;
     }
 
@@ -201,7 +201,7 @@ int netPortFor(char *service)
 
 /* Accept an incoming connection request on a listen socket */
 
-int netAccept(int sd)
+int tcpAccept(int sd)
 {
     struct sockaddr_in peeraddr_in;    /* for peer socket address */
 
@@ -275,9 +275,9 @@ int netLocalPort(int sd)
     return ntohs(peeraddr.sin_port);
 }
 
-/* Read until <buf> is full */
+/* Read from <fd> until <buf> contains exactly <len> bytes. */
 
-int netRead(int fd, void *buf, int len)
+int tcpRead(int fd, void *buf, int len)
 {
     int res, n = 0;
 
@@ -294,9 +294,9 @@ int netRead(int fd, void *buf, int len)
     }
 }
 
-/* Write all of <buf> */
+/* Write all of the <len> bytes in <buf> to <fd>. */
 
-int netWrite(int fd, const void *buf, int len)
+int tcpWrite(int fd, const void *buf, int len)
 {
     int res, n = 0;
 

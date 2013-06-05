@@ -13,20 +13,20 @@
 
 /* Open a listen port on <host> and <port> and return the corresponding
  * file descriptor. If <host> is NULL the socket will listen on all
- * interfaces. If <port> is less than 0, the socket will be bound to a
- * random local port (use netLocalPort() on the returned fd to find out
+ * interfaces. If <port> is equal to 0, the socket will be bound to a
+ * random local port (use tcpLocalPort() on the returned fd to find out
  * which). */
-int netListen(const char *host, int port);
+int tcpListen(const char *host, int port);
 
 /* Make a connection to <port> on <host> and return the corresponding
  * file descriptor. */
-int netConnect(const char *host, int port);
+int tcpConnect(const char *host, int port);
 
 /* Get the port that corresponds to service <service>. */
 int netPortFor(char *service);
 
 /* Accept an incoming connection request on a listen socket */
-int netAccept(int sd);
+int tcpAccept(int sd);
 
 /* Get hostname of peer */
 const char *netPeerHost(int sd);
@@ -40,10 +40,10 @@ const char *netLocalHost(int sd);
 /* Get local port number. */
 int netLocalPort(int sd);
 
-/* Read until <buf> is full */
-int netRead(int fd, void *buf, int len);
+/* Read from <fd> until <buf> contains exactly <len> bytes. */
+int tcpRead(int fd, void *buf, int len);
 
-/* Write all of <buf> */
-int netWrite(int fd, const void *buf, int len);
+/* Write all of the <len> bytes in <buf> to <fd>. */
+int tcpWrite(int fd, const void *buf, int len);
 
 #endif
