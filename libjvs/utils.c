@@ -140,7 +140,7 @@ static void pack(void *data, int size, char **dest, int *remaining)
  *
  * All ints (including the lengths) are packed with big-endian byte order.
  *
- * All pack function return the number of bytes necessary to pack the
+ * All pack functions return the number of bytes necessary to pack the
  * given data, which may be more than <size>. In that case they are
  * telling you that more bytes were needed than you gave them, and you
  * should call the function again with a bigger data buffer. It will,
@@ -248,13 +248,27 @@ int strpack(char *str, int size, ...)
  */
 int vastrpack(char **str, va_list ap)
 {
+    va_list my_ap;
+
     int len = 0;
 
-    len = vstrpack(*str, len, ap);
+    /* First find out how much room I need. */
+
+    va_copy(my_ap, ap);
+    len = vstrpack(NULL, len, my_ap);
+    va_end(my_ap);
+
+    /* Allocate... */
 
     if ((*str = malloc(len)) == NULL) return -1;
 
-    return vstrpack(*str, len, ap);
+    /* ... and now do it for realz. */
+
+    va_copy(my_ap, ap);
+    len = vstrpack(*str, len, my_ap);
+    va_end(my_ap);
+
+    return len;
 }
 
 /*
@@ -438,7 +452,7 @@ int main(int argc, char *argv[])
     uint64_t u64;
     double f64;
     float f32;
-    char *sp, *dp;
+    char *sp, *dp, *buf_p;
     int len;
 
     char buffer[64] = { };
@@ -468,6 +482,21 @@ int main(int argc, char *argv[])
     make_sure_that(r == 43);
 
     make_sure_that(memcmp(buffer, expected, 43) == 0);
+
+    r = astrpack(&buf_p,
+            PACK_INT8,      1,
+            PACK_INT16,     2,
+            PACK_INT32,     3,
+            PACK_INT64,     4LL,
+            PACK_FLOAT,     1.0,
+            PACK_DOUBLE,    2.0,
+            PACK_STRING,    "Hoi",
+            PACK_DATA,      "Hello", 5,
+            END);
+
+    make_sure_that(r == 43);
+
+    make_sure_that(memcmp(buf_p, expected, 43) == 0);
 
     r = strunpack(buffer, sizeof(buffer),
             PACK_INT8,      &u8,
