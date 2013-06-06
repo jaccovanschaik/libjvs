@@ -1,5 +1,5 @@
 /*
- * net.c: Description
+ * net.c: General networking utility functions.
  *
  * Author:	Jacco van Schaik (jacco.van.schaik@dnw.aero)
  * Copyright:	(c) 2013 DNW German-Dutch Windtunnels
@@ -81,6 +81,35 @@ int netBind(int socket, const char *host, int port)
 
     if (bind(socket, (struct sockaddr *) &myaddr_in, sizeof(struct sockaddr_in)) != 0) {
         dbgError(stderr, "bind failed");
+        return -1;
+    }
+
+    return 0;
+}
+
+/*
+ * Connect an existing socket <fd> to <host> and <port>. Returns 0 on success or -1 if an error
+ * occurs.
+ */
+int netConnect(int fd, const char *host, int port)
+{
+    struct hostent *host_ptr;               /* pointer to host info for remote host */
+
+    struct sockaddr_in peeraddr_in = { };   /* for peer socket address */
+
+    peeraddr_in.sin_family = AF_INET;
+    peeraddr_in.sin_port = htons(port);
+
+    if ((host_ptr = gethostbyname(host)) == NULL) {
+        dbgError(stderr, "gethostbyname(%s) failed", host);
+        return -1;
+    }
+
+    peeraddr_in.sin_addr.s_addr =
+        ((struct in_addr *) (host_ptr->h_addr))->s_addr;
+
+    if (connect(fd, (struct sockaddr *) &peeraddr_in, sizeof(peeraddr_in)) != 0) {
+        dbgError(stderr, "connect to %s:%d failed", host, port);
         return -1;
     }
 

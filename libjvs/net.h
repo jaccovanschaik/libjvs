@@ -2,7 +2,7 @@
 #define NET_H
 
 /*
- * net.h: Description
+ * net.h: General networking utility functions.
  *
  * Author:	Jacco van Schaik (jacco.van.schaik@dnw.aero)
  * Copyright:	(c) 2013 DNW German-Dutch Windtunnels
@@ -28,6 +28,12 @@ int netPort(char *service);
  * will be bound to INADDR_ANY. If port is 0, it will be bound to a random port.
  */
 int netBind(int socket, const char *host, int port);
+
+/*
+ * Connect an existing socket <fd> to <host> and <port>. Returns 0 on success or -1 if an error
+ * occurs.
+ */
+int netConnect(int fd, const char *host, int port);
 
 /*
  * Get hostname of peer.

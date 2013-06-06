@@ -1,5 +1,5 @@
 /*
- * Provides a simplified interface to TCP/IP networking.
+ * Provides a simplified interface to UDP networking.
  *
  * Copyright:   (c) 2007 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Version:     $Id: net.c 237 2012-02-10 14:09:38Z jacco $
@@ -18,6 +18,7 @@
 #include <netdb.h>
 #include <errno.h>
 
+#include "net.h"
 #include "tcp.h"
 #include "debug.h"
 
@@ -25,13 +26,14 @@ static struct linger linger = { 1, 5 }; /* 5 second linger */
 
 static int one = 1;
 
-/* Create a socket */
-
-static int udp_socket(void)
+/*
+ * Create a UDP socket.
+ */
+int udpSocket(void)
 {
     int sd;                            /* socket descriptor */
 
-    if ((sd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
+    if ((sd = socket(AF_INET, SOCK_DGRAM, 0)) == -1) {
         dbgError(stderr, "unable to create socket");
         return -1;
     }
@@ -49,44 +51,55 @@ static int udp_socket(void)
     return sd;
 }
 
-/* Make a connection to <port> on <host> and return the corresponding
- * file descriptor. */
-
+/*
+ * Create a UDP socket and "connect" it to <host> and <port> (which means that any send without an
+ * address will go to that address by default).
+ */
 int udpConnect(const char *host, int port)
 {
-    struct hostent *host_ptr;          /* pointer to host info for remote host */
+    int fd = udpSocket();
 
-    struct sockaddr_in peeraddr_in;    /* for peer socket address */
-
-    int sd;                            /* socket descriptor */
-
-    memset(&peeraddr_in, 0, sizeof(peeraddr_in));
-
-    peeraddr_in.sin_family = AF_INET;
-    peeraddr_in.sin_port = htons(port);
-
-    if ((host_ptr = gethostbyname(host)) == NULL) {
-        dbgError(stderr, "gethostbyname(%s) failed", host);
+    if (netConnect(fd, host, port) != 0) {
+        dbgError(stderr, "netConnect failed");
+        close(fd);
         return -1;
     }
 
-    peeraddr_in.sin_addr.s_addr =
-        ((struct in_addr *) (host_ptr->h_addr))->s_addr;
-
-    sd = udp_socket();
-
-    if (sd == -1) {
-        dbgError(stderr, "udp_socket failed");
-        return -1;
-    }
-
-    if (connect
-        (sd, (struct sockaddr *) &peeraddr_in,
-         sizeof(struct sockaddr_in)) != 0) {
-        dbgError(stderr, "connect to %s:%d failed", host, port);
-        close(sd);
-        return -1;
-    }
-
-    return sd;
+    return fd;
 }
+
+#ifdef TEST
+#include "net.h"
+
+static int errors = 0;
+
+void _make_sure_that(const char *file, int line, const char *str, int val)
+{
+   if (!val) {
+      fprintf(stderr, "%s:%d: Expression \"%s\" failed\n", file, line, str);
+      errors++;
+   }
+}
+
+#define make_sure_that(expr) _make_sure_that(__FILE__, __LINE__, #expr, (expr))
+
+int main(int argc, char *argv[])
+{
+    int r;
+    char buffer[16];
+
+    int fd1 = udpSocket();
+    int fd2 = udpSocket();
+
+    netConnect(fd1, "localhost", 1234);
+    netBind(fd2, "localhost", 1234);
+
+    write(fd1, "Hoi!", 4);
+    r = read(fd2, buffer, sizeof(buffer));
+
+    make_sure_that(r == 4);
+    make_sure_that(strncmp(buffer, "Hoi!", 4) == 0);
+
+    return errors;
+}
+#endif

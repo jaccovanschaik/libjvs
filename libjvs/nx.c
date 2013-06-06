@@ -648,14 +648,14 @@ int nxOwnsFd(NX *nx, int fd)
 #ifdef TEST
 void on_connect(NX *nx, int fd)
 {
-    dbgPrint(stderr, "New connection, local: %s:%d, remote: %s:%d\n",
+D   dbgPrint(stderr, "New connection, local: %s:%d, remote: %s:%d\n",
             nxLocalHost(fd), nxLocalPort(fd),
             nxRemoteHost(fd), nxRemotePort(fd));
 }
 
 void on_disconnect(NX *nx, int fd)
 {
-    dbgPrint(stderr, "\n");
+D   dbgPrint(stderr, "\n");
 }
 
 void on_data(NX *nx, int fd)
@@ -663,17 +663,17 @@ void on_data(NX *nx, int fd)
     Buffer *buffer = bufCreate();
     int n = nxGet(nx, fd, buffer);
 
-    dbgPrint(stderr, "Got %d bytes: \"%.*s\"\n", n, n, bufGet(buffer));
+D   dbgPrint(stderr, "Got %d bytes: \"%.*s\"\n", n, n, bufGet(buffer));
 
     if (strncmp(bufGet(buffer), "Hi!", 3) == 0) {
-        dbgPrint(stderr, "Sending reply\n");
+D       dbgPrint(stderr, "Sending reply\n");
 
         bufSet(buffer, "Bye!", 4);
 
         nxQueue(nx, fd, buffer);
     }
     else if (strncmp(bufGet(buffer), "Bye!", 4) == 0) {
-        dbgPrint(stderr, "Calling nxClose()\n");
+D       dbgPrint(stderr, "Calling nxClose()\n");
 
         nxClose(nx);
     }
@@ -683,7 +683,7 @@ void on_data(NX *nx, int fd)
 
 void on_error(NX *nx, int fd, int err)
 {
-    dbgPrint(stderr, "err = %d (%s)\n", err, strerror(err));
+D   dbgPrint(stderr, "err = %d (%s)\n", err, strerror(err));
 }
 
 void on_timeout(NX *nx, double t, void *udata)
@@ -691,7 +691,7 @@ void on_timeout(NX *nx, double t, void *udata)
     Buffer *buffer = bufCreate();
     int fd = *((int *) udata);
 
-    dbgPrint(stderr, "timeout, sending welcome string\n");
+D   dbgPrint(stderr, "timeout, sending welcome string\n");
 
     bufSet(buffer, "Hi!", 3);
 
@@ -716,8 +716,8 @@ int main(int argc, char *argv[])
 
     listen_port = nxListenPort(nx);
 
-    dbgPrint(stderr, "Listening on host %s\n", nxListenHost(nx));
-    dbgPrint(stderr, "Listening on port %d\n", listen_port);
+D   dbgPrint(stderr, "Listening on host %s\n", nxListenHost(nx));
+D   dbgPrint(stderr, "Listening on port %d\n", listen_port);
 
     fd = nxConnect(nx, "localhost", listen_port);
 
@@ -730,7 +730,7 @@ int main(int argc, char *argv[])
 
     r = nxRun(nx);
 
-    dbgPrint(stderr, "nxRun exited with %d\n", r);
+D   dbgPrint(stderr, "nxRun exited with %d\n", r);
 
     nxDestroy(nx);
 

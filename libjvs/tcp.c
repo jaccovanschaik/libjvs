@@ -95,41 +95,15 @@ int tcpListen(const char *host, int port)
 
 int tcpConnect(const char *host, int port)
 {
-    struct hostent *host_ptr;          /* pointer to host info for remote host */
+    int fd = tcp_socket();
 
-    struct sockaddr_in peeraddr_in;    /* for peer socket address */
-
-    int sd;                            /* socket descriptor */
-
-    memset(&peeraddr_in, 0, sizeof(peeraddr_in));
-
-    peeraddr_in.sin_family = AF_INET;
-    peeraddr_in.sin_port = htons(port);
-
-    if ((host_ptr = gethostbyname(host)) == NULL) {
-        dbgError(stderr, "gethostbyname(%s) failed", host);
+    if (netConnect(fd, host, port) != 0) {
+        dbgError(stderr, "netConnect failed");
+        close(fd);
         return -1;
     }
 
-    peeraddr_in.sin_addr.s_addr =
-        ((struct in_addr *) (host_ptr->h_addr))->s_addr;
-
-    sd = tcp_socket();
-
-    if (sd == -1) {
-        dbgError(stderr, "tcp_socket failed");
-        return -1;
-    }
-
-    if (connect
-        (sd, (struct sockaddr *) &peeraddr_in,
-         sizeof(struct sockaddr_in)) != 0) {
-        dbgError(stderr, "connect to %s:%d failed", host, port);
-        close(sd);
-        return -1;
-    }
-
-    return sd;
+    return fd;
 }
 
 /* Accept an incoming connection request on a listen socket */

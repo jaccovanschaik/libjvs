@@ -11,8 +11,15 @@
 #ifndef UDP_H
 #define UDP_H
 
-/* Make a connection to <port> on <host> and return the corresponding
- * file descriptor. */
+/*
+ * Create a UDP socket.
+ */
+int udpSocket(void);
+
+/*
+ * Create a UDP socket and "connect" it to <host> and <port> (which means that any send without an
+ * address will go to that address by default).
+ */
 int udpConnect(const char *host, int port);
 
 #endif
