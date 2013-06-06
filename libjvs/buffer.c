@@ -577,6 +577,6 @@ int main(int argc, char *argv[])
        "\x00\x00\x00\x04Hoi1"
        "\x00\x00\x00\x04Hoi2", 43) == 0);
 
-   return 0;
+   return errors;
 }
 #endif
