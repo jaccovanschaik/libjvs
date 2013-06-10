@@ -127,16 +127,17 @@ static void pack(void *data, int size, char **dest, int *remaining)
  * what to pack into the string. The types, values and packed data are
  * as follows:
  *
- * type         value       packs
- * ----         -----       -----
- * PACK_INT8    int         1 byte int
- * PACK_INT16   int         2 byte int
- * PACK_INT32   int         4 byte int
- * PACK_INT64   uint64_t    8 byte int
- * PACK_FLOAT   double      4 byte float
- * PACK_DOUBLE  double      8 byte double
- * PACK_STRING  char *      4-byte length (from strlen) followed by as many bytes.
- * PACK_DATA    char *, int 4-byte length (as given) followed by as many bytes.
+ * type         value           packs
+ * ----         -----           -----
+ * PACK_INT8	int		1 byte int
+ * PACK_INT16	int		2 byte int
+ * PACK_INT32	int		4 byte int
+ * PACK_INT64	uint64_t	8 byte int
+ * PACK_FLOAT	double		4 byte float
+ * PACK_DOUBLE	double		8 byte double
+ * PACK_STRING	char *		4-byte length (from strlen) followed by as many bytes.
+ * PACK_DATA	char *, uint	4-byte length (as given) followed by as many bytes.
+ * PACK_RAW	char *, uint	Raw bytes using length as given.
  *
  * All ints (including the lengths) are packed with big-endian byte order.
  *
@@ -215,6 +216,14 @@ int vstrpack(char *str, int size, va_list ap)
                 uint32_t len_be = htobe32(len_h);
 
                 pack(&len_be, sizeof(len_be), &p, &size);
+                pack(s, len_h, &p, &size);
+            }
+            break;
+        case PACK_RAW:
+            {
+                char *s = va_arg(ap, char *);
+                uint32_t len_h  = va_arg(ap, unsigned int);
+
                 pack(s, len_h, &p, &size);
             }
             break;
@@ -297,14 +306,15 @@ int astrpack(char **str, ...)
  *
  * type         pointer         unpacks
  * ----         -------         -----
- * PACK_INT8    uint8_t *       1 byte int
- * PACK_INT16   uint16_t *      2 byte int
- * PACK_INT32   uint32_t *      4 byte int
- * PACK_INT64   uint64_t *      8 byte int
- * PACK_FLOAT   float *         4 byte float
- * PACK_DOUBLE  double *        8 byte double
- * PACK_STRING  char **         4-byte length (from strlen) followed by as many bytes.
- * PACK_DATA    char **, int *  4-byte length (as given) followed by as many bytes.
+ * PACK_INT8	uint8_t *	1 byte int
+ * PACK_INT16	uint16_t *	2 byte int
+ * PACK_INT32	uint32_t *	4 byte int
+ * PACK_INT64	uint64_t *	8 byte int
+ * PACK_FLOAT	float *		4 byte float
+ * PACK_DOUBLE	double *	8 byte double
+ * PACK_STRING	char **		4-byte length (from strlen) followed by as many bytes.
+ * PACK_DATA	char **, uint *	4-byte length (as given) followed by as many bytes.
+ * PACK_RAW	char **, uint	Raw bytes using length as given.
  *
  * Note that PACK_STRING and PACK_DATA allocate space to put the data
  * in, and it is the caller's responsibility to free that space again.
@@ -410,6 +420,20 @@ int vstrunpack(const char *str, int size, va_list ap)
                 size -= *lenp;
             }
             break;
+        case PACK_RAW:
+            {
+                char **strpp = va_arg(ap, char **);
+                int len = va_arg(ap, unsigned int);
+
+                if (size >= len) {
+                    *strpp = malloc(len);
+                    memcpy(*strpp, ptr, len);
+                }
+
+                ptr  += len;
+                size -= len;
+            }
+            break;
         }
     }
 
@@ -452,7 +476,7 @@ int main(int argc, char *argv[])
     uint64_t u64;
     double f64;
     float f32;
-    char *sp, *dp, *buf_p;
+    char *sp, *dp, *rp, *buf_p;
     int len;
 
     char buffer[64] = { };
@@ -465,7 +489,8 @@ int main(int argc, char *argv[])
         0x3F, 0x80, 0x00, 0x00,
         0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         0, 0, 0, 3, 'H', 'o', 'i',
-        0, 0, 0, 5, 'H', 'e', 'l', 'l', 'o'
+        0, 0, 0, 5, 'H', 'e', 'l', 'l', 'o',
+        'W', 'o', 'r', 'l', 'd'
     };
 
     int r = strpack(buffer, sizeof(buffer),
@@ -477,11 +502,12 @@ int main(int argc, char *argv[])
             PACK_DOUBLE,    2.0,
             PACK_STRING,    "Hoi",
             PACK_DATA,      "Hello", 5,
+            PACK_RAW,       "World xxx", 5,
             END);
 
-    make_sure_that(r == 43);
+    make_sure_that(r == 48);
 
-    make_sure_that(memcmp(buffer, expected, 43) == 0);
+    make_sure_that(memcmp(buffer, expected, 48) == 0);
 
     r = astrpack(&buf_p,
             PACK_INT8,      1,
@@ -492,11 +518,12 @@ int main(int argc, char *argv[])
             PACK_DOUBLE,    2.0,
             PACK_STRING,    "Hoi",
             PACK_DATA,      "Hello", 5,
+            PACK_RAW,       "World xxx", 5,
             END);
 
-    make_sure_that(r == 43);
+    make_sure_that(r == 48);
 
-    make_sure_that(memcmp(buf_p, expected, 43) == 0);
+    make_sure_that(memcmp(buf_p, expected, 48) == 0);
 
     r = strunpack(buffer, sizeof(buffer),
             PACK_INT8,      &u8,
@@ -507,6 +534,7 @@ int main(int argc, char *argv[])
             PACK_DOUBLE,    &f64,
             PACK_STRING,    &sp,
             PACK_DATA,      &dp, &len,
+            PACK_RAW,       &rp, 5,
             END);
 
     make_sure_that(u8  == 1);
@@ -518,6 +546,7 @@ int main(int argc, char *argv[])
     make_sure_that(strcmp(sp, "Hoi") == 0);
     make_sure_that(len == 5);
     make_sure_that(memcmp(dp, "Hello", 5) == 0);
+    make_sure_that(memcmp(rp, "World", 5) == 0);
 
     return errors;
 }

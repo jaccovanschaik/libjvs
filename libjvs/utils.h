@@ -11,6 +11,8 @@
  * http://www.opensource.org/licenses/mit-license.php for details.
  */
 
+#include "defs.h"
+
 #include <stdio.h>
 #include <stdarg.h>
 
@@ -22,7 +24,8 @@ enum {
     PACK_FLOAT,
     PACK_DOUBLE,
     PACK_STRING,
-    PACK_DATA
+    PACK_DATA,
+    PACK_RAW
 };
 
 /*
@@ -63,16 +66,17 @@ void *memdup(const void *src, unsigned int size);
  * what to pack into the string. The types, values and packed data are
  * as follows:
  *
- * type         value       packs
- * ----         -----       -----
- * PACK_INT8    int         1 byte int
- * PACK_INT16   int         2 byte int
- * PACK_INT32   int         4 byte int
- * PACK_INT64   uint64_t    8 byte int
- * PACK_FLOAT   double      4 byte float
- * PACK_DOUBLE  double      8 byte double
- * PACK_STRING  char *      4-byte length (from strlen) followed by as many bytes.
- * PACK_DATA    char *, int 4-byte length (as given) followed by as many bytes.
+ * type         value           packs
+ * ----         -----           -----
+ * PACK_INT8    int             1 byte int
+ * PACK_INT16   int             2 byte int
+ * PACK_INT32   int             4 byte int
+ * PACK_INT64   uint64_t        8 byte int
+ * PACK_FLOAT   double          4 byte float
+ * PACK_DOUBLE  double          8 byte double
+ * PACK_STRING  char *          4-byte length (from strlen) followed by as many bytes.
+ * PACK_DATA    char *, int     4-byte length (as given) followed by as many bytes.
+ * PACK_RAW     char *, int     Raw bytes using length as given.
  *
  * All ints (including the lengths) are packed with big-endian byte order.
  *
@@ -119,6 +123,7 @@ int astrpack(char **str, ...);
  * PACK_DOUBLE  double *        8 byte double
  * PACK_STRING  char **         4-byte length (from strlen) followed by as many bytes.
  * PACK_DATA    char **, int *  4-byte length (as given) followed by as many bytes.
+ * PACK_RAW     char **, int *  Raw bytes using length as given.
  *
  * Note that PACK_STRING and PACK_DATA allocate space to put the data
  * in, and it is the caller's responsibility to free that space again.
