@@ -312,14 +312,18 @@ int astrpack(char **str, ...)
  * PACK_INT64	uint64_t *	8 byte int
  * PACK_FLOAT	float *		4 byte float
  * PACK_DOUBLE	double *	8 byte double
- * PACK_STRING	char **		4-byte length (from strlen) followed by as many bytes.
- * PACK_DATA	char **, uint *	4-byte length (as given) followed by as many bytes.
- * PACK_RAW	char **, uint	Raw bytes using length as given.
+ * PACK_STRING	char **		4-byte length, followed by as many bytes.
+ * PACK_DATA	char **, uint *	4-byte length, followed by as many bytes.
+ * PACK_RAW	char **, uint	As many raw bytes as given.
  *
  * Note that PACK_STRING and PACK_DATA allocate space to put the data
  * in, and it is the caller's responsibility to free that space again.
  * PACK_STRING creates a null-terminated string. PACK_DATA requires an
  * additional int * where it writes the length of the allocated data.
+ *
+ * This function returns the minimum number of bytes necessary to unpack the given fields, which may
+ * be more than <size>. "Minimum" in this case means assuming all PACK_STRING and PACK_DATA fields
+ * have length 0.
  */
 int vstrunpack(const char *str, int size, va_list ap)
 {
@@ -547,6 +551,7 @@ int main(int argc, char *argv[])
     make_sure_that(len == 5);
     make_sure_that(memcmp(dp, "Hello", 5) == 0);
     make_sure_that(memcmp(rp, "World", 5) == 0);
+    make_sure_that(r == 48);
 
     return errors;
 }

@@ -51,8 +51,6 @@ int ifprintf(FILE *fp, int indent, const char *fmt, ...)
  */
 void ihexdump(FILE *fp, const char *data, int size, int indent);
 
-#define hexdump(fp, data, size) (ihexdump((fp), (data), (size), 0))
-
 /*
  * Duplicate <size> bytes starting at <src> and return a pointer to the
  * duplicate.
@@ -68,19 +66,19 @@ void *memdup(const void *src, unsigned int size);
  *
  * type         value           packs
  * ----         -----           -----
- * PACK_INT8    int             1 byte int
- * PACK_INT16   int             2 byte int
- * PACK_INT32   int             4 byte int
- * PACK_INT64   uint64_t        8 byte int
- * PACK_FLOAT   double          4 byte float
- * PACK_DOUBLE  double          8 byte double
- * PACK_STRING  char *          4-byte length (from strlen) followed by as many bytes.
- * PACK_DATA    char *, int     4-byte length (as given) followed by as many bytes.
- * PACK_RAW     char *, int     Raw bytes using length as given.
+ * PACK_INT8	int		1 byte int
+ * PACK_INT16	int		2 byte int
+ * PACK_INT32	int		4 byte int
+ * PACK_INT64	uint64_t	8 byte int
+ * PACK_FLOAT	double		4 byte float
+ * PACK_DOUBLE	double		8 byte double
+ * PACK_STRING	char *		4-byte length (from strlen) followed by as many bytes.
+ * PACK_DATA	char *, uint	4-byte length (as given) followed by as many bytes.
+ * PACK_RAW	char *, uint	Raw bytes using length as given.
  *
  * All ints (including the lengths) are packed with big-endian byte order.
  *
- * All pack function return the number of bytes necessary to pack the
+ * All pack functions return the number of bytes necessary to pack the
  * given data, which may be more than <size>. In that case they are
  * telling you that more bytes were needed than you gave them, and you
  * should call the function again with a bigger data buffer. It will,
@@ -115,20 +113,24 @@ int astrpack(char **str, ...);
  *
  * type         pointer         unpacks
  * ----         -------         -----
- * PACK_INT8    uint8_t *       1 byte int
- * PACK_INT16   uint16_t *      2 byte int
- * PACK_INT32   uint32_t *      4 byte int
- * PACK_INT64   uint64_t *      8 byte int
- * PACK_FLOAT   float *         4 byte float
- * PACK_DOUBLE  double *        8 byte double
- * PACK_STRING  char **         4-byte length (from strlen) followed by as many bytes.
- * PACK_DATA    char **, int *  4-byte length (as given) followed by as many bytes.
- * PACK_RAW     char **, int *  Raw bytes using length as given.
+ * PACK_INT8	uint8_t *	1 byte int
+ * PACK_INT16	uint16_t *	2 byte int
+ * PACK_INT32	uint32_t *	4 byte int
+ * PACK_INT64	uint64_t *	8 byte int
+ * PACK_FLOAT	float *		4 byte float
+ * PACK_DOUBLE	double *	8 byte double
+ * PACK_STRING	char **		4-byte length, followed by as many bytes.
+ * PACK_DATA	char **, uint *	4-byte length, followed by as many bytes.
+ * PACK_RAW	char **, uint	As many raw bytes as given.
  *
  * Note that PACK_STRING and PACK_DATA allocate space to put the data
  * in, and it is the caller's responsibility to free that space again.
  * PACK_STRING creates a null-terminated string. PACK_DATA requires an
  * additional int * where it writes the length of the allocated data.
+ *
+ * This function returns the minimum number of bytes necessary to unpack the given fields, which may
+ * be more than <size>. "Minimum" in this case means assuming all PACK_STRING and PACK_DATA fields
+ * have length 0.
  */
 int vstrunpack(const char *str, int size, va_list ap);
 
