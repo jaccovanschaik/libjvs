@@ -27,8 +27,6 @@
 #include "cx.h"
 
 typedef struct {
-    ListNode _node;
-    int fd;
     void *udata;
     int (*handler)(CX *cx, int fd, void *udata);
 } CX_Connection;
@@ -41,7 +39,8 @@ typedef struct {
 } CX_Timeout;
 
 struct CX {
-    List connections;
+    int num_connections;
+    CX_Connection **connection;
     List timeouts;
 };
 
@@ -58,83 +57,95 @@ static int cx_compare_timeouts(const void *p1, const void *p2)
         return 0;
 }
 
-/* Return the timeval in <tv>, converted to a double. */
-
-static double cx_timeval_to_double(const struct timeval *tv)
-{
-    return tv->tv_sec + tv->tv_usec / 1000000.0;
-}
-
-/* Convert double <time> and write it to the timeval at <tv>. */
-
+/*
+ * Convert double <time> and write it to the timeval at <tv>.
+ */
 static void cx_double_to_timeval(double time, struct timeval *tv)
 {
     tv->tv_sec = (int) time;
     tv->tv_usec = 1000000 * fmod(time, 1.0);
 }
 
-/* Convert double <time> and write it to the timeval at <tv>. */
-
+/*
+ * Convert double <time> and write it to the timeval at <tv>.
+ */
 static void cx_double_to_timespec(double time, struct timespec *ts)
 {
     ts->tv_sec = (int) time;
     ts->tv_nsec = 1000000000 * fmod(time, 1.0);
 }
 
-/* Return the current *UTC* time (number of seconds since
- * 1970-01-01/00:00:00 UTC) as a double. */
-
-static double cx_now(void)
-{
-    struct timeval tv;
-
-    gettimeofday(&tv, NULL);
-
-    return cx_timeval_to_double(&tv);
-}
-
-/* Create a communications exchange. */
-
+/*
+ * Create a communications exchange.
+ */
 CX *cxCreate(void)
 {
     return calloc(1, sizeof(CX));
 }
 
-/* Subscribe to input. */
-
-void cxAddFile(CX *cx, int fd, void *udata,
-        int (*handler)(CX *cx, int fd, void *udata))
+/*
+ * Subscribe to input.
+ */
+void cxAddFile(CX *cx, int fd, int (*handler)(CX *cx, int fd, void *udata), void *udata)
 {
-    CX_Connection *conn = calloc(1, sizeof(CX_Connection));
+    int new_num_connections = fd + 1;
 
-    conn->fd = fd;
-    conn->udata = udata;
-    conn->handler = handler;
+    if (new_num_connections > cx->num_connections) {
+        cx->connection = realloc(cx->connection, new_num_connections * sizeof(CX_Connection *));
 
-    listAppendTail(&cx->connections, conn);
+        memset(cx->connection + cx->num_connections, 0,
+                sizeof(CX_Connection *) * (new_num_connections - cx->num_connections));
+
+        cx->num_connections = new_num_connections;
+    }
+
+    if (cx->connection[fd] == NULL) {
+        cx->connection[fd] = calloc(1, sizeof(CX_Connection));
+    }
+
+    cx->connection[fd]->udata = udata;
+    cx->connection[fd]->handler = handler;
 }
 
-/* Drop subscription to fd <fd>. */
-
-void cxDropFile(CX *cx, int fd,
-        int (*handler)(CX *cx, int fd, void *udata))
+/*
+ * Drop subscription to fd <fd>.
+ */
+void cxDropFile(CX *cx, int fd)
 {
-    CX_Connection *conn, *next;
+    int new_num_connections;
 
-    for (conn = listHead(&cx->connections); conn; conn = next) {
-        next = listNext(conn);
+    if (fd < cx->num_connections) cx->connection[fd] = NULL;
 
-        if (conn->fd == fd && conn->handler == handler) {
-            listRemove(&cx->connections, conn);
-            free(conn);
-        }
+    for (fd = cx->num_connections - 1; fd >= 0; fd--) {
+        if (cx->connection[fd] != NULL) break;
+    }
+
+    new_num_connections = fd + 1;
+
+    if (new_num_connections < cx->num_connections) {
+        cx->connection = realloc(cx->connection, new_num_connections * sizeof(CX_Connection *));
+
+        cx->num_connections = new_num_connections;
     }
 }
 
-/* Add a timeout at time <t>. */
+/*
+ * Return the current *UTC* time (number of seconds since
+ * 1970-01-01/00:00:00 UTC) as a double.
+ */
+double cxNow(void)
+{
+    struct timeval tv;
 
-void cxAddTime(CX *cx, double t, void *udata,
-        int (*handler)(CX *cx, double t, void *udata))
+    gettimeofday(&tv, NULL);
+
+    return tv.tv_sec + tv.tv_usec / 1000000.0;
+}
+
+/*
+ * Add a timeout at time <t>.
+ */
+void cxAddTime(CX *cx, double t, int (*handler)(CX *cx, double t, void *udata), void *udata)
 {
     CX_Timeout *tm = calloc(1, sizeof(CX_Timeout));
 
@@ -147,10 +158,10 @@ void cxAddTime(CX *cx, double t, void *udata,
     listSort(&cx->timeouts, cx_compare_timeouts);
 }
 
-/* Drop timeout at time <t>. */
-
-void cxDropTime(CX *cx, double t,
-        int (*handler)(CX *cx, double t, void *udata))
+/*
+ * Drop timeout at time <t>.
+ */
+void cxDropTime(CX *cx, double t, int (*handler)(CX *cx, double t, void *udata))
 {
     CX_Timeout *tm, *next;
 
@@ -164,26 +175,27 @@ void cxDropTime(CX *cx, double t,
     }
 }
 
-/* Run the communications exchange. */
-
+/*
+ * Run the communications exchange.
+ */
 int cxRun(CX *cx)
 {
     int r, nfds;
     fd_set rfds;
     CX_Timeout *tm;
-    CX_Connection *conn;
 
     while (1) {
+        int fd;
+
         FD_ZERO(&rfds);
         nfds = 0;
 
-        for (conn = listHead(&cx->connections);
-                conn; conn = listNext(conn)) {
-P           dbgPrint(stderr, "Adding fd %d\n", conn->fd);
+        for (fd = 0; fd < cx->num_connections; fd++) {
+            if (cx->connection[fd] == NULL) continue;
 
-            FD_SET(conn->fd, &rfds);
+            FD_SET(fd, &rfds);
 
-            if (conn->fd >= nfds) nfds = conn->fd + 1;
+            if (fd >= nfds) nfds = fd + 1;
         }
 
         tm = listHead(&cx->timeouts);
@@ -201,7 +213,7 @@ P               dbgPrint(stderr, "select returned %d\n", r);
             }
         }
         else {
-            double dt = tm->t - cx_now();
+            double dt = tm->t - cxNow();
 
             if (dt < 0) dt = 0;
 
@@ -237,13 +249,15 @@ P               dbgPrint(stderr, "select returned %d\n", r);
             free(tm);
         }
         else {
-            CX_Connection *next;
+            int fd;
 
-            for (conn = listHead(&cx->connections); conn; conn = next) {
-                next = listNext(conn);
+            for (fd = 0; fd < cx->num_connections; fd++) {
+                CX_Connection *conn = cx->connection[fd];
 
-                if (FD_ISSET(conn->fd, &rfds)) {
-                    conn->handler(cx, conn->fd, conn->udata);
+                if (conn == NULL) continue;
+
+                if (FD_ISSET(fd, &rfds)) {
+                    conn->handler(cx, fd, conn->udata);
                 }
             }
         }
@@ -256,15 +270,18 @@ P               dbgPrint(stderr, "select returned %d\n", r);
  */
 int cxClose(CX *cx)
 {
+    int fd;
     CX_Timeout *tm;
-    CX_Connection *conn;
 
     while ((tm = listRemoveHead(&cx->timeouts)) != NULL) {
         free(tm);
     }
 
-    while ((conn = listRemoveHead(&cx->connections)) != NULL) {
-        free(conn);
+    for (fd = 0; fd < cx->num_connections; fd++) {
+        if (cx->connection[fd] != NULL) {
+            free(cx->connection[fd]);
+            cx->connection[fd] = NULL;
+        }
     }
 
     return 0;
@@ -295,8 +312,56 @@ int cxOwnsFD(CX *cx, int fd)
 #endif
 
 #ifdef TEST
+#include "net.h"
 
-int handle_data(CX *cx, int fd, void *udata)
+/*
+ * -- Client --
+ */
+
+int client_handle_data(CX *cx, int fd, void *udata)
+{
+    char buffer[80] = "";
+
+    int r = read(fd, buffer, sizeof(buffer));
+
+P   dbgPrint(stderr, "fd = %d, udata = %p, read %d bytes\n", fd, udata, r);
+
+    cxClose(cx);
+
+    return 0;
+}
+
+int client_handle_timeout(CX *cx, double t, void *udata)
+{
+    int fd = *((int *) udata);
+
+P   dbgPrint(stderr, "Timeout!\n");
+
+    tcpWrite(fd, "Hoi!", 4);
+
+    return 0;
+}
+
+void client(int port)
+{
+    CX *cx = cxCreate();
+
+    int fd = tcpConnect("localhost", port);
+
+    cxAddFile(cx, fd, client_handle_data, NULL);
+
+    cxAddTime(cx, cxNow() + 1, client_handle_timeout, &fd);
+
+    cxRun(cx);
+
+P   dbgPrint(stderr, "cxRun() returned\n");
+}
+
+/*
+ * -- Server --
+ */
+
+int server_handle_data(CX *cx, int fd, void *udata)
 {
     char buffer[80] = "";
 
@@ -304,23 +369,27 @@ int handle_data(CX *cx, int fd, void *udata)
 
     if (r == 0) {
 P       dbgPrint(stderr, "End of file on fd %d\n", fd);
-        close(fd);
-        cxDropFile(cx, fd, handle_data);
+
+        cxDropFile(cx, fd);
+
+        cxClose(cx);
     }
     else {
 P       dbgPrint(stderr, "Got %d bytes: \"%s\"\n", r, buffer);
+
+        tcpWrite(fd, buffer, r);
     }
 
     return 0;
 }
 
-int accept_connection(CX *cx, int fd, void *udata)
+int server_accept_connection(CX *cx, int fd, void *udata)
 {
-P   dbgPrint(stderr, "accept_connection\n");
+P   dbgPrint(stderr, "server_accept_connection\n");
 
     fd = tcpAccept(fd);
 
-    cxAddFile(cx, fd, NULL, handle_data);
+    cxAddFile(cx, fd, server_handle_data, NULL);
 
     return 0;
 }
@@ -329,13 +398,17 @@ int main(int argc, char *argv[])
 {
     CX *cx = cxCreate();
 
-    return 0;
+    int fd = tcpListen(NULL, 0);
+    int port = netLocalPort(fd);
 
-    int fd = tcpListen("localhost", 1234);
+    cxAddFile(cx, fd, server_accept_connection, NULL);
 
-    cxAddFile(cx, fd, NULL, accept_connection);
-
-    cxRun(cx);
+    if (fork() == 0) {
+        client(port);
+    }
+    else {
+        cxRun(cx);
+    }
 
     return 0;
 }

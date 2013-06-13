@@ -13,24 +13,42 @@
 
 typedef struct CX CX;
 
-/* Create a communications exchange. */
+/*
+ * Create a communications exchange.
+ */
 CX *cxCreate(void);
 
-/* Subscribe to input. */
-void cxAddFile(CX *cx, int fd, void *udata, int (*handler)(CX *cx, int fd, void
-                 *udata));
+/*
+ * Subscribe to input.
+ */
+void cxAddFile(CX *cx, int fd, int (*handler)(CX *cx, int fd, void *udata), void
+                 *udata);
 
-/* Drop subscription to fd <fd>. */
-void cxDropFile(CX *cx, int fd, int (*handler)(CX *cx, int fd, void *udata));
+/*
+ * Drop subscription to fd <fd>.
+ */
+void cxDropFile(CX *cx, int fd);
 
-/* Add a timeout at time <t>. */
-void cxAddTime(CX *cx, double t, void *udata, int (*handler)(CX *cx, double t,
-                 void *udata));
+/*
+ * Return the current *UTC* time (number of seconds since
+ * 1970-01-01/00:00:00 UTC) as a double.
+ */
+double cxNow(void);
 
-/* Drop timeout at time <t>. */
+/*
+ * Add a timeout at time <t>.
+ */
+void cxAddTime(CX *cx, double t, int (*handler)(CX *cx, double t, void *udata),
+                 void *udata);
+
+/*
+ * Drop timeout at time <t>.
+ */
 void cxDropTime(CX *cx, double t, int (*handler)(CX *cx, double t, void *udata));
 
-/* Run the communications exchange. */
+/*
+ * Run the communications exchange.
+ */
 int cxRun(CX *cx);
 
 /*
