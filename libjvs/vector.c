@@ -116,7 +116,7 @@ void vSub(Vector *v_out, Vector *v1, Vector *v2)
    }
 }
 
-/* Copy vector <v_in> in to vector <v_out>. Both vectors must already have the
+/* Copy vector <v_in> to vector <v_out>. Both vectors must already have the
  * same number of rows. */
 
 void vCopy(Vector *v_out, Vector *v_in)

@@ -213,7 +213,7 @@ Buffer *bufAdd(Buffer *buf, const void *data, int len)
 
         buf->data = realloc(buf->data, buf->max_len);
 
-        assert(buf->max_len == 0 || buf->data != NULL);
+        assert(buf->data);
     }
 
     memcpy(buf->data + buf->act_len, data, len);

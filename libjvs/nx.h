@@ -86,7 +86,7 @@ int nxGet(NX *nx, int fd, Buffer *data);
 int nxConnect(NX *nx, const char *host, int port);
 
 /*
- * Disconnect connection the connection on <fd>.
+ * Disconnect the connection on <fd>.
  */
 void nxDisconnect(NX *nx, int fd);
 
