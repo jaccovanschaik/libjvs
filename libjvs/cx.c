@@ -67,7 +67,7 @@ static void cx_double_to_timeval(double time, struct timeval *tv)
 }
 
 /*
- * Convert double <time> and write it to the timeval at <tv>.
+ * Convert double <time> and write it to the timespec at <ts>.
  */
 static void cx_double_to_timespec(double time, struct timespec *ts)
 {
@@ -84,7 +84,9 @@ CX *cxCreate(void)
 }
 
 /*
- * Subscribe to input.
+ * Subscribe to input. When data is available on <fd>, <handler> will be called with the given <cx>,
+ * <fd> and <udata>. Only one handler per file descriptor can be set, subsequent calls will override
+ * earlier ones.
  */
 void cxAddFile(CX *cx, int fd, int (*handler)(CX *cx, int fd, void *udata), void *udata)
 {
@@ -130,8 +132,7 @@ void cxDropFile(CX *cx, int fd)
 }
 
 /*
- * Return the current *UTC* time (number of seconds since
- * 1970-01-01/00:00:00 UTC) as a double.
+ * Return the current UTC time (number of seconds since 1970-01-01/00:00:00 UTC) as a double.
  */
 double cxNow(void)
 {
@@ -143,7 +144,8 @@ double cxNow(void)
 }
 
 /*
- * Add a timeout at time <t>.
+ * Set a handler to be called at time <t> (in seconds since 1970-01-01/00:00:00 UTC). <handler> will
+ * be called with the given <cx>, <t> and <udata>.
  */
 void cxAddTime(CX *cx, double t, int (*handler)(CX *cx, double t, void *udata), void *udata)
 {
@@ -159,7 +161,7 @@ void cxAddTime(CX *cx, double t, int (*handler)(CX *cx, double t, void *udata), 
 }
 
 /*
- * Drop timeout at time <t>.
+ * Drop timeout at time <t>. Both <t> and <handler> must match the earlier call to cxAddTime.
  */
 void cxDropTime(CX *cx, double t, int (*handler)(CX *cx, double t, void *udata))
 {
@@ -176,7 +178,8 @@ void cxDropTime(CX *cx, double t, int (*handler)(CX *cx, double t, void *udata))
 }
 
 /*
- * Run the communications exchange.
+ * Run the communications exchange. This function will return when there are no more timeouts to
+ * wait for and no file descriptors to listen on (which can be forced by calling cxClose()).
  */
 int cxRun(CX *cx)
 {
@@ -205,11 +208,7 @@ int cxRun(CX *cx)
                 return 0;
             }
             else {
-P               dbgPrint(stderr, "No timeouts, calling select\n");
-
                 r = select(nfds, &rfds, NULL, NULL, NULL);
-
-P               dbgPrint(stderr, "select returned %d\n", r);
             }
         }
         else {
@@ -266,7 +265,8 @@ P               dbgPrint(stderr, "select returned %d\n", r);
 }
 
 /*
- * Close down Communications Exchange <cx>.
+ * Close down Communications Exchange <cx>. This forcibly stops <cx> from listening on any file
+ * descriptor and removes all pending timeouts, which causes cxRun() to return.
  */
 int cxClose(CX *cx)
 {
@@ -288,7 +288,8 @@ int cxClose(CX *cx)
 }
 
 /*
- * Free the memory occupied by <cx>.
+ * Free the memory occupied by <cx>. Call this outside of the cx loop, i.e. after cxRun() returns.
+ * You can force cxRun() to return by calling cxClose().
  */
 int cxFree(CX *cx)
 {
