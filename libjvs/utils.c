@@ -314,7 +314,7 @@ int astrpack(char **str, ...)
  * PACK_DOUBLE	double *	8 byte double
  * PACK_STRING	char **		4-byte length, followed by as many bytes.
  * PACK_DATA	char **, uint *	4-byte length, followed by as many bytes.
- * PACK_RAW	char **, uint	As many raw bytes as given.
+ * PACK_RAW	char *, uint	As many raw bytes as given.
  *
  * Note that PACK_STRING and PACK_DATA allocate space to put the data
  * in, and it is the caller's responsibility to free that space again.
@@ -426,12 +426,11 @@ int vstrunpack(const char *str, int size, va_list ap)
             break;
         case PACK_RAW:
             {
-                char **strpp = va_arg(ap, char **);
+                char *strp = va_arg(ap, char *);
                 int len = va_arg(ap, unsigned int);
 
                 if (size >= len) {
-                    *strpp = malloc(len);
-                    memcpy(*strpp, ptr, len);
+                    memcpy(strp, ptr, len);
                 }
 
                 ptr  += len;
@@ -480,7 +479,8 @@ int main(int argc, char *argv[])
     uint64_t u64;
     double f64;
     float f32;
-    char *sp, *dp, *rp, *buf_p;
+    char *sp, *dp, *buf_p;
+    char raw_buf[6] = { 0 };
     int len;
 
     char buffer[64] = { };
@@ -538,7 +538,7 @@ int main(int argc, char *argv[])
             PACK_DOUBLE,    &f64,
             PACK_STRING,    &sp,
             PACK_DATA,      &dp, &len,
-            PACK_RAW,       &rp, 5,
+            PACK_RAW,       raw_buf, 5,
             END);
 
     make_sure_that(u8  == 1);
@@ -550,7 +550,7 @@ int main(int argc, char *argv[])
     make_sure_that(strcmp(sp, "Hoi") == 0);
     make_sure_that(len == 5);
     make_sure_that(memcmp(dp, "Hello", 5) == 0);
-    make_sure_that(memcmp(rp, "World", 5) == 0);
+    make_sure_that(memcmp(raw_buf, "World", 5) == 0);
     make_sure_that(r == 48);
 
     return errors;
