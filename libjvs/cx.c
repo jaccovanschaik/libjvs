@@ -67,15 +67,6 @@ static void cx_double_to_timeval(double time, struct timeval *tv)
 }
 
 /*
- * Convert double <time> and write it to the timespec at <ts>.
- */
-static void cx_double_to_timespec(double time, struct timespec *ts)
-{
-    ts->tv_sec = (int) time;
-    ts->tv_nsec = 1000000000 * fmod(time, 1.0);
-}
-
-/*
  * Create a communications exchange.
  */
 CX *cxCreate(void)
@@ -178,90 +169,115 @@ void cxDropTime(CX *cx, double t, int (*handler)(CX *cx, double t, void *udata))
 }
 
 /*
+ * Fill <rfds> with file descriptors that may have input data, and return the number of file
+ * descriptors that may be set.
+ */
+int cxFillFDs(CX *cx, fd_set *rfds)
+{
+    int fd;
+
+    FD_ZERO(rfds);
+
+    for (fd = 0; fd < cx->num_connections; fd++) {
+        if (cx->connection[fd] == NULL) continue;
+
+        FD_SET(fd, rfds);
+    }
+
+    return cx->num_connections;
+}
+
+/*
+ * Return TRUE if <fd> is handled by <cx>.
+ */
+int cxOwnsFD(CX *cx, int fd)
+{
+    return cx->connection[fd] != NULL;
+}
+
+/*
+ * Prepare a call to select() for <cx>. <rfds> is filled with file descriptors that may have input
+ * data and <tv> is set to a pointer to a struct timeval to be used as a timeout (which may be NULL
+ * if no timeouts are pending). The number of file descriptors that may be set is returned.
+ */
+int cxPrepareSelect(CX *cx, fd_set *rfds, struct timeval **tv)
+{
+    CX_Timeout *tm;
+    static struct timeval my_tv;
+
+    cxFillFDs(cx, rfds);
+
+    *tv = NULL;
+
+    if ((tm = listHead(&cx->timeouts)) != NULL) {
+        double dt = tm->t - cxNow();
+
+        if (dt < 0) dt = 0;
+
+        cx_double_to_timeval(dt, &my_tv);
+
+        *tv = &my_tv;
+    }
+
+    return cx->num_connections;
+}
+
+/*
+ * Process the results from a select() call.
+ */
+int cxProcessSelect(CX *cx, int r, fd_set *rfds)
+{
+    if (r == -1) {
+        if (errno != EINTR) return -1;
+    }
+    else if (r == 0) {
+        CX_Timeout *tm = listRemoveHead(&cx->timeouts);
+
+        tm->handler(cx, tm->t, tm->udata);
+
+        free(tm);
+    }
+    else {
+        int fd;
+
+        for (fd = 0; fd < cx->num_connections; fd++) {
+            CX_Connection *conn = cx->connection[fd];
+
+            if (conn == NULL) continue;
+
+            if (FD_ISSET(fd, rfds)) {
+                conn->handler(cx, fd, conn->udata);
+            }
+        }
+    }
+
+    return 0;
+}
+
+/*
  * Run the communications exchange. This function will return when there are no more timeouts to
  * wait for and no file descriptors to listen on (which can be forced by calling cxClose()).
  */
 int cxRun(CX *cx)
 {
-    int r, nfds;
-    fd_set rfds;
-    CX_Timeout *tm;
+    int r = 0;
 
-    while (1) {
-        int fd;
+    while (r >= 0) {
+        fd_set rfds;
+        struct timeval *tv;
 
-        FD_ZERO(&rfds);
-        nfds = 0;
+        int nfds = cxPrepareSelect(cx, &rfds, &tv);
 
-        for (fd = 0; fd < cx->num_connections; fd++) {
-            if (cx->connection[fd] == NULL) continue;
+P       dbgPrint(stderr, "nfds = %d, tv = %p\n", nfds, tv);
 
-            FD_SET(fd, &rfds);
+        if (nfds == 0 && tv == NULL) break;
 
-            if (fd >= nfds) nfds = fd + 1;
-        }
+        r = select(nfds, &rfds, NULL, NULL, tv);
 
-        tm = listHead(&cx->timeouts);
-
-        if (tm == NULL) {
-            if (nfds == 0) {
-                return 0;
-            }
-            else {
-                r = select(nfds, &rfds, NULL, NULL, NULL);
-            }
-        }
-        else {
-            double dt = tm->t - cxNow();
-
-            if (dt < 0) dt = 0;
-
-            if (nfds == 0) {
-                struct timespec req, rem;
-
-                cx_double_to_timespec(dt, &req);
-
-                while (nanosleep(&req, &rem) == -1 && errno == EINTR) {
-                    errno = 0;
-                    req = rem;
-                }
-
-                r = (errno == 0) ? 0 : -1;
-            }
-            else {
-                struct timeval tv;
-
-                cx_double_to_timeval(dt, &tv);
-
-                r = select(nfds, &rfds, NULL, NULL, &tv);
-            }
-        }
-
-        if (r == -1) {
-            if (errno != EINTR) return -1;
-        }
-        else if (r == 0) {
-            tm = listRemoveHead(&cx->timeouts);
-
-            tm->handler(cx, tm->t, tm->udata);
-
-            free(tm);
-        }
-        else {
-            int fd;
-
-            for (fd = 0; fd < cx->num_connections; fd++) {
-                CX_Connection *conn = cx->connection[fd];
-
-                if (conn == NULL) continue;
-
-                if (FD_ISSET(fd, &rfds)) {
-                    conn->handler(cx, fd, conn->udata);
-                }
-            }
-        }
+        r = cxProcessSelect(cx, r, &rfds);
     }
-    return 0;
+
+    return r;
 }
 
 /*
@@ -284,6 +300,8 @@ int cxClose(CX *cx)
         }
     }
 
+    cx->num_connections = 0;
+
     return 0;
 }
 
@@ -293,24 +311,12 @@ int cxClose(CX *cx)
  */
 int cxFree(CX *cx)
 {
-    cxClose(cx);
+    cxClose(cx);    /* Should not be necessary, just to be safe. */
 
     free(cx);
 
     return 0;
 }
-
-#if 0
-void cxFDSet(CX *cx, fd_set *fds)
-{
-    memcpy(fds, &cx->fds, sizeof(fd_set));
-}
-
-int cxOwnsFD(CX *cx, int fd)
-{
-    return FD_ISSET(fd, &cx->fds);
-}
-#endif
 
 #ifdef TEST
 #include "net.h"
@@ -325,7 +331,7 @@ int client_handle_data(CX *cx, int fd, void *udata)
 
     int r = read(fd, buffer, sizeof(buffer));
 
-P   dbgPrint(stderr, "fd = %d, udata = %p, read %d bytes\n", fd, udata, r);
+P   dbgPrint(stderr, "Got reply (%*s), closing down.\n", r, buffer);
 
     cxClose(cx);
 
@@ -336,9 +342,9 @@ int client_handle_timeout(CX *cx, double t, void *udata)
 {
     int fd = *((int *) udata);
 
-P   dbgPrint(stderr, "Timeout!\n");
+P   dbgPrint(stderr, "Timeout, sending ping...\n");
 
-    tcpWrite(fd, "Hoi!", 4);
+    tcpWrite(fd, "Ping!", 5);
 
     return 0;
 }
@@ -369,16 +375,16 @@ int server_handle_data(CX *cx, int fd, void *udata)
     int r = read(fd, buffer, sizeof(buffer));
 
     if (r == 0) {
-P       dbgPrint(stderr, "End of file on fd %d\n", fd);
+P       dbgPrint(stderr, "End of file on fd %d, closing down.\n", fd);
 
         cxDropFile(cx, fd);
 
         cxClose(cx);
     }
-    else {
-P       dbgPrint(stderr, "Got %d bytes: \"%s\"\n", r, buffer);
+    else if (strncmp(buffer, "Ping!", r) == 0) {
+P       dbgPrint(stderr, "Got ping, sending echo.\n");
 
-        tcpWrite(fd, buffer, r);
+        tcpWrite(fd, "Echo!", 5);
     }
 
     return 0;
@@ -386,7 +392,7 @@ P       dbgPrint(stderr, "Got %d bytes: \"%s\"\n", r, buffer);
 
 int server_accept_connection(CX *cx, int fd, void *udata)
 {
-P   dbgPrint(stderr, "server_accept_connection\n");
+P   dbgPrint(stderr, "Accepting new connection\n");
 
     fd = tcpAccept(fd);
 

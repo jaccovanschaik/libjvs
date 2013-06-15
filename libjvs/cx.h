@@ -49,6 +49,29 @@ void cxAddTime(CX *cx, double t, int (*handler)(CX *cx, double t, void *udata),
 void cxDropTime(CX *cx, double t, int (*handler)(CX *cx, double t, void *udata));
 
 /*
+ * Fill <rfds> with file descriptors that may have input data, and return the number of file
+ * descriptors that may be set.
+ */
+int cxFillFDs(CX *cx, fd_set *rfds);
+
+/*
+ * Return TRUE if <fd> is handled by <cx>.
+ */
+int cxOwnsFD(CX *cx, int fd);
+
+/*
+ * Prepare a call to select() for <cx>. <rfds> is filled with file descriptors that may have input
+ * data and <tv> is set to a pointer to a struct timeval to be used as a timeout (which may be NULL
+ * if no timeouts are pending). The number of file descriptors that may be set is returned.
+ */
+int cxPrepareSelect(CX *cx, fd_set *rfds, struct timeval **tv);
+
+/*
+ * Process the results from a select() call.
+ */
+int cxProcessSelect(CX *cx, int r, fd_set *rfds);
+
+/*
  * Run the communications exchange. This function will return when there are no more timeouts to
  * wait for and no file descriptors to listen on (which can be forced by calling cxClose()).
  */
