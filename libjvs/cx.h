@@ -49,10 +49,11 @@ void cxAddTime(CX *cx, double t, int (*handler)(CX *cx, double t, void *udata),
 void cxDropTime(CX *cx, double t, int (*handler)(CX *cx, double t, void *udata));
 
 /*
- * Fill <rfds> with file descriptors that may have input data, and return the number of file
- * descriptors that may be set.
+ * Clear <rfds>, then fill it with the file descriptors that have been given to <cx> in a cxAddFile
+ * call. Return the number of file descriptors that may be set. <rfds> can then be passed to
+ * select().
  */
-int cxFillFDs(CX *cx, fd_set *rfds);
+int cxGetReadFDs(CX *cx, fd_set *rfds);
 
 /*
  * Return TRUE if <fd> is handled by <cx>.
@@ -60,11 +61,11 @@ int cxFillFDs(CX *cx, fd_set *rfds);
 int cxOwnsFD(CX *cx, int fd);
 
 /*
- * Prepare a call to select() for <cx>. <rfds> is filled with file descriptors that may have input
- * data and <tv> is set to a pointer to a struct timeval to be used as a timeout (which may be NULL
- * if no timeouts are pending). The number of file descriptors that may be set is returned.
+ * Get the timeout to use for a call to select. If a timeout is required it is copied to <tv>, and 1
+ * is returned. Otherwise 0 is returned, and the last parameter of select should be set to NULL.
+ * <tv> is not changed in that case.
  */
-int cxPrepareSelect(CX *cx, fd_set *rfds, struct timeval **tv);
+int cxGetTimeout(CX *cx, struct timeval *tv);
 
 /*
  * Process the results from a select() call.

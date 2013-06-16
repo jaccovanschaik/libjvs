@@ -169,10 +169,11 @@ void cxDropTime(CX *cx, double t, int (*handler)(CX *cx, double t, void *udata))
 }
 
 /*
- * Fill <rfds> with file descriptors that may have input data, and return the number of file
- * descriptors that may be set.
+ * Clear <rfds>, then fill it with the file descriptors that have been given to <cx> in a cxAddFile
+ * call. Return the number of file descriptors that may be set. <rfds> can then be passed to
+ * select().
  */
-int cxFillFDs(CX *cx, fd_set *rfds)
+int cxGetReadFDs(CX *cx, fd_set *rfds)
 {
     int fd;
 
@@ -196,30 +197,26 @@ int cxOwnsFD(CX *cx, int fd)
 }
 
 /*
- * Prepare a call to select() for <cx>. <rfds> is filled with file descriptors that may have input
- * data and <tv> is set to a pointer to a struct timeval to be used as a timeout (which may be NULL
- * if no timeouts are pending). The number of file descriptors that may be set is returned.
+ * Get the timeout to use for a call to select. If a timeout is required it is copied to <tv>, and 1
+ * is returned. Otherwise 0 is returned, and the last parameter of select should be set to NULL.
+ * <tv> is not changed in that case.
  */
-int cxPrepareSelect(CX *cx, fd_set *rfds, struct timeval **tv)
+int cxGetTimeout(CX *cx, struct timeval *tv)
 {
     CX_Timeout *tm;
-    static struct timeval my_tv;
 
-    cxFillFDs(cx, rfds);
-
-    *tv = NULL;
-
-    if ((tm = listHead(&cx->timeouts)) != NULL) {
+    if ((tm = listHead(&cx->timeouts)) == NULL) {
+        return 0;
+    }
+    else {
         double dt = tm->t - cxNow();
 
         if (dt < 0) dt = 0;
 
-        cx_double_to_timeval(dt, &my_tv);
+        cx_double_to_timeval(dt, tv);
 
-        *tv = &my_tv;
+        return 1;
     }
-
-    return cx->num_connections;
 }
 
 /*
@@ -263,16 +260,18 @@ int cxRun(CX *cx)
     int r = 0;
 
     while (r >= 0) {
+        struct timeval tv;
         fd_set rfds;
-        struct timeval *tv;
 
-        int nfds = cxPrepareSelect(cx, &rfds, &tv);
+        int nfds = cxGetReadFDs(cx, &rfds);
 
-P       dbgPrint(stderr, "nfds = %d, tv = %p\n", nfds, tv);
+        r = cxGetTimeout(cx, &tv);
 
-        if (nfds == 0 && tv == NULL) break;
+P       dbgPrint(stderr, "nfds = %d, r = %d\n", nfds, r);
 
-        r = select(nfds, &rfds, NULL, NULL, tv);
+        if (nfds == 0 && r == 0) break;
+
+        r = select(nfds, &rfds, NULL, NULL, r ? &tv : NULL);
 
         r = cxProcessSelect(cx, r, &rfds);
     }
