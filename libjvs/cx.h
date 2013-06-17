@@ -23,8 +23,7 @@ CX *cxCreate(void);
  * <fd> and <udata>. Only one handler per file descriptor can be set, subsequent calls will override
  * earlier ones.
  */
-void cxAddFile(CX *cx, int fd, int (*handler)(CX *cx, int fd, void *udata), void
-                 *udata);
+void cxAddFile(CX *cx, int fd, int (*handler)(CX *cx, int fd, void *udata), void *udata);
 
 /*
  * Drop subscription to fd <fd>.
@@ -40,8 +39,7 @@ double cxNow(void);
  * Set a handler to be called at time <t> (in seconds since 1970-01-01/00:00:00 UTC). <handler> will
  * be called with the given <cx>, <t> and <udata>.
  */
-void cxAddTime(CX *cx, double t, int (*handler)(CX *cx, double t, void *udata),
-                 void *udata);
+void cxAddTime(CX *cx, double t, int (*handler)(CX *cx, double t, void *udata), void *udata);
 
 /*
  * Drop timeout at time <t>. Both <t> and <handler> must match the earlier call to cxAddTime.
