@@ -13,7 +13,7 @@ include /home/jacco/.make/make.sysdep
 CC = gcc
 
 LIBJVS = vector.o buffer.o hash.o list.o sdr.o debug.o cx.o \
-         nx.o utils.o tgen.o bitmask.o net.o tcp.o udp.o
+         utils.o tgen.o bitmask.o net.o tcp.o udp.o
 
 CFLAGS = -g -fPIC -Wall
 
@@ -35,7 +35,7 @@ install: libjvs.a libjvs.so
 	if [ ! -d $(INSTALL_LIB) ]; then mkdir -p $(INSTALL_LIB); fi
 	cp libjvs.a libjvs.so $(INSTALL_LIB)
 	if [ ! -d $(INSTALL_INC)/libjvs ]; then mkdir -p $(INSTALL_INC)/libjvs; fi
-	cp *.h $(INSTALL_INC)/libjvs
+	cp `ls *.h | grep -v '_i.h'` $(INSTALL_INC)/libjvs
 
 tags:
 	ctags -R .

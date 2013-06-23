@@ -17,6 +17,7 @@
 #include <sys/time.h>
 #include <time.h>
 #include <math.h>
+#include <assert.h>
 
 #include "buffer.h"
 #include "list.h"
@@ -26,21 +27,39 @@
 
 #include "cx.h"
 
+typedef enum {
+    CX_CT_NONE,
+    CX_CT_FILE,
+    CX_CT_LISTEN,
+    CX_CT_SOCKET,
+    CX_CT_COUNT
+} CX_ConnectionType;
+
 typedef struct {
-    void *udata;
-    int (*handler)(CX *cx, int fd, void *udata);
+    CX_ConnectionType type;
+    Buffer incoming, outgoing;
+    void *on_file_data_udata;
+    void (*on_file_data)(CX *cx, int fd, void *udata);
 } CX_Connection;
 
 typedef struct {
     ListNode _node;
     double t;
-    void *udata;
-    int (*handler)(CX *cx, double t, void *udata);
+    void *on_time_udata;
+    void (*on_time)(CX *cx, double t, void *udata);
 } CX_Timeout;
 
 struct CX {
     int num_connections;
     CX_Connection **connection;
+    void *on_socket_data_udata;
+    void (*on_socket_data)(CX *cx, int fd, const char *data, size_t size, void *udata);
+    void *on_error_udata;
+    void (*on_error)(CX *cx, int fd, int error, void *udata);
+    void *on_connect_udata;
+    void (*on_connect)(CX *cx, int fd, void *udata);
+    void *on_disconnect_udata;
+    void (*on_disconnect)(CX *cx, int fd, void *udata);
     List timeouts;
 };
 
@@ -66,20 +85,7 @@ static void cx_double_to_timeval(double time, struct timeval *tv)
     tv->tv_usec = 1000000 * fmod(time, 1.0);
 }
 
-/*
- * Create a communications exchange.
- */
-CX *cxCreate(void)
-{
-    return calloc(1, sizeof(CX));
-}
-
-/*
- * Subscribe to input. When data is available on <fd>, <handler> will be called with the given <cx>,
- * <fd> and <udata>. Only one handler per file descriptor can be set, subsequent calls will override
- * earlier ones.
- */
-void cxAddFile(CX *cx, int fd, int (*handler)(CX *cx, int fd, void *udata), void *udata)
+static void cx_add_file(CX *cx, int fd, CX_ConnectionType type)
 {
     int new_num_connections = fd + 1;
 
@@ -96,8 +102,28 @@ void cxAddFile(CX *cx, int fd, int (*handler)(CX *cx, int fd, void *udata), void
         cx->connection[fd] = calloc(1, sizeof(CX_Connection));
     }
 
-    cx->connection[fd]->udata = udata;
-    cx->connection[fd]->handler = handler;
+    cx->connection[fd]->type = type;
+}
+
+/*
+ * Create a communications exchange.
+ */
+CX *cxCreate(void)
+{
+    return calloc(1, sizeof(CX));
+}
+
+/*
+ * Subscribe to input. When data is available on <fd>, <on_file_data> will be called with the given
+ * <cx>, <fd> and <udata>. Only one handler per file descriptor can be set, subsequent calls will
+ * override earlier ones.
+ */
+void cxOnFileData(CX *cx, int fd, void (*on_file_data)(CX *cx, int fd, void *udata), void *udata)
+{
+    cx_add_file(cx, fd, CX_CT_FILE);
+
+    cx->connection[fd]->on_file_data_udata = udata;
+    cx->connection[fd]->on_file_data = on_file_data;
 }
 
 /*
@@ -135,16 +161,16 @@ double cxNow(void)
 }
 
 /*
- * Set a handler to be called at time <t> (in seconds since 1970-01-01/00:00:00 UTC). <handler> will
+ * Set a handler to be called at time <t> (in seconds since 1970-01-01/00:00:00 UTC). <on_time> will
  * be called with the given <cx>, <t> and <udata>.
  */
-void cxAddTime(CX *cx, double t, int (*handler)(CX *cx, double t, void *udata), void *udata)
+void cxOnTime(CX *cx, double t, void (*on_time)(CX *cx, double t, void *udata), void *udata)
 {
     CX_Timeout *tm = calloc(1, sizeof(CX_Timeout));
 
     tm->t = t;
-    tm->udata = udata;
-    tm->handler = handler;
+    tm->on_time_udata = udata;
+    tm->on_time = on_time;
 
     listAppendTail(&cx->timeouts, tm);
 
@@ -152,16 +178,16 @@ void cxAddTime(CX *cx, double t, int (*handler)(CX *cx, double t, void *udata), 
 }
 
 /*
- * Drop timeout at time <t>. Both <t> and <handler> must match the earlier call to cxAddTime.
+ * Drop timeout at time <t>. Both <t> and <on_time> must match the earlier call to cxOnTime.
  */
-void cxDropTime(CX *cx, double t, int (*handler)(CX *cx, double t, void *udata))
+void cxDropTime(CX *cx, double t, void (*on_time)(CX *cx, double t, void *udata))
 {
     CX_Timeout *tm, *next;
 
     for (tm = listHead(&cx->timeouts); tm; tm = next) {
         next = listNext(tm);
 
-        if (tm->t == t && tm->handler == handler) {
+        if (tm->t == t && tm->on_time == on_time) {
             listRemove(&cx->timeouts, tm);
             free(tm);
         }
@@ -169,9 +195,89 @@ void cxDropTime(CX *cx, double t, int (*handler)(CX *cx, double t, void *udata))
 }
 
 /*
- * Clear <rfds>, then fill it with the file descriptors that have been given to <cx> in a cxAddFile
- * call. Return the number of file descriptors that may be set. <rfds> can then be passed to
- * select().
+ * Call <handler> with <udata> when a new connection is made on <fd>.
+ */
+void cxOnConnect(CX *cx, void (*handler)(CX *cx, int fd, void *udata), void *udata)
+{
+    cx->on_connect = handler;
+    cx->on_connect_udata = udata;
+}
+
+/*
+ * Call <handler> with <udata> when the connection on <fd> is lost.
+ */
+void cxOnDisconnect(CX *cx, void (*handler)(CX *cx, int fd, void *udata), void *udata)
+{
+    cx->on_disconnect = handler;
+    cx->on_disconnect_udata = udata;
+}
+
+/*
+ * Call <handler> when an error has occurred on <fd>. <error> is the associated errno.
+ */
+void cxOnSocketError(CX *cx, void (*handler)(CX *cx, int fd, int error, void *udata), void *udata)
+{
+    cx->on_error = handler;
+    cx->on_error_udata = udata;
+}
+
+/*
+ * Call <handler> when new data on one of the connected sockets comes in.
+ */
+void cxOnSocketData(CX *cx,
+        void (*handler)(CX *cx, int fd, const char *data, size_t size, void *udata),
+        void *udata)
+{
+    cx->on_socket_data = handler;
+    cx->on_socket_data_udata = udata;
+}
+
+/*
+ * Open a listen socket bound to <host> and <port>.
+ */
+int cxListen(CX *cx, const char *host, int port)
+{
+    int fd = tcpListen(host, port);
+
+    if (fd < 0) return -1;
+
+    cx_add_file(cx, fd, CX_CT_LISTEN);
+
+    return fd;
+}
+
+/*
+ * Make a connection to <host> on <port>.
+ */
+int cxConnect(CX *cx, const char *host, int port)
+{
+    int fd = tcpConnect(host, port);
+
+    if (fd < 0) return -1;
+
+    cx_add_file(cx, fd, CX_CT_SOCKET);
+
+    return fd;
+}
+
+/*
+ * Add <data> with <size> to the output buffer of <fd>. The data will be sent when the
+ * flow-of-control moves back to the main loop.
+ */
+void cxSend(CX *cx, int fd, const char *data, size_t size)
+{
+    CX_Connection *conn = cx->connection[fd];
+
+    assert(fd >= 0 && fd < cx->num_connections);
+    assert(conn != NULL);
+
+    bufAdd(&conn->outgoing, data, size);
+}
+
+/*
+ * Clear <rfds>, then fill it with the file descriptors that have been given to <cx> in a
+ * cxOnFileData call. Return the number of file descriptors that may be set. <rfds> can then be
+ * passed to select().
  */
 int cxGetReadFDs(CX *cx, fd_set *rfds)
 {
@@ -219,6 +325,45 @@ int cxGetTimeout(CX *cx, struct timeval *tv)
     }
 }
 
+static void cx_handle_input(CX *cx, int fd)
+{
+    int r;
+    char buffer[9000];
+
+    CX_Connection *conn;
+
+    assert(fd >= 0 && fd < cx->num_connections);
+    assert(cx->connection[fd] != NULL);
+
+    conn = cx->connection[fd];
+
+    assert(conn->type > CX_CT_NONE && conn->type < CX_CT_COUNT);
+
+    switch(conn->type) {
+    case CX_CT_LISTEN:
+        fd = tcpAccept(fd);
+        cx_add_file(cx, fd, CX_CT_SOCKET);
+        break;
+    case CX_CT_FILE:
+        dbgPrint(stderr, "CX_CT_FILE\n");
+        if (conn->on_file_data) {
+            conn->on_file_data(cx, fd, conn->on_file_data_udata);
+        }
+        break;
+    case CX_CT_SOCKET:
+        r = read(fd, buffer, sizeof(buffer));
+        bufSet(&conn->incoming, buffer, r);
+        if (cx->on_socket_data) {
+            cx->on_socket_data(cx, fd, bufGet(&conn->incoming), bufLen(&conn->incoming),
+                    cx->on_socket_data_udata);
+        }
+        bufClear(&conn->incoming);
+        break;
+    default:
+        break;
+    }
+}
+
 /*
  * Process the results from a select() call.
  */
@@ -230,7 +375,7 @@ int cxProcessSelect(CX *cx, int r, fd_set *rfds)
     else if (r == 0) {
         CX_Timeout *tm = listRemoveHead(&cx->timeouts);
 
-        tm->handler(cx, tm->t, tm->udata);
+        tm->on_time(cx, tm->t, tm->on_time_udata);
 
         free(tm);
     }
@@ -243,7 +388,8 @@ int cxProcessSelect(CX *cx, int r, fd_set *rfds)
             if (conn == NULL) continue;
 
             if (FD_ISSET(fd, rfds)) {
-                conn->handler(cx, fd, conn->udata);
+                cx_handle_input(cx, fd);
+                conn->on_file_data(cx, fd, conn->on_file_data_udata);
             }
         }
     }
@@ -263,11 +409,13 @@ int cxRun(CX *cx)
         struct timeval tv;
         fd_set rfds;
 
-        int nfds = cxGetReadFDs(cx, &rfds);
+        int nfds = cx->num_connections;
+
+        cxGetReadFDs(cx, &rfds);
 
         r = cxGetTimeout(cx, &tv);
 
-P       dbgPrint(stderr, "nfds = %d, r = %d\n", nfds, r);
+        dbgPrint(stderr, "nfds = %d, r = %d\n", nfds, r);
 
         if (nfds == 0 && r == 0) break;
 
@@ -283,7 +431,7 @@ P       dbgPrint(stderr, "nfds = %d, r = %d\n", nfds, r);
  * Close down Communications Exchange <cx>. This forcibly stops <cx> from listening on any file
  * descriptor and removes all pending timeouts, which causes cxRun() to return.
  */
-int cxClose(CX *cx)
+void cxClose(CX *cx)
 {
     int fd;
     CX_Timeout *tm;
@@ -300,52 +448,53 @@ int cxClose(CX *cx)
     }
 
     cx->num_connections = 0;
-
-    return 0;
 }
 
 /*
  * Free the memory occupied by <cx>. Call this outside of the cx loop, i.e. after cxRun() returns.
  * You can force cxRun() to return by calling cxClose().
  */
-int cxFree(CX *cx)
+void cxFree(CX *cx)
 {
     cxClose(cx);    /* Should not be necessary, just to be safe. */
 
     free(cx);
-
-    return 0;
 }
 
 #ifdef TEST
 #include "net.h"
 
+static char *ping = "Ping!";
+static char *echo = "Echo!";
+
 /*
  * -- Client --
  */
 
-int client_handle_data(CX *cx, int fd, void *udata)
+void client_handle_data(CX *cx, int fd, void *udata)
 {
     char buffer[80] = "";
 
     int r = read(fd, buffer, sizeof(buffer));
 
-P   dbgPrint(stderr, "Got reply (%*s), closing down.\n", r, buffer);
+    if (strncmp(buffer, echo, r) == 0) {
+P       dbgPrint(stderr, "Got reply (%*s), closing down.\n", r, buffer);
+    }
+    else {
+        dbgPrint(stderr, "Got unexpected reply (%*s).\n", r, buffer);
+        exit(-1);
+    }
 
     cxClose(cx);
-
-    return 0;
 }
 
-int client_handle_timeout(CX *cx, double t, void *udata)
+void client_handle_timeout(CX *cx, double t, void *udata)
 {
     int fd = *((int *) udata);
 
 P   dbgPrint(stderr, "Timeout, sending ping...\n");
 
-    tcpWrite(fd, "Ping!", 5);
-
-    return 0;
+    tcpWrite(fd, ping, strlen(ping));
 }
 
 void client(int port)
@@ -354,9 +503,9 @@ void client(int port)
 
     int fd = tcpConnect("localhost", port);
 
-    cxAddFile(cx, fd, client_handle_data, NULL);
+    cxOnFileData(cx, fd, client_handle_data, NULL);
 
-    cxAddTime(cx, cxNow() + 1, client_handle_timeout, &fd);
+    cxOnTime(cx, cxNow() + 1, client_handle_timeout, &fd);
 
     cxRun(cx);
 
@@ -367,7 +516,7 @@ P   dbgPrint(stderr, "cxRun() returned\n");
  * -- Server --
  */
 
-int server_handle_data(CX *cx, int fd, void *udata)
+void server_handle_data(CX *cx, int fd, void *udata)
 {
     char buffer[80] = "";
 
@@ -380,24 +529,24 @@ P       dbgPrint(stderr, "End of file on fd %d, closing down.\n", fd);
 
         cxClose(cx);
     }
-    else if (strncmp(buffer, "Ping!", r) == 0) {
+    else if (strncmp(buffer, ping, r) == 0) {
 P       dbgPrint(stderr, "Got ping, sending echo.\n");
 
-        tcpWrite(fd, "Echo!", 5);
+        tcpWrite(fd, echo, strlen(echo));
     }
-
-    return 0;
+    else {
+        dbgPrint(stderr, "Got unexpected request: \"%s\"\n", buffer);
+        exit(-1);
+    }
 }
 
-int server_accept_connection(CX *cx, int fd, void *udata)
+void server_accept_connection(CX *cx, int fd, void *udata)
 {
 P   dbgPrint(stderr, "Accepting new connection\n");
 
     fd = tcpAccept(fd);
 
-    cxAddFile(cx, fd, server_handle_data, NULL);
-
-    return 0;
+    cxOnFileData(cx, fd, server_handle_data, NULL);
 }
 
 int main(int argc, char *argv[])
@@ -407,12 +556,12 @@ int main(int argc, char *argv[])
     int fd = tcpListen(NULL, 0);
     int port = netLocalPort(fd);
 
-    cxAddFile(cx, fd, server_accept_connection, NULL);
-
     if (fork() == 0) {
         client(port);
     }
     else {
+        cxOnFileData(cx, fd, server_accept_connection, NULL);
+
         cxRun(cx);
     }
 

@@ -1,5 +1,5 @@
-#ifndef DX_H
-#define DX_H
+#ifndef CX_H
+#define CX_H
 
 /*
  * cx.h: Communications Exchange.
@@ -11,6 +11,9 @@
  * http://www.opensource.org/licenses/mit-license.php for details.
  */
 
+#include <stddef.h>
+#include <sys/select.h>
+
 typedef struct CX CX;
 
 /*
@@ -19,11 +22,11 @@ typedef struct CX CX;
 CX *cxCreate(void);
 
 /*
- * Subscribe to input. When data is available on <fd>, <handler> will be called with the given <cx>,
+ * Subscribe to input. When data is available on <fd>, <on_file_data> will be called with the given <cx>,
  * <fd> and <udata>. Only one handler per file descriptor can be set, subsequent calls will override
  * earlier ones.
  */
-void cxAddFile(CX *cx, int fd, int (*handler)(CX *cx, int fd, void *udata), void *udata);
+void cxOnFileData(CX *cx, int fd, void (*on_file_data)(CX *cx, int fd, void *udata), void *udata);
 
 /*
  * Drop subscription to fd <fd>.
@@ -36,20 +39,57 @@ void cxDropFile(CX *cx, int fd);
 double cxNow(void);
 
 /*
- * Set a handler to be called at time <t> (in seconds since 1970-01-01/00:00:00 UTC). <handler> will
+ * Set a handler to be called at time <t> (in seconds since 1970-01-01/00:00:00 UTC). <on_time> will
  * be called with the given <cx>, <t> and <udata>.
  */
-void cxAddTime(CX *cx, double t, int (*handler)(CX *cx, double t, void *udata), void *udata);
+void cxOnTime(CX *cx, double t, void (*on_time)(CX *cx, double t, void *udata), void *udata);
 
 /*
- * Drop timeout at time <t>. Both <t> and <handler> must match the earlier call to cxAddTime.
+ * Drop timeout at time <t>. Both <t> and <on_time> must match the earlier call to cxOnTime.
  */
-void cxDropTime(CX *cx, double t, int (*handler)(CX *cx, double t, void *udata));
+void cxDropTime(CX *cx, double t, void (*on_time)(CX *cx, double t, void *udata));
 
 /*
- * Clear <rfds>, then fill it with the file descriptors that have been given to <cx> in a cxAddFile
- * call. Return the number of file descriptors that may be set. <rfds> can then be passed to
- * select().
+ * Call <handler> with <udata> when a new connection is made on <fd>.
+ */
+void cxOnConnect(CX *cx, void (*handler)(CX *cx, int fd, void *udata), void *udata);
+
+/*
+ * Call <handler> with <udata> when the connection on <fd> is lost.
+ */
+void cxOnDisconnect(CX *cx, void (*handler)(CX *cx, int fd, void *udata), void *udata);
+
+/*
+ * Call <handler> when an error has occurred on <fd>. <error> is the associated errno.
+ */
+void cxOnSocketError(CX *cx, void (*handler)(CX *cx, int fd, int error, void *udata), void *udata);
+
+/*
+ * Call <handler> when new data on one of the connected sockets comes in.
+ */
+void cxOnSocketData(CX *cx, void (*handler)(CX *cx, int fd, const char *data, size_t size, void
+                      *udata), void *udata);
+
+/*
+ * Open a listen socket bound to <host> and <port>.
+ */
+int cxListen(CX *cx, const char *host, int port);
+
+/*
+ * Make a connection to <host> on <port>.
+ */
+int cxConnect(CX *cx, const char *host, int port);
+
+/*
+ * Add <data> with <size> to the output buffer of <fd>. The data will be sent when the
+ * flow-of-control moves back to the main loop.
+ */
+void cxSend(CX *cx, int fd, const char *data, size_t size);
+
+/*
+ * Clear <rfds>, then fill it with the file descriptors that have been given to <cx> in a
+ * cxOnFileData call. Return the number of file descriptors that may be set. <rfds> can then be
+ * passed to select().
  */
 int cxGetReadFDs(CX *cx, fd_set *rfds);
 
@@ -80,12 +120,12 @@ int cxRun(CX *cx);
  * Close down Communications Exchange <cx>. This forcibly stops <cx> from listening on any file
  * descriptor and removes all pending timeouts, which causes cxRun() to return.
  */
-int cxClose(CX *cx);
+void cxClose(CX *cx);
 
 /*
  * Free the memory occupied by <cx>. Call this outside of the cx loop, i.e. after cxRun() returns.
  * You can force cxRun() to return by calling cxClose().
  */
-int cxFree(CX *cx);
+void cxFree(CX *cx);
 
 #endif
