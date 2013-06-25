@@ -22,9 +22,9 @@ typedef struct CX CX;
 CX *cxCreate(void);
 
 /*
- * Subscribe to input. When data is available on <fd>, <on_file_data> will be called with the given <cx>,
- * <fd> and <udata>. Only one handler per file descriptor can be set, subsequent calls will override
- * earlier ones.
+ * Subscribe to input. When data is available on <fd>, <on_file_data> will be called with the given
+ * <cx>, <fd> and <udata>. Only one handler per file descriptor can be set, subsequent calls will
+ * override earlier ones.
  */
 void cxOnFileData(CX *cx, int fd, void (*on_file_data)(CX *cx, int fd, void *udata), void *udata);
 
@@ -94,6 +94,12 @@ void cxSend(CX *cx, int fd, const char *data, size_t size);
 int cxGetReadFDs(CX *cx, fd_set *rfds);
 
 /*
+ * Clear <wfds>, then fill it with the file descriptors that have data queued for write. Return the
+ * number of file descriptors that may be set. <wfds> can then be passed to select().
+ */
+int cxGetWriteFDs(CX *cx, fd_set *wfds);
+
+/*
  * Return TRUE if <fd> is handled by <cx>.
  */
 int cxOwnsFD(CX *cx, int fd);
@@ -108,7 +114,7 @@ int cxGetTimeout(CX *cx, struct timeval *tv);
 /*
  * Process the results from a select() call.
  */
-int cxProcessSelect(CX *cx, int r, fd_set *rfds);
+int cxProcessSelect(CX *cx, int r, fd_set *rfds, fd_set *wfds);
 
 /*
  * Run the communications exchange. This function will return when there are no more timeouts to

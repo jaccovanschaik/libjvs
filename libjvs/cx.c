@@ -105,6 +105,68 @@ static void cx_add_file(CX *cx, int fd, CX_ConnectionType type)
     cx->connection[fd]->type = type;
 }
 
+static void cx_handle_socket_data(CX *cx, int fd, void *udata)
+{
+    char data[9000];
+
+    int r = read(fd, data, sizeof(data));
+
+    if (r < 0) {
+        if (cx->on_error != NULL) {
+            cx->on_error(cx, fd, errno, cx->on_error_udata);
+        }
+
+        close(fd);
+        cxDropFile(cx, fd);
+    }
+    else if (r == 0) {
+        if (cx->on_disconnect != NULL) {
+            cx->on_disconnect(cx, fd, cx->on_disconnect_udata);
+        }
+
+        close(fd);
+        cxDropFile(cx, fd);
+    }
+    else {
+        if (cx->on_socket_data != NULL) {
+            cx->on_socket_data(cx, fd, data, r, cx->on_socket_data_udata);
+        }
+    }
+}
+
+static void cx_handle_writeable(CX *cx, int fd)
+{
+    int r;
+
+    CX_Connection *conn = cx->connection[fd];
+
+    assert(fd >= 0 && fd < cx->num_connections);
+    assert(conn != NULL);
+
+    r = write(fd, bufGet(&conn->outgoing), bufLen(&conn->outgoing));
+
+    if (r < 0) {
+        if (cx->on_error != NULL) {
+            cx->on_error(cx, fd, errno, cx->on_error_udata);
+        }
+
+        close(fd);
+        cxDropFile(cx, fd);
+    }
+    else {
+        bufTrim(&conn->outgoing, r, 0);
+    }
+}
+
+static void cx_handle_connection_request(CX *cx, int fd, void *udata)
+{
+    fd = tcpAccept(fd);
+
+    if (fd < 0) return;
+
+    cxOnFileData(cx, fd, cx_handle_socket_data, NULL);
+}
+
 /*
  * Create a communications exchange.
  */
@@ -241,7 +303,7 @@ int cxListen(CX *cx, const char *host, int port)
 
     if (fd < 0) return -1;
 
-    cx_add_file(cx, fd, CX_CT_LISTEN);
+    cxOnFileData(cx, fd, cx_handle_connection_request, NULL);
 
     return fd;
 }
@@ -255,7 +317,7 @@ int cxConnect(CX *cx, const char *host, int port)
 
     if (fd < 0) return -1;
 
-    cx_add_file(cx, fd, CX_CT_SOCKET);
+    cxOnFileData(cx, fd, cx_handle_socket_data, NULL);
 
     return fd;
 }
@@ -295,6 +357,25 @@ int cxGetReadFDs(CX *cx, fd_set *rfds)
 }
 
 /*
+ * Clear <wfds>, then fill it with the file descriptors that have data queued for write. Return the
+ * number of file descriptors that may be set. <wfds> can then be passed to select().
+ */
+int cxGetWriteFDs(CX *cx, fd_set *wfds)
+{
+    int fd;
+
+    FD_ZERO(wfds);
+
+    for (fd = 0; fd < cx->num_connections; fd++) {
+        if (cx->connection[fd] == NULL || bufLen(&cx->connection[fd]->outgoing) == 0) continue;
+
+        FD_SET(fd, wfds);
+    }
+
+    return cx->num_connections;
+}
+
+/*
  * Return TRUE if <fd> is handled by <cx>.
  */
 int cxOwnsFD(CX *cx, int fd)
@@ -325,49 +406,10 @@ int cxGetTimeout(CX *cx, struct timeval *tv)
     }
 }
 
-static void cx_handle_input(CX *cx, int fd)
-{
-    int r;
-    char buffer[9000];
-
-    CX_Connection *conn;
-
-    assert(fd >= 0 && fd < cx->num_connections);
-    assert(cx->connection[fd] != NULL);
-
-    conn = cx->connection[fd];
-
-    assert(conn->type > CX_CT_NONE && conn->type < CX_CT_COUNT);
-
-    switch(conn->type) {
-    case CX_CT_LISTEN:
-        fd = tcpAccept(fd);
-        cx_add_file(cx, fd, CX_CT_SOCKET);
-        break;
-    case CX_CT_FILE:
-        dbgPrint(stderr, "CX_CT_FILE\n");
-        if (conn->on_file_data) {
-            conn->on_file_data(cx, fd, conn->on_file_data_udata);
-        }
-        break;
-    case CX_CT_SOCKET:
-        r = read(fd, buffer, sizeof(buffer));
-        bufSet(&conn->incoming, buffer, r);
-        if (cx->on_socket_data) {
-            cx->on_socket_data(cx, fd, bufGet(&conn->incoming), bufLen(&conn->incoming),
-                    cx->on_socket_data_udata);
-        }
-        bufClear(&conn->incoming);
-        break;
-    default:
-        break;
-    }
-}
-
 /*
  * Process the results from a select() call.
  */
-int cxProcessSelect(CX *cx, int r, fd_set *rfds)
+int cxProcessSelect(CX *cx, int r, fd_set *rfds, fd_set *wfds)
 {
     if (r == -1) {
         if (errno != EINTR) return -1;
@@ -388,8 +430,11 @@ int cxProcessSelect(CX *cx, int r, fd_set *rfds)
             if (conn == NULL) continue;
 
             if (FD_ISSET(fd, rfds)) {
-                cx_handle_input(cx, fd);
                 conn->on_file_data(cx, fd, conn->on_file_data_udata);
+            }
+
+            if (FD_ISSET(fd, wfds)) {
+                cx_handle_writeable(cx, fd);
             }
         }
     }
@@ -407,21 +452,22 @@ int cxRun(CX *cx)
 
     while (r >= 0) {
         struct timeval tv;
-        fd_set rfds;
+        fd_set rfds, wfds;
 
         int nfds = cx->num_connections;
 
         cxGetReadFDs(cx, &rfds);
+        cxGetWriteFDs(cx, &wfds);
 
         r = cxGetTimeout(cx, &tv);
 
-        dbgPrint(stderr, "nfds = %d, r = %d\n", nfds, r);
+D       dbgPrint(stderr, "nfds = %d, r = %d\n", nfds, r);
 
         if (nfds == 0 && r == 0) break;
 
-        r = select(nfds, &rfds, NULL, NULL, r ? &tv : NULL);
+        r = select(nfds, &rfds, &wfds, NULL, r ? &tv : NULL);
 
-        r = cxProcessSelect(cx, r, &rfds);
+        r = cxProcessSelect(cx, r, &rfds, &wfds);
     }
 
     return r;
@@ -478,7 +524,7 @@ void client_handle_data(CX *cx, int fd, void *udata)
     int r = read(fd, buffer, sizeof(buffer));
 
     if (strncmp(buffer, echo, r) == 0) {
-P       dbgPrint(stderr, "Got reply (%*s), closing down.\n", r, buffer);
+D       dbgPrint(stderr, "Got reply (%*s), closing down.\n", r, buffer);
     }
     else {
         dbgPrint(stderr, "Got unexpected reply (%*s).\n", r, buffer);
@@ -492,9 +538,9 @@ void client_handle_timeout(CX *cx, double t, void *udata)
 {
     int fd = *((int *) udata);
 
-P   dbgPrint(stderr, "Timeout, sending ping...\n");
-
     tcpWrite(fd, ping, strlen(ping));
+
+D   dbgPrint(stderr, "Timeout, sent ping...\n");
 }
 
 void client(int port)
@@ -509,7 +555,7 @@ void client(int port)
 
     cxRun(cx);
 
-P   dbgPrint(stderr, "cxRun() returned\n");
+D   dbgPrint(stderr, "cxRun() returned\n");
 }
 
 /*
@@ -523,14 +569,14 @@ void server_handle_data(CX *cx, int fd, void *udata)
     int r = read(fd, buffer, sizeof(buffer));
 
     if (r == 0) {
-P       dbgPrint(stderr, "End of file on fd %d, closing down.\n", fd);
+D       dbgPrint(stderr, "End of file on fd %d, closing down.\n", fd);
 
         cxDropFile(cx, fd);
 
         cxClose(cx);
     }
     else if (strncmp(buffer, ping, r) == 0) {
-P       dbgPrint(stderr, "Got ping, sending echo.\n");
+D       dbgPrint(stderr, "Got request (%*s), sending echo.\n", r, buffer);
 
         tcpWrite(fd, echo, strlen(echo));
     }
@@ -542,9 +588,9 @@ P       dbgPrint(stderr, "Got ping, sending echo.\n");
 
 void server_accept_connection(CX *cx, int fd, void *udata)
 {
-P   dbgPrint(stderr, "Accepting new connection\n");
-
     fd = tcpAccept(fd);
+
+D   dbgPrint(stderr, "Accepted new connection: fd = %d\n", fd);
 
     cxOnFileData(cx, fd, server_handle_data, NULL);
 }
