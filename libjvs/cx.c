@@ -508,7 +508,95 @@ void cxFree(CX *cx)
 }
 
 #ifdef TEST
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+
 #include "net.h"
+#include "udp.h"
+
+static int global_report_fd;
+
+void report(int fd, const char *fmt, ...)
+{
+    static Buffer buf = { 0 };
+
+    va_list ap;
+
+    va_start(ap, fmt);
+    bufSetV(&buf, fmt, ap);
+    va_end(ap);
+
+    tcpWrite(fd, bufGet(&buf), bufLen(&buf));
+}
+
+void handle_data(CX *cx, int fd, void *udata)
+{
+    char buffer[1500];
+
+    int r = read(fd, buffer, sizeof(buffer));
+
+    report(global_report_fd, "received %*s on %s", r, buffer, (char *) udata);
+
+    if (memcpy(buffer, "Quit", r) == 0) {
+        cxClose(cx);
+    }
+}
+
+void accept_connection(CX *cx, int fd, void *udata)
+{
+    report(global_report_fd, "accept connection on %s", (char *) udata);
+
+    fd = tcpAccept(fd);
+
+    cxOnFileData(cx, fd, handle_data, udata);
+}
+
+void server1(int report_fd, int udp_port, int tcp_port, const char *fifo)
+{
+    CX *cx = cxCreate();
+
+    int tcp_fd = tcpListen("localhost", tcp_port);
+    int udp_fd = udpSocket("localhost", udp_port);
+    int fifo_fd = open(fifo, O_RDONLY);
+
+    global_report_fd = report_fd;
+
+    cxOnFileData(cx, tcp_fd, accept_connection, "server1 tcp");
+    cxOnFileData(cx, udp_fd, handle_data, "server1 udp");
+    cxOnFileData(cx, fifo_fd, handle_data, "server1 fifo");
+
+    cxRun(cx);
+
+    cxFree(cx);
+
+    exit(0);
+}
+
+void handle_socket(CX *cx, int fd, const char *data, size_t size, void *udata)
+{
+    report(global_report_fd, "received %*s on %s", size, data, (char *) udata);
+}
+
+void server2(int report_fd, int udp_port, int tcp_port, const char *fifo)
+{
+    CX *cx = cxCreate();
+
+    int fifo_fd = open(fifo, O_RDONLY);
+
+    global_report_fd = report_fd;
+
+    cxListen(cx, "localhost", tcp_port);
+
+    cxOnSocketData(cx, handle_socket, "server2 tcp");
+    cxOnFileData(cx, fifo_fd, handle_data, "server2 fifo");
+
+    cxRun(cx);
+
+    cxFree(cx);
+
+    exit(0);
+}
 
 static char *ping = "Ping!";
 static char *echo = "Echo!";

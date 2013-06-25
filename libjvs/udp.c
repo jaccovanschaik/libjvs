@@ -26,10 +26,7 @@ static struct linger linger = { 1, 5 }; /* 5 second linger */
 
 static int one = 1;
 
-/*
- * Create a UDP socket.
- */
-int udpSocket(void)
+static int udp_socket(void)
 {
     int sd;                            /* socket descriptor */
 
@@ -52,12 +49,29 @@ int udpSocket(void)
 }
 
 /*
+ * Create a UDP socket and bind it to <host> and <port>.
+ */
+int udpSocket(const char *host, int port)
+{
+    int sd;                            /* socket descriptor */
+
+    sd = udp_socket();
+
+    if (netBind(sd, host, port) != 0) {
+        dbgError(stderr, "netBind failed");
+        return -1;
+    }
+
+    return sd;
+}
+
+/*
  * Create a UDP socket and "connect" it to <host> and <port> (which means that any send without an
  * address will go to that address by default).
  */
 int udpConnect(const char *host, int port)
 {
-    int fd = udpSocket();
+    int fd = udp_socket();
 
     if (netConnect(fd, host, port) != 0) {
         dbgError(stderr, "netConnect failed");
@@ -88,14 +102,11 @@ int main(int argc, char *argv[])
     int r;
     char buffer[16];
 
-    int fd1 = udpSocket();
-    int fd2 = udpSocket();
+    int recv_fd = udpSocket("localhost", 1234);
+    int send_fd = udpConnect("localhost", 1234);
 
-    netConnect(fd1, "localhost", 1234);
-    netBind(fd2, "localhost", 1234);
-
-    write(fd1, "Hoi!", 4);
-    r = read(fd2, buffer, sizeof(buffer));
+    write(send_fd, "Hoi!", 4);
+    r = read(recv_fd, buffer, sizeof(buffer));
 
     make_sure_that(r == 4);
     make_sure_that(strncmp(buffer, "Hoi!", 4) == 0);

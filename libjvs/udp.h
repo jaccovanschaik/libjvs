@@ -12,9 +12,9 @@
 #define UDP_H
 
 /*
- * Create a UDP socket.
+ * Create a UDP socket and bind it to <host> and <port>.
  */
-int udpSocket(void);
+int udpSocket(const char *host, int port);
 
 /*
  * Create a UDP socket and "connect" it to <host> and <port> (which means that any send without an
