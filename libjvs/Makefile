@@ -31,11 +31,11 @@ clean:
 libjvs.tgz: clean
 	tar cvf - `ls | grep -v libjvs.tgz` | gzip > libjvs.tgz
 
-install: libjvs.a libjvs.so
+install: libjvs.a libjvs.so test
 	if [ ! -d $(INSTALL_LIB) ]; then mkdir -p $(INSTALL_LIB); fi
 	cp libjvs.a libjvs.so $(INSTALL_LIB)
 	if [ ! -d $(INSTALL_INC)/libjvs ]; then mkdir -p $(INSTALL_INC)/libjvs; fi
-	cp `ls *.h | grep -v '_i.h'` $(INSTALL_INC)/libjvs
+	cp *.h $(INSTALL_INC)/libjvs
 
 tags:
 	ctags -R .
