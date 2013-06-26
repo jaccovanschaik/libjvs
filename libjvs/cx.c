@@ -673,7 +673,7 @@ void server2(int report_fd, int tcp_port, int udp_port)
 /* ### Client callbacks ### */
 
 /*
- * Handle timeout (callback for cxOnTime in the client). Sets up connections to the servers which
+ * Handle timeout (callback for cxOnTime in the client). Sets up connections to the servers, which
  * should be up and running by now.
  */
 void handle_timeout(CX *cx, double t, void *udata)
@@ -696,7 +696,7 @@ void handle_report(CX *cx, int fd, void *udata)
      * expected response from the servers and then trigger the next step. */
 
     static int step = 0;
-    char *expected_response[] = {
+    char *expected_response[] = {           /* Expected responses at every step. */
         "accept connection on server1 tcp", /* First the servers accept new connections... */
         "accept connection on server2 tcp",
         "received '1' on server1 tcp",      /* Then server1 gets data on both its sockets... */
@@ -726,39 +726,39 @@ D   fprintf(stderr, "handle_report, step %d, %d bytes: %.*s\n", step, r, r, buff
                 step, expected_response[step], r, buffer);
     }
 
-    step++;
-
     switch(step) {
-    case 1:                         /* server1 is connected (no action required). */
-        break;
-    case 2:                         /* server2 now also connected. */
+    case 0:                         /* server1 is connected. */
+        break;                      /* No action required. */
+    case 1:                         /* server2 now also connected. */
         write(fds[0], "1", 1);      /* Test server1's TCP socket. */
         break;
-    case 3:                         /* Test server1's UDP socket. */
-        write(fds[1], "2", 1);
+    case 2:                         /* Got response. */
+        write(fds[1], "2", 1);      /* Test server1's UDP socket. */
         break;
-    case 4:
+    case 3:                         /* Got response. */
         write(fds[2], "3", 1);      /* Test server2's TCP socket. */
         break;
-    case 5:
+    case 4:                         /* Got response. */
         write(fds[3], "4", 1);      /* Test server2's UDP socket. */
         break;
-    case 6:
+    case 5:                         /* Got response; tests complete. */
         write(fds[0], "Quit", 4);   /* Tell server1 to quit. */
         break;
-    case 7:                         /* server1 has received a Quit command, no action required. */
+    case 6:                         /* server1 has received a Quit command. */
+        break;                      /* No action required. */
+    case 7:                         /* server1 has shut down. */
+        write(fds[2], "Quit", 4);   /* Tell server2 to quit. */
         break;
-    case 8:
-        write(fds[2], "Quit", 4);   /* server1 has shut down. Tell server2 to quit. */
-        break;
-    case 9:                         /* server2 has received a Quit command, no action required. */
-        break;
-    case 10:                        /* server2 also gone. Close down myself. */
-        cxClose(cx);
+    case 8:                         /* server2 has received a Quit command. */
+        break;                      /* No action required. */
+    case 9:                         /* server2 also gone. */
+        cxClose(cx);                /* Shut down myself. */
         break;
     default:
         break;
     }
+
+    step++;
 }
 
 int main(int argc, char *argv[])
