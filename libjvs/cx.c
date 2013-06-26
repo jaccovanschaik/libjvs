@@ -22,6 +22,7 @@
 #include "buffer.h"
 #include "list.h"
 #include "tcp.h"
+#include "udp.h"
 #include "defs.h"
 #include "debug.h"
 
@@ -165,6 +166,10 @@ static void cx_handle_connection_request(CX *cx, int fd, void *udata)
     if (fd < 0) return;
 
     cxOnFileData(cx, fd, cx_handle_socket_data, NULL);
+
+    if (cx->on_connect != NULL) {
+        cx->on_connect(cx, fd, cx->on_connect_udata);
+    }
 }
 
 /*
@@ -297,34 +302,62 @@ void cxOnSocketData(CX *cx,
 /*
  * Open a listen socket bound to <host> and <port>.
  */
-int cxListen(CX *cx, const char *host, int port)
+int cxTcpListen(CX *cx, const char *host, int port)
 {
     int fd = tcpListen(host, port);
 
-    if (fd < 0) return -1;
-
-    cxOnFileData(cx, fd, cx_handle_connection_request, NULL);
+    if (fd >= 0) {
+        cxOnFileData(cx, fd, cx_handle_connection_request, NULL);
+    }
 
     return fd;
 }
 
 /*
- * Make a connection to <host> on <port>.
+ * Open a UDP socket bound to <host> and <port> and listen on it for data.
  */
-int cxConnect(CX *cx, const char *host, int port)
+int cxUdpListen(CX *cx, const char *host, int port)
+{
+    int fd = udpSocket(host, port);
+
+    if (fd >= 0) {
+        cxOnFileData(cx, fd, cx_handle_socket_data, NULL);
+    }
+
+    return fd;
+}
+
+/*
+ * Make a TCP connection to <host> on <port>.
+ */
+int cxTcpConnect(CX *cx, const char *host, int port)
 {
     int fd = tcpConnect(host, port);
 
-    if (fd < 0) return -1;
+    if (fd >= 0) {
+        cxOnFileData(cx, fd, cx_handle_socket_data, NULL);
+    }
 
-    cxOnFileData(cx, fd, cx_handle_socket_data, NULL);
+    return fd;
+}
+
+/*
+ * Make a UDP "connection" to <host> on <port>.
+ */
+int cxUdpConnect(CX *cx, const char *host, int port)
+{
+    int fd = udpConnect(host, port);
+
+    if (fd >= 0) {
+        cxOnFileData(cx, fd, cx_handle_socket_data, NULL);
+    }
 
     return fd;
 }
 
 /*
  * Add <data> with <size> to the output buffer of <fd>. The data will be sent when the
- * flow-of-control moves back to the main loop.
+ * flow-of-control returns to the main loop.
  */
 void cxSend(CX *cx, int fd, const char *data, size_t size)
 {
@@ -380,7 +413,7 @@ int cxGetWriteFDs(CX *cx, fd_set *wfds)
  */
 int cxOwnsFD(CX *cx, int fd)
 {
-    return cx->connection[fd] != NULL;
+    return (fd >= 0 && fd < cx->num_connections && cx->connection[fd] != NULL);
 }
 
 /*
@@ -488,6 +521,9 @@ void cxClose(CX *cx)
 
     for (fd = 0; fd < cx->num_connections; fd++) {
         if (cx->connection[fd] != NULL) {
+            bufReset(&cx->connection[fd]->incoming);
+            bufReset(&cx->connection[fd]->outgoing);
+
             free(cx->connection[fd]);
             cx->connection[fd] = NULL;
         }
@@ -515,8 +551,22 @@ void cxFree(CX *cx)
 #include "net.h"
 #include "udp.h"
 
+/*
+ * The test code forks off two servers. The first handles connections by opening its own sockets and
+ * monitoring them through the cxOnFileData function. The second uses the cxTcpListen, cxUdpListen,
+ * cxOnConnect and cxOnSocketData functions. The remaining parent process is connected to both
+ * servers using pipes, through which it monitors the output of the servers as it connects to them
+ * and sends them data. The client itself tests the cxOnTime and cxOnDisconnect functions.
+ */
+
+static int errors = 0;
 static int global_report_fd;
 
+/* ### Callbacks shared by the servers ### */
+
+/*
+ * Report an update to the client through <fd>.
+ */
 void report(int fd, const char *fmt, ...)
 {
     static Buffer buf = { 0 };
@@ -527,22 +577,28 @@ void report(int fd, const char *fmt, ...)
     bufSetV(&buf, fmt, ap);
     va_end(ap);
 
-    tcpWrite(fd, bufGet(&buf), bufLen(&buf));
+    write(fd, bufGet(&buf), bufLen(&buf));
 }
 
+/*
+ * Handle incoming data (callback for cxOnFileData on a connected socket).
+ */
 void handle_data(CX *cx, int fd, void *udata)
 {
     char buffer[1500];
 
     int r = read(fd, buffer, sizeof(buffer));
 
-    report(global_report_fd, "received %*s on %s", r, buffer, (char *) udata);
+    report(global_report_fd, "received '%.*s' on %s", r, buffer, (char *) udata);
 
-    if (memcpy(buffer, "Quit", r) == 0) {
+    if (memcmp(buffer, "Quit", r) == 0) {
         cxClose(cx);
     }
 }
 
+/*
+ * Accept connection request (callback for cxOnFileData on a listen socket).
+ */
 void accept_connection(CX *cx, int fd, void *udata)
 {
     report(global_report_fd, "accept connection on %s", (char *) udata);
@@ -552,19 +608,39 @@ void accept_connection(CX *cx, int fd, void *udata)
     cxOnFileData(cx, fd, handle_data, udata);
 }
 
-void server1(int report_fd, int udp_port, int tcp_port, const char *fifo)
+/*
+ * Report a new connection (callback for cxOnConnect).
+ */
+void report_connect(CX *cx, int fd, void *udata)
+{
+    report(global_report_fd, "accept connection on %s", (char *) udata);
+}
+
+/*
+ * Handle incoming socket data (callback for cxOnSocketData).
+ */
+void handle_socket(CX *cx, int fd, const char *data, size_t size, void *udata)
+{
+    report(global_report_fd, "received '%.*s' on %s", size, data, (char *) udata);
+
+    if (memcmp(data, "Quit", size) == 0) {
+        cxClose(cx);
+    }
+}
+
+/* ### Server 1 ### */
+
+void server1(int report_fd, int tcp_port, int udp_port)
 {
     CX *cx = cxCreate();
 
     int tcp_fd = tcpListen("localhost", tcp_port);
     int udp_fd = udpSocket("localhost", udp_port);
-    int fifo_fd = open(fifo, O_RDONLY);
 
     global_report_fd = report_fd;
 
     cxOnFileData(cx, tcp_fd, accept_connection, "server1 tcp");
     cxOnFileData(cx, udp_fd, handle_data, "server1 udp");
-    cxOnFileData(cx, fifo_fd, handle_data, "server1 fifo");
 
     cxRun(cx);
 
@@ -573,23 +649,19 @@ void server1(int report_fd, int udp_port, int tcp_port, const char *fifo)
     exit(0);
 }
 
-void handle_socket(CX *cx, int fd, const char *data, size_t size, void *udata)
-{
-    report(global_report_fd, "received %*s on %s", size, data, (char *) udata);
-}
+/* ### Server 2 ### */
 
-void server2(int report_fd, int udp_port, int tcp_port, const char *fifo)
+void server2(int report_fd, int tcp_port, int udp_port)
 {
     CX *cx = cxCreate();
-
-    int fifo_fd = open(fifo, O_RDONLY);
 
     global_report_fd = report_fd;
 
-    cxListen(cx, "localhost", tcp_port);
+    cxTcpListen(cx, "localhost", tcp_port);
+    cxUdpListen(cx, "localhost", udp_port);
 
-    cxOnSocketData(cx, handle_socket, "server2 tcp");
-    cxOnFileData(cx, fifo_fd, handle_data, "server2 fifo");
+    cxOnConnect(cx, report_connect, "server2 tcp");
+    cxOnSocketData(cx, handle_socket, "server2");
 
     cxRun(cx);
 
@@ -598,107 +670,128 @@ void server2(int report_fd, int udp_port, int tcp_port, const char *fifo)
     exit(0);
 }
 
-static char *ping = "Ping!";
-static char *echo = "Echo!";
+/* ### Client callbacks ### */
 
 /*
- * -- Client --
+ * Handle timeout (callback for cxOnTime in the client). Sets up connections to the servers which
+ * should be up and running by now.
  */
-
-void client_handle_data(CX *cx, int fd, void *udata)
+void handle_timeout(CX *cx, double t, void *udata)
 {
-    char buffer[80] = "";
+    int *fds = udata;
 
-    int r = read(fd, buffer, sizeof(buffer));
-
-    if (strncmp(buffer, echo, r) == 0) {
-D       dbgPrint(stderr, "Got reply (%*s), closing down.\n", r, buffer);
-    }
-    else {
-        dbgPrint(stderr, "Got unexpected reply (%*s).\n", r, buffer);
-        exit(-1);
-    }
-
-    cxClose(cx);
-}
-
-void client_handle_timeout(CX *cx, double t, void *udata)
-{
-    int fd = *((int *) udata);
-
-    tcpWrite(fd, ping, strlen(ping));
-
-D   dbgPrint(stderr, "Timeout, sent ping...\n");
-}
-
-void client(int port)
-{
-    CX *cx = cxCreate();
-
-    int fd = tcpConnect("localhost", port);
-
-    cxOnFileData(cx, fd, client_handle_data, NULL);
-
-    cxOnTime(cx, cxNow() + 1, client_handle_timeout, &fd);
-
-    cxRun(cx);
-
-D   dbgPrint(stderr, "cxRun() returned\n");
+    fds[0] = cxTcpConnect(cx, "localhost", 10001);
+    fds[1] = cxUdpConnect(cx, "localhost", 10002);
+    fds[2] = cxTcpConnect(cx, "localhost", 10003);
+    fds[3] = cxUdpConnect(cx, "localhost", 10004);
 }
 
 /*
- * -- Server --
+ * Handle an incoming report from <fd>. Callback for cxOnFileData and also, slightly hackishly for
+ * cxOnDisconnect.
  */
-
-void server_handle_data(CX *cx, int fd, void *udata)
+void handle_report(CX *cx, int fd, void *udata)
 {
-    char buffer[80] = "";
+    /* We will test the communications step by step. At every step we will check if we get the
+     * expected response from the servers and then trigger the next step. */
+
+    static int step = 0;
+    char *expected_response[] = {
+        "accept connection on server1 tcp", /* First the servers accept new connections... */
+        "accept connection on server2 tcp",
+        "received '1' on server1 tcp",      /* Then server1 gets data on both its sockets... */
+        "received '2' on server1 udp",
+        "received '3' on server2",          /* server2 uses the same callback for UDP and TCP, */
+        "received '4' on server2",          /* so we can't differentiate between the two. */
+        "received 'Quit' on server1 tcp",   /* server1 about to shut down... */
+        "",                                 /* Empty response on closed connection */
+        "received 'Quit' on server2",       /* server2 about to shut down... */
+        ""                                  /* Empty response on closed connection */
+    };
+    int n_responses = sizeof(expected_response) / sizeof(expected_response[0]);
+
+    char buffer[100];
+
+    int *fds = udata;   /* Client communicates the fds to use via udata... */
 
     int r = read(fd, buffer, sizeof(buffer));
 
-    if (r == 0) {
-D       dbgPrint(stderr, "End of file on fd %d, closing down.\n", fd);
+D   fprintf(stderr, "handle_report, step %d, %d bytes: %.*s\n", step, r, r, buffer);
 
-        cxDropFile(cx, fd);
+    if (step >= n_responses) {
+        fprintf(stderr, "Missing expected_response for step %d.\n", step);
+    }
+    else if (strncmp(buffer, expected_response[step], strlen(expected_response[step])) != 0) {
+        fprintf(stderr, "Unexpected response in step %d:\n\tExp: \"%s\"\n\tGot: \"%.*s\"\n",
+                step, expected_response[step], r, buffer);
+    }
 
+    step++;
+
+    switch(step) {
+    case 1:                         /* server1 is connected (no action required). */
+        break;
+    case 2:                         /* server2 now also connected. */
+        write(fds[0], "1", 1);      /* Test server1's TCP socket. */
+        break;
+    case 3:                         /* Test server1's UDP socket. */
+        write(fds[1], "2", 1);
+        break;
+    case 4:
+        write(fds[2], "3", 1);      /* Test server2's TCP socket. */
+        break;
+    case 5:
+        write(fds[3], "4", 1);      /* Test server2's UDP socket. */
+        break;
+    case 6:
+        write(fds[0], "Quit", 4);   /* Tell server1 to quit. */
+        break;
+    case 7:                         /* server1 has received a Quit command, no action required. */
+        break;
+    case 8:
+        write(fds[2], "Quit", 4);   /* server1 has shut down. Tell server2 to quit. */
+        break;
+    case 9:                         /* server2 has received a Quit command, no action required. */
+        break;
+    case 10:                        /* server2 also gone. Close down myself. */
         cxClose(cx);
+        break;
+    default:
+        break;
     }
-    else if (strncmp(buffer, ping, r) == 0) {
-D       dbgPrint(stderr, "Got request (%*s), sending echo.\n", r, buffer);
-
-        tcpWrite(fd, echo, strlen(echo));
-    }
-    else {
-        dbgPrint(stderr, "Got unexpected request: \"%s\"\n", buffer);
-        exit(-1);
-    }
-}
-
-void server_accept_connection(CX *cx, int fd, void *udata)
-{
-    fd = tcpAccept(fd);
-
-D   dbgPrint(stderr, "Accepted new connection: fd = %d\n", fd);
-
-    cxOnFileData(cx, fd, server_handle_data, NULL);
 }
 
 int main(int argc, char *argv[])
 {
-    CX *cx = cxCreate();
+    CX *cx;
 
-    int fd = tcpListen(NULL, 0);
-    int port = netLocalPort(fd);
+    int server1_pipe[2], server2_pipe[2], fds[4];
+
+    pipe(server1_pipe);
+    pipe(server2_pipe);
 
     if (fork() == 0) {
-        client(port);
+        server1(server1_pipe[1], 10001, 10002);
     }
-    else {
-        cxOnFileData(cx, fd, server_accept_connection, NULL);
-
-        cxRun(cx);
+    else if (fork() == 0) {
+        server2(server2_pipe[1], 10003, 10004);
     }
 
-    return 0;
+    sleep(1);
+
+    cx = cxCreate();
+
+    cxOnFileData(cx, server1_pipe[0], handle_report, fds);
+    cxOnFileData(cx, server2_pipe[0], handle_report, fds);
+
+    cxOnTime(cx, cxNow() + 1, handle_timeout, fds);
+
+    cxOnDisconnect(cx, handle_report, fds);
+
+    cxRun(cx);
+
+    cxFree(cx);
+
+    return errors;
 }
 #endif

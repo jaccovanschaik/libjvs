@@ -73,16 +73,26 @@ void cxOnSocketData(CX *cx, void (*handler)(CX *cx, int fd, const char *data, si
 /*
  * Open a listen socket bound to <host> and <port>.
  */
-int cxListen(CX *cx, const char *host, int port);
+int cxTcpListen(CX *cx, const char *host, int port);
 
 /*
- * Make a connection to <host> on <port>.
+ * Open a UDP socket bound to <host> and <port> and listen on it for data.
  */
-int cxConnect(CX *cx, const char *host, int port);
+int cxUdpListen(CX *cx, const char *host, int port);
+
+/*
+ * Make a TCP connection to <host> on <port>.
+ */
+int cxTcpConnect(CX *cx, const char *host, int port);
+
+/*
+ * Make a UDP "connection" to <host> on <port>.
+ */
+int cxUdpConnect(CX *cx, const char *host, int port);
 
 /*
  * Add <data> with <size> to the output buffer of <fd>. The data will be sent when the
- * flow-of-control moves back to the main loop.
+ * flow-of-control returns to the main loop.
  */
 void cxSend(CX *cx, int fd, const char *data, size_t size);
 
