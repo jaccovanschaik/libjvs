@@ -65,7 +65,7 @@ int ifprintf(FILE *fp, int indent, const char *fmt, ...)
 /*
  * Dump <size> bytes from <data> as a hexdump to <fp>.
  */
-void ihexdump(FILE *fp, const char *data, int size, int indent)
+void ihexdump(FILE *fp, int indent, const char *data, int size)
 {
     int i, offset = 0;
     char buffer[80];

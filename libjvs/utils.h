@@ -16,6 +16,8 @@
 #include <stdio.h>
 #include <stdarg.h>
 
+#define hexdump(f, s, n) ihexdump(f, 0, s, n)
+
 enum {
     PACK_INT8,
     PACK_INT16,
@@ -49,7 +51,7 @@ int ifprintf(FILE *fp, int indent, const char *fmt, ...)
 /*
  * Dump <size> bytes from <data> as a hexdump to <fp>.
  */
-void ihexdump(FILE *fp, const char *data, int size, int indent);
+void ihexdump(FILE *fp, int indent, const char *data, int size);
 
 /*
  * Duplicate <size> bytes starting at <src> and return a pointer to the
