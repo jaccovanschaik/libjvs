@@ -543,16 +543,6 @@ void sdpFree(List *objects)
 #ifdef TEST
 static int errors = 0;
 
-void _make_sure_that(const char *file, int line, const char *str, int val)
-{
-   if (!val) {
-      fprintf(stderr, "%s:%d: Expression \"%s\" failed\n", file, line, str);
-      errors++;
-   }
-}
-
-#define make_sure_that(expr) _make_sure_that(__FILE__, __LINE__, #expr, (expr))
-
 static void my_dump(List *objects, Buffer *buf)
 {
     SdpObject *obj;
@@ -581,12 +571,12 @@ static void my_dump(List *objects, Buffer *buf)
     }
 }
 
-static void compare_output(const char *exp, const char *actual)
+static void compare_output(int index, const char *exp, const char *actual)
 {
     if (strcmp(exp, actual) != 0) {
-        fprintf(stderr, "Unexpected output:\n");
-        fprintf(stderr, "Exp: \"%s\"\n", exp);
-        fprintf(stderr, "Got: \"%s\"\n", actual);
+        fprintf(stderr, "Test %d: unexpected output:\n", index);
+        fprintf(stderr, "\tExp: \"%s\"\n", exp);
+        fprintf(stderr, "\tGot: \"%s\"\n", actual);
         errors++;
     }
 }
@@ -705,7 +695,11 @@ int main(int argc, char *argv[])
 
         r = sdpReadString(test[i].input, objects);
 
-        make_sure_that(r == test[i].return_code);
+        if (r != test[i].return_code) {
+            fprintf(stderr, "Test %d: expected return code %d, got %d.\n",
+                    i, test[i].return_code, r);
+            errors++;
+        }
 
         if (r == 0) {
             bufClear(buf);
@@ -722,7 +716,7 @@ D       fprintf(stderr, "Output:   %s\n", output);
 D       fprintf(stderr, "Expected: %s\n", test[i].output);
 D       fprintf(stderr, "Error:    %s\n", sdpError());
 
-        compare_output(test[i].output, output);
+        compare_output(i, test[i].output, output);
 
         sdpFree(objects);
     }
