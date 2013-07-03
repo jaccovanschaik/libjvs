@@ -504,22 +504,117 @@ void sdpFree(List *objects)
 #ifdef TEST
 static int errors = 0;
 
+void _make_sure_that(const char *file, int line, const char *str, int val)
+{
+   if (!val) {
+      fprintf(stderr, "%s:%d: Expression \"%s\" failed\n", file, line, str);
+      errors++;
+   }
+}
+
+#define make_sure_that(expr) _make_sure_that(__FILE__, __LINE__, #expr, (expr))
+
+static void my_dump(List *objects, Buffer *buf)
+{
+    SdpObject *obj;
+
+    for (obj = listHead(objects); obj; obj = listNext(obj)) {
+        if (obj != listHead(objects)) {
+            bufAddC(buf, ' ');
+        }
+
+        switch(obj->type) {
+        case SDP_STRING:
+            bufAddF(buf, "S(%s)", obj->u.s);
+            break;
+        case SDP_LONG:
+            bufAddF(buf, "L(%ld)", obj->u.l);
+            break;
+        case SDP_DOUBLE:
+            bufAddF(buf, "D(%f)", obj->u.d);
+            break;
+        case SDP_CONTAINER:
+            bufAddF(buf, "C(");
+            my_dump(&obj->u.c, buf);
+            bufAddF(buf, ")");
+            break;
+        }
+    }
+}
+
+struct {
+    char *input;
+    int return_code;
+    char *output;
+} test[] = {
+    {   "Hoi",
+        0,
+        "S(Hoi)"
+    },
+    {   "Hee hallo",
+        0,
+        "S(Hee) S(hallo)"
+    },
+    {   "\"Hee hallo\"",
+        0,
+        "S(Hee hallo)"
+    },
+    {   "12",
+        0,
+        "L(12)"
+    },
+    {   "1.5",
+        0,
+        "D(1.500000)"
+    },
+    {   "{ \"Level 1\" }",
+        0,
+        "C(S(Level 1))"
+    },
+    {   "{ { \"Level 2\" } }",
+        0,
+        "C(C(S(Level 2)))"
+    },
+    {   "Hoi \"Hallo\" 1 2.5 { \"Level 1\" { \"Level 2\" } }",
+        0,
+        "S(Hoi) S(Hallo) L(1) D(2.500000) C(S(Level 1) C(S(Level 2)))"
+    },
+    {   "12.34.56",
+        -1,
+        "1: Unexpected character '.' following \"12.34\"."
+    }
+};
+
+int num_tests = sizeof(test) / sizeof(test[0]);
+
 int main(int argc, char *argv[])
 {
-    List objects = { 0 };
+    int i, r;
 
-    int r = sdpReadString("Hoi 12 12.34 { { \"Third level\" } Hallo 1 2.3 } 2", &objects);
+    for (i = 0; i < num_tests; i++) {
+        char *output;
 
-    if (r != 0) {
-        char *msg = sdpError();
+        List *objects = listCreate();
 
-        fprintf(stderr, "%s\n\n", msg);
+        r = sdpReadString(test[i].input, objects);
 
-        free(msg);
-    }
-    else {
-        sdpDump(stderr, 0, &objects);
-        sdpClear(&objects);
+        make_sure_that(r == test[i].return_code);
+
+        if (r == 0) {
+            Buffer *buf = bufCreate();
+            my_dump(objects, buf);
+            output = bufFinish(buf);
+        }
+        else {
+            output = sdpError();
+        }
+
+D       fprintf(stderr, "%s\n", output);
+
+        make_sure_that(strcmp(output, test[i].output) == 0);
+
+        free(output);
+        sdpFree(objects);
     }
 
     return errors;
