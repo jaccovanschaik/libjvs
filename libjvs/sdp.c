@@ -575,9 +575,9 @@ struct {
         0,
         "C(C(S(Level 2)))"
     },
-    {   "Hoi \"Hallo\" 1 2.5 { \"Level 1\" { \"Level 2\" } }",
+    {   "Hoi \"Hallo\" 1 2.5 { 1 { 2 } }",
         0,
-        "S(Hoi) S(Hallo) L(1) D(2.500000) C(S(Level 1) C(S(Level 2)))"
+        "S(Hoi) S(Hallo) L(1) D(2.500000) C(L(1) C(L(2)))"
     },
     {   "12.34.56",
         -1,
