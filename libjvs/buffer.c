@@ -27,7 +27,8 @@
 int bufEncode(Buffer *buf, const Buffer *value)
 {
     uint64_t len = bufLen(value);
-    int zeros, shift = 8 * sizeof(uint64_t) - 8;
+    unsigned int zeros;
+    int shift = 8 * sizeof(uint64_t) - 8;
     uint8_t bytes = 0, byte[sizeof(uint64_t)];
 
     for (shift = 8 * sizeof(uint64_t) - 8; shift >= 0; shift -= 8) {
@@ -74,9 +75,9 @@ int bufDecode(Buffer *buf, Buffer *value)
 int bufExtract(const char **ptr, int *remaining, Buffer *value)
 {
     const char *my_ptr = *ptr;
-    int i, my_remaining = *remaining;
+    int i;
 
-    uint64_t len;
+    uint64_t len, my_remaining = *remaining;
     uint8_t byte, bytes;
 
     if (my_remaining < 1) return 1;
