@@ -38,8 +38,8 @@ typedef enum {
     SDP_STATE_SCIENTIFIC,
     SDP_STATE_ESCAPE,
     SDP_STATE_COMMENT,
-    SDP_STATE_CR,
-    SDP_STATE_EOF
+    SDP_STATE_EOF,
+    SDP_STATE_ERROR
 } SdpState;
 
 struct SdpSource {
@@ -104,7 +104,17 @@ static int sdp_get_char(SdpSource *src)
         c = bufGet(&src->unget_buf)[bufLen(&src->unget_buf) - 1];
         bufTrim(&src->unget_buf, 0, 1);
     }
-    else if ((c = src->get_char(src)) == '\n' || c == '\r') {
+    else if ((c = src->get_char(src)) == '\n') {
+        src->cur_line++;
+    }
+    else if (c == '\r') {
+        int c2 = src->get_char(src);
+
+        if (c2 != '\n') {
+            sdp_unget_char(src, c2);
+        }
+
+        c = '\n';
         src->cur_line++;
     }
 
@@ -159,6 +169,8 @@ static SdpObject *sdp_add_object(SdpType type, const char *data, int line, List 
 
 static int sdp_read(SdpSource *src, List *objects)
 {
+    int ret_code;
+
     src->stack = calloc(1, sizeof(List *));
     src->stack[0] = objects;
     src->stack_size = 1;
@@ -166,7 +178,7 @@ static int sdp_read(SdpSource *src, List *objects)
     src->state = SDP_STATE_NONE;
     src->cur_line = 1;
 
-    while (src->state != SDP_STATE_EOF) {
+    while (src->state != SDP_STATE_EOF && src->state != SDP_STATE_ERROR) {
         int c = sdp_get_char(src);
 
         List *cur_list = src->stack[src->stack_size - 1];
@@ -195,12 +207,9 @@ static int sdp_read(SdpSource *src, List *objects)
             else if (c == '}') {
                 if (src->stack_size == 1) {
                     bufSetF(&error_msg, "%d: Unmatched close brace.", src->cur_line);
-                    return -1;
+                    src->state = SDP_STATE_ERROR;
                 }
                 sdp_pop_list(src);
-            }
-            else if (c == '\r') {
-                src->state = SDP_STATE_CR;
             }
             else if (c == '#') {
                 src->state = SDP_STATE_COMMENT;
@@ -208,14 +217,16 @@ static int sdp_read(SdpSource *src, List *objects)
             else if (c == 0) {
                 if (src->stack_size != 1) {
                     bufSetF(&error_msg, "%d: Unmatched open brace.", src->cur_line);
-                    return -1;
+                    src->state = SDP_STATE_ERROR;
                 }
-                src->state = SDP_STATE_EOF;
+                else {
+                    src->state = SDP_STATE_EOF;
+                }
             }
             else {
                 bufSetF(&error_msg, "%d: Unexpected character '%c' (ascii %d).",
                         src->cur_line, c, c);
-                return -1;
+                src->state = SDP_STATE_ERROR;
             }
             break;
         case SDP_STATE_USTRING:
@@ -231,6 +242,16 @@ static int sdp_read(SdpSource *src, List *objects)
                 src->saved_state = src->state;
                 src->state = SDP_STATE_ESCAPE;
             }
+            else if (c == '{') {
+                sdp_add_object(SDP_STRING, bufGet(&src->value_buf), src->cur_line, cur_list);
+                sdp_unget_char(src, c);
+                src->state = SDP_STATE_NONE;
+            }
+            else if (c == '}') {
+                sdp_add_object(SDP_STRING, bufGet(&src->value_buf), src->cur_line, cur_list);
+                sdp_unget_char(src, c);
+                src->state = SDP_STATE_NONE;
+            }
             else if (c == 0) {
                 sdp_add_object(SDP_STRING, bufGet(&src->value_buf), src->cur_line, cur_list);
                 bufClear(&src->value_buf);
@@ -239,7 +260,7 @@ static int sdp_read(SdpSource *src, List *objects)
             else {
                 bufSetF(&error_msg, "%d: Unexpected character '%c' following \"%s\".",
                         src->cur_line, c, bufGet(&src->value_buf));
-                return -1;
+                src->state = SDP_STATE_ERROR;
             }
             break;
         case SDP_STATE_QSTRING:
@@ -257,12 +278,12 @@ static int sdp_read(SdpSource *src, List *objects)
             }
             else if (c == 0) {
                 bufSetF(&error_msg, "%d: String not terminated.", src->cur_line);
-                return -1;
+                src->state = SDP_STATE_ERROR;
             }
             else {
                 bufSetF(&error_msg, "%d: Unexpected character '%c' following \"%s\".",
                         src->cur_line, c, bufGet(&src->value_buf));
-                return -1;
+                src->state = SDP_STATE_ERROR;
             }
             break;
         case SDP_STATE_LONG:
@@ -281,6 +302,16 @@ static int sdp_read(SdpSource *src, List *objects)
                 sdp_add_object(SDP_LONG, bufGet(&src->value_buf), src->cur_line, cur_list);
                 src->state = SDP_STATE_NONE;
             }
+            else if (c == '{') {
+                sdp_add_object(SDP_LONG, bufGet(&src->value_buf), src->cur_line, cur_list);
+                sdp_unget_char(src, c);
+                src->state = SDP_STATE_NONE;
+            }
+            else if (c == '}') {
+                sdp_add_object(SDP_LONG, bufGet(&src->value_buf), src->cur_line, cur_list);
+                sdp_unget_char(src, c);
+                src->state = SDP_STATE_NONE;
+            }
             else if (c == 0) {
                 sdp_add_object(SDP_LONG, bufGet(&src->value_buf), src->cur_line, cur_list);
                 src->state = SDP_STATE_EOF;
@@ -288,7 +319,7 @@ static int sdp_read(SdpSource *src, List *objects)
             else {
                 bufSetF(&error_msg, "%d: Unexpected character '%c' following \"%s\".",
                         src->cur_line, c, bufGet(&src->value_buf));
-                return -1;
+                src->state = SDP_STATE_ERROR;
             }
             break;
         case SDP_STATE_DOUBLE:
@@ -303,6 +334,16 @@ static int sdp_read(SdpSource *src, List *objects)
                 sdp_add_object(SDP_DOUBLE, bufGet(&src->value_buf), src->cur_line, cur_list);
                 src->state = SDP_STATE_NONE;
             }
+            else if (c == '{') {
+                sdp_add_object(SDP_DOUBLE, bufGet(&src->value_buf), src->cur_line, cur_list);
+                sdp_unget_char(src, c);
+                src->state = SDP_STATE_NONE;
+            }
+            else if (c == '}') {
+                sdp_add_object(SDP_DOUBLE, bufGet(&src->value_buf), src->cur_line, cur_list);
+                sdp_unget_char(src, c);
+                src->state = SDP_STATE_NONE;
+            }
             else if (c == 0) {
                 sdp_add_object(SDP_DOUBLE, bufGet(&src->value_buf), src->cur_line, cur_list);
                 src->state = SDP_STATE_EOF;
@@ -310,7 +351,7 @@ static int sdp_read(SdpSource *src, List *objects)
             else {
                 bufSetF(&error_msg, "%d: Unexpected character '%c' following \"%s\".",
                         src->cur_line, c, bufGet(&src->value_buf));
-                return -1;
+                src->state = SDP_STATE_ERROR;
             }
             break;
         case SDP_STATE_SCIENTIFIC:
@@ -328,62 +369,60 @@ static int sdp_read(SdpSource *src, List *objects)
             else {
                 bufSetF(&error_msg, "%d: Unexpected character '%c' following \"%s\".",
                         src->cur_line, c, bufGet(&src->value_buf));
-                return -1;
+                src->state = SDP_STATE_ERROR;
             }
+            break;
         case SDP_STATE_ESCAPE:
-            if (c == 'n')
+            if (c == 'n') {
                 bufAddC(&src->value_buf, '\n');
-            else if (c == 'r')
+                src->state = src->saved_state;
+            }
+            else if (c == 'r') {
                 bufAddC(&src->value_buf, '\r');
-            else if (c == 't')
+                src->state = src->saved_state;
+            }
+            else if (c == 't') {
                 bufAddC(&src->value_buf, '\t');
-            else if (c == '\\')
+                src->state = src->saved_state;
+            }
+            else if (c == '\\') {
                 bufAddC(&src->value_buf, '\\');
-            else if (c == '"')
+                src->state = src->saved_state;
+            }
+            else if (c == '"') {
                 bufAddC(&src->value_buf, '"');
+                src->state = src->saved_state;
+            }
             else if (c == 0) {
                 bufSetF(&error_msg, "%d: Escape sequence not terminated.", src->cur_line);
-                return -1;
+                src->state = SDP_STATE_ERROR;
             }
             else {
-                bufSetF(&error_msg, "%d: Invalid escape sequence \"\\%c\"", src->cur_line, c);
-                return -1;
+                bufSetF(&error_msg, "%d: Invalid escape sequence \"\\%c\".", src->cur_line, c);
+                src->state = SDP_STATE_ERROR;
             }
-            src->state = src->saved_state;
             break;
-        case SDP_STATE_CR:
-            if (c == '\n') {
-                src->cur_line--;
-            }
-            else if (c == 0) {
-                src->state = SDP_STATE_EOF;
-            }
-            else {
-                sdp_unget_char(src, c);
-            }
-            src->state = SDP_STATE_NONE;
         case SDP_STATE_COMMENT:
-            if (c == '\r') {
-                src->state = SDP_STATE_CR;
-            }
-            else if (c == 0) {
+            if (c == 0) {
                 src->state = SDP_STATE_EOF;
             }
             else if (c == '\n') {
                 src->state = SDP_STATE_NONE;
             }
             break;
-        case SDP_STATE_EOF:
+        default:
             break;
         }
     }
+
+    ret_code = src->state == SDP_STATE_EOF ? 0 : 1;
 
     bufReset(&src->value_buf);
 
     free(src->stack);
     free(src);
 
-    return 0;
+    return ret_code;
 }
 
 /*
@@ -542,46 +581,112 @@ static void my_dump(List *objects, Buffer *buf)
     }
 }
 
+static void compare_output(const char *exp, const char *actual)
+{
+    if (strcmp(exp, actual) != 0) {
+        fprintf(stderr, "Unexpected output:\n");
+        fprintf(stderr, "Exp: \"%s\"\n", exp);
+        fprintf(stderr, "Got: \"%s\"\n", actual);
+        errors++;
+    }
+}
+
 struct {
     char *input;
     int return_code;
     char *output;
 } test[] = {
-    {   "Hoi",
+    {   "Hoi \"Hee hallo\" 1 2.5 { 1 { 2 } }",
         0,
-        "S(Hoi)"
+        "S(Hoi) S(Hee hallo) L(1) D(2.500000) C(L(1) C(L(2)))"
     },
-    {   "Hee hallo",
-        0,
-        "S(Hee) S(hallo)"
+    {   "\"ABC",
+        1,
+        "1: String not terminated."
     },
-    {   "\"Hee hallo\"",
-        0,
-        "S(Hee hallo)"
+    {   "\"ABC\t\"",
+        1,
+        "1: Unexpected character '\t' following \"ABC\"."
     },
-    {   "12",
-        0,
-        "L(12)"
+    {   "\"ABC\\xDEF\"",
+        1,
+        "1: Invalid escape sequence \"\\x\"."
     },
-    {   "1.5",
-        0,
-        "D(1.500000)"
+    {   "\"ABC\\",
+        1,
+        "1: Escape sequence not terminated."
     },
-    {   "{ \"Level 1\" }",
+    {   "{{ABC}}",
         0,
-        "C(S(Level 1))"
+        "C(C(S(ABC)))"
     },
-    {   "{ { \"Level 2\" } }",
+    {   "{{123}}",
         0,
-        "C(C(S(Level 2)))"
+        "C(C(L(123)))"
     },
-    {   "Hoi \"Hallo\" 1 2.5 { 1 { 2 } }",
+    {   "{{1.5}}",
         0,
-        "S(Hoi) S(Hallo) L(1) D(2.500000) C(L(1) C(L(2)))"
+        "C(C(D(1.500000)))"
+    },
+    {   "{{ABC}",
+        1,
+        "1: Unmatched open brace."
+    },
+    {   "{ABC}}",
+        1,
+        "1: Unmatched close brace."
+    },
+    {   "1E3",
+        0,
+        "D(1000.000000)"
+    },
+    {   "1.5E3",
+        0,
+        "D(1500.000000)"
     },
     {   "12.34.56",
-        -1,
+        1,
         "1: Unexpected character '.' following \"12.34\"."
+    },
+    {   "12e34.56",
+        1,
+        "1: Unexpected character '.' following \"12e34\"."
+    },
+    {   "12.34e56E23",
+        1,
+        "1: Unexpected character 'E' following \"12.34e56\"."
+    },
+    {   "%",
+        1,
+        "1: Unexpected character '%' (ascii 37)."
+    },
+    {   "ABC$DEF",
+        1,
+        "1: Unexpected character '$' following \"ABC\"."
+    },
+    {   "\"ABC$DEF\"",
+        0,
+        "S(ABC$DEF)"
+    },
+    {   "_123",
+        0,
+        "S(_123)"
+    },
+    {   "123_",
+        1,
+        "1: Unexpected character '_' following \"123\"."
+    },
+    {   "A\nB\nC\n123_\n",
+        1,
+        "4: Unexpected character '_' following \"123\"."
+    },
+    {   "A\rB\rC\r123_\r",
+        1,
+        "4: Unexpected character '_' following \"123\"."
+    },
+    {   "A\r\nB\r\nC\r\n123_\r\n",
+        1,
+        "4: Unexpected character '_' following \"123\"."
     }
 };
 
@@ -591,8 +696,10 @@ int main(int argc, char *argv[])
 {
     int i, r;
 
+    Buffer *buf = bufCreate();
+
     for (i = 0; i < num_tests; i++) {
-        char *output;
+        const char *output;
 
         List *objects = listCreate();
 
@@ -601,21 +708,26 @@ int main(int argc, char *argv[])
         make_sure_that(r == test[i].return_code);
 
         if (r == 0) {
-            Buffer *buf = bufCreate();
+            bufClear(buf);
             my_dump(objects, buf);
-            output = bufFinish(buf);
+            output = bufGet(buf);
         }
         else {
             output = sdpError();
         }
 
-D       fprintf(stderr, "%s\n", output);
+D       fprintf(stderr, "Code:     %d\n", r);
+D       fprintf(stderr, "Input:    %s\n", test[i].input);
+D       fprintf(stderr, "Output:   %s\n", output);
+D       fprintf(stderr, "Expected: %s\n", test[i].output);
+D       fprintf(stderr, "Error:    %s\n", sdpError());
 
-        make_sure_that(strcmp(output, test[i].output) == 0);
+        compare_output(test[i].output, output);
 
-        free(output);
         sdpFree(objects);
     }
+
+    bufDestroy(buf);
 
     return errors;
 }
