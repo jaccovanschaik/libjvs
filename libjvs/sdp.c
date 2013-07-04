@@ -35,6 +35,7 @@ typedef enum {
     SDP_STATE_QSTRING,
     SDP_STATE_LONG,
     SDP_STATE_DOUBLE,
+    SDP_STATE_EXPONENT,
     SDP_STATE_SCIENTIFIC,
     SDP_STATE_ESCAPE,
     SDP_STATE_COMMENT,
@@ -196,7 +197,7 @@ static int sdp_read(SdpSource *src, List *objects)
                 bufClear(&src->value_buf);
                 src->state = SDP_STATE_QSTRING;
             }
-            else if (isdigit(c)) {
+            else if (isdigit(c) || c == '-' || c == '+') {
                 bufSetC(&src->value_buf, c);
                 src->state = SDP_STATE_LONG;
             }
@@ -296,7 +297,7 @@ static int sdp_read(SdpSource *src, List *objects)
             }
             else if (c == 'e' || c == 'E') {
                 bufAddC(&src->value_buf, c);
-                src->state = SDP_STATE_SCIENTIFIC;
+                src->state = SDP_STATE_EXPONENT;
             }
             else if (isspace(c)) {
                 sdp_add_object(SDP_LONG, bufGet(&src->value_buf), src->cur_line, cur_list);
@@ -328,7 +329,7 @@ static int sdp_read(SdpSource *src, List *objects)
             }
             else if (c == 'e' || c == 'E') {
                 bufAddC(&src->value_buf, c);
-                src->state = SDP_STATE_SCIENTIFIC;
+                src->state = SDP_STATE_EXPONENT;
             }
             else if (isspace(c)) {
                 sdp_add_object(SDP_DOUBLE, bufGet(&src->value_buf), src->cur_line, cur_list);
@@ -354,12 +355,33 @@ static int sdp_read(SdpSource *src, List *objects)
                 src->state = SDP_STATE_ERROR;
             }
             break;
+        case SDP_STATE_EXPONENT:
+            if (isdigit(c) || c == '-' || c == '+') {
+                bufAddC(&src->value_buf, c);
+                src->state = SDP_STATE_SCIENTIFIC;
+            }
+            else {
+                bufSetF(&error_msg, "%d: Missing exponent following '%c'.",
+                        src->cur_line, bufGet(&src->value_buf)[bufLen(&src->value_buf) - 1]);
+                src->state = SDP_STATE_ERROR;
+            }
+            break;
         case SDP_STATE_SCIENTIFIC:
             if (isdigit(c)) {
                 bufAddC(&src->value_buf, c);
             }
             else if (isspace(c)) {
                 sdp_add_object(SDP_DOUBLE, bufGet(&src->value_buf), src->cur_line, cur_list);
+                src->state = SDP_STATE_NONE;
+            }
+            else if (c == '{') {
+                sdp_add_object(SDP_DOUBLE, bufGet(&src->value_buf), src->cur_line, cur_list);
+                sdp_unget_char(src, c);
+                src->state = SDP_STATE_NONE;
+            }
+            else if (c == '}') {
+                sdp_add_object(SDP_DOUBLE, bufGet(&src->value_buf), src->cur_line, cur_list);
+                sdp_unget_char(src, c);
                 src->state = SDP_STATE_NONE;
             }
             else if (c == 0) {
@@ -560,7 +582,7 @@ static void my_dump(List *objects, Buffer *buf)
             bufAddF(buf, "L(%ld)", obj->u.l);
             break;
         case SDP_DOUBLE:
-            bufAddF(buf, "D(%f)", obj->u.d);
+            bufAddF(buf, "D(%g)", obj->u.d);
             break;
         case SDP_CONTAINER:
             bufAddF(buf, "C(");
@@ -586,98 +608,41 @@ struct {
     int return_code;
     char *output;
 } test[] = {
-    {   "Hoi \"Hee hallo\" 1 2.5 { 1 { 2 } }",
-        0,
-        "S(Hoi) S(Hee hallo) L(1) D(2.500000) C(L(1) C(L(2)))"
+    {   "Hoi \"Hee hallo\" 1 2.5 { -2 { -4.5 } }", 0,
+        "S(Hoi) S(Hee hallo) L(1) D(2.5) C(L(-2) C(D(-4.5)))"
     },
-    {   "\"ABC",
-        1,
-        "1: String not terminated."
-    },
-    {   "\"ABC\t\"",
-        1,
-        "1: Unexpected character '\t' following \"ABC\"."
-    },
-    {   "\"ABC\\xDEF\"",
-        1,
-        "1: Invalid escape sequence \"\\x\"."
-    },
-    {   "\"ABC\\",
-        1,
-        "1: Escape sequence not terminated."
-    },
-    {   "{{ABC}}",
-        0,
-        "C(C(S(ABC)))"
-    },
-    {   "{{123}}",
-        0,
-        "C(C(L(123)))"
-    },
-    {   "{{1.5}}",
-        0,
-        "C(C(D(1.500000)))"
-    },
-    {   "{{ABC}",
-        1,
-        "1: Unmatched open brace."
-    },
-    {   "{ABC}}",
-        1,
-        "1: Unmatched close brace."
-    },
-    {   "1E3",
-        0,
-        "D(1000.000000)"
-    },
-    {   "1.5E3",
-        0,
-        "D(1500.000000)"
-    },
-    {   "12.34.56",
-        1,
-        "1: Unexpected character '.' following \"12.34\"."
-    },
-    {   "12e34.56",
-        1,
-        "1: Unexpected character '.' following \"12e34\"."
-    },
-    {   "12.34e56E23",
-        1,
-        "1: Unexpected character 'E' following \"12.34e56\"."
-    },
-    {   "%",
-        1,
-        "1: Unexpected character '%' (ascii 37)."
-    },
-    {   "ABC$DEF",
-        1,
-        "1: Unexpected character '$' following \"ABC\"."
-    },
-    {   "\"ABC$DEF\"",
-        0,
-        "S(ABC$DEF)"
-    },
-    {   "_123",
-        0,
-        "S(_123)"
-    },
-    {   "123_",
-        1,
-        "1: Unexpected character '_' following \"123\"."
-    },
-    {   "A\nB\nC\n123_\n",
-        1,
-        "4: Unexpected character '_' following \"123\"."
-    },
-    {   "A\rB\rC\r123_\r",
-        1,
-        "4: Unexpected character '_' following \"123\"."
-    },
-    {   "A\r\nB\r\nC\r\n123_\r\n",
-        1,
-        "4: Unexpected character '_' following \"123\"."
-    }
+    {   "{{ABC}}",                  0,  "C(C(S(ABC)))"                                          },
+    {   "{{123}}",                  0,  "C(C(L(123)))"                                          },
+    {   "{{1.5}}",                  0,  "C(C(D(1.5)))"                                          },
+    {   "{{ABC}",                   1,  "1: Unmatched open brace."                              },
+    {   "{ABC}}",                   1,  "1: Unmatched close brace."                             },
+    {   "\"ABC",                    1,  "1: String not terminated."                             },
+    {   "1E3",                      0,  "D(1000)"                                               },
+    {   "1.5E3",                    0,  "D(1500)"                                               },
+    {   "-1E3",                     0,  "D(-1000)"                                              },
+    {   "-1.5E3",                   0,  "D(-1500)"                                              },
+    {   "1E-3",                     0,  "D(0.001)"                                              },
+    {   "1.5E-3",                   0,  "D(0.0015)"                                             },
+    {   "-1E-3",                    0,  "D(-0.001)"                                             },
+    {   "-1.5E-3",                  0,  "D(-0.0015)"                                            },
+    {   "--1E-3",                   1,  "1: Unexpected character '-' following \"-\"."          },
+    {   "-1E--3",                   1,  "1: Unexpected character '-' following \"-1E-\"."       },
+    {   "1E",                       1,  "1: Missing exponent following 'E'."                    },
+    {   "12.34.56",                 1,  "1: Unexpected character '.' following \"12.34\"."      },
+    {   "12e34.56",                 1,  "1: Unexpected character '.' following \"12e34\"."      },
+    {   "12.34e56E23",              1,  "1: Unexpected character 'E' following \"12.34e56\"."   },
+    {   " $ ",                      1,  "1: Unexpected character '$' (ascii 36)."               },
+    {   "\"ABC\t\"",                1,  "1: Unexpected character '\t' following \"ABC\"."       },
+    {   "\"ABC\\t\"",               0,  "S(ABC\t)"                                              },
+    {   "\"ABC\\xDEF\"",            1,  "1: Invalid escape sequence \"\\x\"."                   },
+    {   "\"ABC\\",                  1,  "1: Escape sequence not terminated."                    },
+    {   "ABC$DEF",                  1,  "1: Unexpected character '$' following \"ABC\"."        },
+    {   "\"ABC$DEF\"",              0,  "S(ABC$DEF)"                                            },
+    {   "_123",                     0,  "S(_123)"                                               },
+    {   "123_",                     1,  "1: Unexpected character '_' following \"123\"."        },
+    {   "A\nB\nC\n123_\n",          1,  "4: Unexpected character '_' following \"123\"."        },
+    {   "A\rB\rC\r123_\r",          1,  "4: Unexpected character '_' following \"123\"."        },
+    {   "A\r\nB\r\nC\r\n123_\r\n",  1,  "4: Unexpected character '_' following \"123\"."        }
 };
 
 int num_tests = sizeof(test) / sizeof(test[0]);
