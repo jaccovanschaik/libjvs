@@ -19,39 +19,37 @@ typedef enum {
     SDP_LONG,
     SDP_DOUBLE,
     SDP_CONTAINER
-} SdpType;
+} SDP_Type;
 
-typedef struct SdpObject SdpObject;
-
-struct SdpObject {
+typedef struct {
     ListNode _node;
-    SdpType type;
-    int     line;
+    SDP_Type type;
+    int      line;
     union {
         char *s;
         long l;
         double d;
         List c;
     } u;
-};
+} SDP_Object;
 
 /*
- * Read SdpObjects from file <fp> and append them to <objects>.
+ * Read SDP_Objects from file <fp> and append them to <objects>.
  */
 int sdpReadFile(FILE *fp, List *objects);
 
 /*
- * Read SdpObjects from file descriptor <fd> and append them to <objects>.
+ * Read SDP_Objects from file descriptor <fd> and append them to <objects>.
  */
 int sdpReadFD(int fd, List *objects);
 
 /*
- * Read SdpObjects from string <str> and append them to <objects>.
+ * Read SDP_Objects from string <str> and append them to <objects>.
  */
 int sdpReadString(const char *str, List *objects);
 
 /*
- * Dump the list of SdpObjects in <objects> on <fp>, indented by <indent> levels.
+ * Dump the list of SDP_Objects in <objects> on <fp>, indented by <indent> levels.
  */
 void sdpDump(FILE *fp, int indent, List *objects);
 
@@ -62,13 +60,13 @@ void sdpDump(FILE *fp, int indent, List *objects);
 char *sdpError(void);
 
 /*
- * Clear the list of SdpObjects at <objects>. Clears the contents of the list but leaves the list
+ * Clear the list of SDP_Objects at <objects>. Clears the contents of the list but leaves the list
  * itself alone.
  */
 void sdpClear(List *objects);
 
 /*
- * Clear and free the list of SdpObjects at <objects>.
+ * Clear and free the list of SDP_Objects at <objects>.
  */
 void sdpFree(List *objects);
 
