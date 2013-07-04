@@ -22,113 +22,24 @@
 #define INITIAL_SIZE 16
 
 /*
- * Encode buffer <value> into <buf>.
+ * Increase the size of <buf> to allow for another <len> bytes.
  */
-int bufEncode(Buffer *buf, const Buffer *value)
+static void buf_enlarge(Buffer *buf, int len)
 {
-    uint64_t len = bufLen(value);
-    unsigned int zeros;
-    int shift = 8 * sizeof(uint64_t) - 8;
-    uint8_t bytes = 0, byte[sizeof(uint64_t)];
+    int new_len;
 
-    for (shift = 8 * sizeof(uint64_t) - 8; shift >= 0; shift -= 8) {
-        byte[bytes++] = (len >> shift) & 0xFF;
+    while (buf->act_len + len + 1 > buf->max_len) {
+        if (buf->max_len == 0)
+            new_len = INITIAL_SIZE;
+        else
+            new_len = 2 * buf->max_len;
+
+        buf->data = realloc(buf->data, new_len);
+
+        assert(buf->data);
+
+        buf->max_len = new_len;
     }
-
-    for (zeros = 0; zeros < sizeof(uint64_t); zeros++) {
-        if (byte[zeros] != 0) break;
-    }
-
-    bytes -= zeros;
-
-    bufAddC(buf, bytes);
-
-    bufAdd(buf, byte + zeros, bytes);
-
-    bufCat(buf, value);
-
-    return 0;
-}
-
-/*
- * Get a binary-encoded buffer from <buf> and store it in <value>. If
- * succesful, the first part where the int8_t was stored will be
- * stripped from <buf>.
- */
-int bufDecode(Buffer *buf, Buffer *value)
-{
-    const char *ptr = bufGet(buf);
-    int remaining = bufLen(buf);
-
-    if (bufExtract(&ptr, &remaining, value) == 0) {
-        bufTrim(buf, bufLen(buf) - remaining, 0);
-        return 0;
-    }
-
-    return 1;
-}
-
-/*
- * Get an encoded buffer from <ptr> (with <remaining> bytes
- * remaining) and store it in <value>.
- */
-int bufExtract(const char **ptr, int *remaining, Buffer *value)
-{
-    const char *my_ptr = *ptr;
-    int i;
-
-    uint64_t len, my_remaining = *remaining;
-    uint8_t byte, bytes;
-
-    if (my_remaining < 1) return 1;
-
-    bytes = *my_ptr;
-
-    my_ptr++;
-    my_remaining--;
-
-    if (my_remaining < bytes) return 1;
-
-    len = 0;
-
-    for (i = 0; i < bytes; i++) {
-        byte = *my_ptr;
-
-        len <<= 8;
-        len += byte;
-
-        my_ptr++;
-        my_remaining--;
-    }
-
-    if (my_remaining < len) return 1;
-
-    bufSet(value, my_ptr, len);
-
-    my_ptr += len;
-    my_remaining -= len;
-
-    *ptr = my_ptr;
-    *remaining = my_remaining;
-
-    return 0;
-}
-
-/*
- * Return -1, 1 or 0 if <left> is smaller than, greater than or equal to
- * <right> (according to memcmp()).
- */
-int bufCompare(const Buffer *left, const Buffer *right)
-{
-    int len1 = bufLen(left);
-    int len2 = bufLen(right);
-
-    if (len1 < len2)
-        return -1;
-    else if (len2 > len1)
-        return 1;
-    else
-        return memcmp(bufGet(left), bufGet(right), len1);
 }
 
 /*
@@ -206,16 +117,7 @@ void bufDestroy(Buffer *buf)
  */
 Buffer *bufAdd(Buffer *buf, const void *data, int len)
 {
-    while (buf->act_len + len + 1 > buf->max_len) {
-        if (buf->max_len == 0)
-            buf->max_len = INITIAL_SIZE;
-        else
-            buf->max_len = 2 * buf->max_len;
-
-        buf->data = realloc(buf->data, buf->max_len);
-
-        assert(buf->data);
-    }
+    buf_enlarge(buf, len);
 
     memcpy(buf->data + buf->act_len, data, len);
 
@@ -243,32 +145,23 @@ Buffer *bufAddC(Buffer *buf, char c)
  */
 Buffer *bufAddV(Buffer *buf, const char *fmt, va_list ap)
 {
-   va_list my_ap;
+    int size;
 
-   int len;
+    va_list my_ap;
 
-   static int scratch_size = 80;
-   static char *scratch_pad = NULL;
+    va_copy(my_ap, ap);
+    size = vsnprintf(NULL, 0, fmt, my_ap);
+    va_end(my_ap);
 
-   if (scratch_pad == NULL) {
-      scratch_pad = calloc(1, scratch_size);
-   }
+    buf_enlarge(buf, size + 1);
 
-   while (1) {
-      va_copy(my_ap, ap);
-      len = vsnprintf(scratch_pad, scratch_size, fmt, my_ap);
-      va_end(my_ap);
+    va_copy(my_ap, ap);
+    vsnprintf(buf->data + buf->act_len, size + 1, fmt, my_ap);
+    va_end(my_ap);
 
-      if (len < scratch_size) break;
+    buf->act_len += size;
 
-      scratch_size *= 2;
-
-      scratch_pad = realloc(scratch_pad, scratch_size);
-   }
-
-   bufAdd(buf, scratch_pad, len);
-
-   return buf;
+    return buf;
 }
 
 /*
@@ -392,6 +285,116 @@ Buffer *bufTrim(Buffer *buf, unsigned int left, unsigned int right)
     *(buf->data + buf->act_len) = '\0';
 
     return buf;
+}
+
+/*
+ * Return -1, 1 or 0 if <left> is smaller than, greater than or equal to <right>, either in size, or
+ * (when both have the same size) according to memcmp().
+ */
+int bufCompare(const Buffer *left, const Buffer *right)
+{
+    int len1 = bufLen(left);
+    int len2 = bufLen(right);
+
+    if (len1 < len2)
+        return -1;
+    else if (len2 > len1)
+        return 1;
+    else
+        return memcmp(bufGet(left), bufGet(right), len1);
+}
+
+/*
+ * Encode buffer <value> into <buf>.
+ */
+int bufEncode(Buffer *buf, const Buffer *value)
+{
+    uint64_t len = bufLen(value);
+    unsigned int zeros;
+    int shift = 8 * sizeof(uint64_t) - 8;
+    uint8_t bytes = 0, byte[sizeof(uint64_t)];
+
+    for (shift = 8 * sizeof(uint64_t) - 8; shift >= 0; shift -= 8) {
+        byte[bytes++] = (len >> shift) & 0xFF;
+    }
+
+    for (zeros = 0; zeros < sizeof(uint64_t); zeros++) {
+        if (byte[zeros] != 0) break;
+    }
+
+    bytes -= zeros;
+
+    bufAddC(buf, bytes);
+
+    bufAdd(buf, byte + zeros, bytes);
+
+    bufCat(buf, value);
+
+    return 0;
+}
+
+/*
+ * Get a binary-encoded buffer from <buf> and store it in <value>. If
+ * succesful, the first part where the int8_t was stored will be
+ * stripped from <buf>.
+ */
+int bufDecode(Buffer *buf, Buffer *value)
+{
+    const char *ptr = bufGet(buf);
+    int remaining = bufLen(buf);
+
+    if (bufExtract(&ptr, &remaining, value) == 0) {
+        bufTrim(buf, bufLen(buf) - remaining, 0);
+        return 0;
+    }
+
+    return 1;
+}
+
+/*
+ * Get an encoded buffer from <ptr> (with <remaining> bytes
+ * remaining) and store it in <value>.
+ */
+int bufExtract(const char **ptr, int *remaining, Buffer *value)
+{
+    const char *my_ptr = *ptr;
+    int i;
+
+    uint64_t len, my_remaining = *remaining;
+    uint8_t byte, bytes;
+
+    if (my_remaining < 1) return 1;
+
+    bytes = *my_ptr;
+
+    my_ptr++;
+    my_remaining--;
+
+    if (my_remaining < bytes) return 1;
+
+    len = 0;
+
+    for (i = 0; i < bytes; i++) {
+        byte = *my_ptr;
+
+        len <<= 8;
+        len += byte;
+
+        my_ptr++;
+        my_remaining--;
+    }
+
+    if (my_remaining < len) return 1;
+
+    bufSet(value, my_ptr, len);
+
+    my_ptr += len;
+    my_remaining -= len;
+
+    *ptr = my_ptr;
+    *remaining = my_remaining;
+
+    return 0;
 }
 
 /*
@@ -577,6 +580,9 @@ int main(int argc, char *argv[])
        "\x00\x00\x00\x00\x00\x00\x00\x00"
        "\x00\x00\x00\x04Hoi1"
        "\x00\x00\x00\x04Hoi2", 43) == 0);
+
+   bufReset(&buf1);
+   bufReset(&buf2);
 
    return errors;
 }
