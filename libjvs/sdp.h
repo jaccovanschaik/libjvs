@@ -60,7 +60,7 @@ void sdpDump(FILE *fp, int indent, List *objects);
 char *sdpError(void);
 
 /*
- * Clear the list of SDP_Objects at <objects>. Clears the contents of the list but leaves the list
+ * Clear the list of SDP_Objects in <objects>. Deletes the contents of the list but leaves the list
  * itself alone.
  */
 void sdpClear(List *objects);
