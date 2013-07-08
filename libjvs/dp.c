@@ -435,13 +435,20 @@ typedef struct {
 
 Test test[] = {
     { "Test1 123", 0, "Test1: I(123)" },
+    { "Test1 -123", 0, "Test1: I(-123)" },
     { "Test2 1.3", 0, "Test2: F(1.3)" },
+    { "Test2 -1.3", 0, "Test2: F(-1.3)" },
+    { "Test2 1e3", 0, "Test2: F(1000)" },
+    { "Test2 1e-3", 0, "Test2: F(0.001)" },
+    { "Test2 -1e3", 0, "Test2: F(-1000)" },
+    { "Test2 -1e-3", 0, "Test2: F(-0.001)" },
     { "Test3 \"ABC\"", 0, "Test3: S(ABC)" },
     { "Test4 { Test4a 123 Test4b 1.3 Test4c \"ABC\" }",
       0,
       "Test4: { Test4a: I(123) Test4b: F(1.3) Test4c: S(ABC) }" },
     { "123ABC", 1, "1: couldn't parse \"123ABC\"" },
-    { "123 123", 1, "1: name expected" },
+    { "123", 1, "1: name expected" },
+    { "Test5 123 456", 0, "Test5: I(123) Test5: I(456)" },
 };
 
 static int num_tests = sizeof(test) / sizeof(test[0]);
