@@ -60,6 +60,11 @@ void sdpDump(FILE *fp, int indent, List *objects);
 char *sdpError(void);
 
 /*
+ * Return the value of <obj> as a string.
+ */
+const char *sdpStringValue(SDP_Object *obj);
+
+/*
  * Clear the list of SDP_Objects in <objects>. Deletes the contents of the list but leaves the list
  * itself alone.
  */

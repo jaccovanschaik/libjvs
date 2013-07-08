@@ -579,6 +579,33 @@ char *sdpError(void)
 }
 
 /*
+ * Return the value of <obj> as a string.
+ */
+const char *sdpStringValue(SDP_Object *obj)
+{
+    static Buffer buf = { 0 };
+
+    bufClear(&buf);
+
+    switch(obj->type) {
+    case SDP_STRING:
+        bufSetF(&buf, "%s", obj->u.s);
+        break;
+    case SDP_LONG:
+        bufSetF(&buf, "%ld", obj->u.l);
+        break;
+    case SDP_DOUBLE:
+        bufSetF(&buf, "%g", obj->u.d);
+        break;
+    case SDP_CONTAINER:
+        bufSetF(&buf, "{}");
+        break;
+    }
+
+    return bufGet(&buf);
+}
+
+/*
  * Clear the list of SDP_Objects in <objects>. Deletes the contents of the list but leaves the list
  * itself alone.
  */
