@@ -31,8 +31,7 @@ typedef enum {
     DP_PS_NAME,
     DP_PS_STRING,
     DP_PS_ESCAPE,
-    DP_PS_INT,
-    DP_PS_FLOAT,
+    DP_PS_NUMBER,
     DP_PS_ERROR,
     DP_PS_EOF
 } DP_ParserState;
@@ -62,6 +61,8 @@ static void dp_unget_char(DP_Parser *parser, int c)
     else {
         ungetc(c, parser->u.fp);
     }
+
+    if (c == '\n') parser->line--;
 }
 
 static int dp_get_char(DP_Parser *parser)
@@ -123,41 +124,38 @@ static List *dp_pop(DP_Parser *parser)
     return top_of_stack;
 }
 
-static DP_Object *dp_add_object(DP_Parser *parser, DP_Type type, List *objects)
+static DP_Object *dp_add_object(DP_Parser *parser, List *objects)
 {
     char *end = NULL;
     DP_Object *obj;
+    long i;
+    double f;
 
     const char *name  = bufGet(&parser->name);
     const char *value = bufGet(&parser->value);
 
     obj = calloc(1, sizeof(DP_Object));
-
     obj->line = parser->line;
-    obj->type = type;
 
-    switch(type) {
-    case DP_STRING:
+    if (parser->state == DP_PS_NONE) {
+        obj->type = DP_CONTAINER;
+    }
+    else if (parser->state == DP_PS_STRING) {
+        obj->type = DP_STRING;
         obj->u.s = strdup(value);
-        break;
-    case DP_INT:
-        obj->u.i = strtol(value, &end, 0);
-        if (end < value + strlen(value)) {
-            bufSetF(&parser->error, "%d: couldn't parse \"%s\"", parser->line, value);
-            dpFreeObject(obj);
-            return NULL;
-        }
-        break;
-    case DP_FLOAT:
-        obj->u.f = strtod(value, &end);
-        if (end < value + strlen(value)) {
-            bufSetF(&parser->error, "%d: couldn't parse \"%s\"", parser->line, value);
-            dpFreeObject(obj);
-            return NULL;
-        }
-        break;
-    default:
-        break;
+    }
+    else if ((i = strtol(value, &end, 0)), end == value + strlen(value)) {
+        obj->type = DP_INT;
+        obj->u.i = i;
+    }
+    else if ((f = strtod(value, &end)), end == value + strlen(value)) {
+        obj->type = DP_FLOAT;
+        obj->u.f = f;
+    }
+    else {
+        bufSetF(&parser->error, "%d: unrecognized value \"%s\"", parser->line, value);
+        dpFreeObject(obj);
+        return NULL;
     }
 
     if (name == NULL || strlen(name) == 0) {
@@ -195,16 +193,12 @@ static int dp_parse(DP_Parser *parser, List *objects)
                 bufClear(&parser->value);
                 parser->state = DP_PS_STRING;
             }
-            else if (isdigit(c) || c == '-' || c == '+') {
+            else if (isdigit(c) || c == '-' || c == '+' || c == '.') {
                 bufSetC(&parser->value, c);
-                parser->state = DP_PS_INT;
-            }
-            else if (c == '.') {
-                bufSetC(&parser->value, c);
-                parser->state = DP_PS_FLOAT;
+                parser->state = DP_PS_NUMBER;
             }
             else if (c == '{') {
-                obj = dp_add_object(parser, DP_CONTAINER, objects);
+                obj = dp_add_object(parser, objects);
                 dp_push(parser, objects);
                 objects = &obj->u.c;
             }
@@ -238,7 +232,7 @@ static int dp_parse(DP_Parser *parser, List *objects)
             }
             else {
                 bufSetF(&parser->error, "%d: unexpected character '%c' following \"%s\"",
-                        parser->line, c, bufGet(&parser->value));
+                        parser->line, c, bufGet(&parser->name));
                 parser->state = DP_PS_ERROR;
             }
             break;
@@ -247,7 +241,7 @@ static int dp_parse(DP_Parser *parser, List *objects)
                 parser->state = DP_PS_ESCAPE;
             }
             else if (c == '"') {
-                dp_add_object(parser, DP_STRING, objects);
+                dp_add_object(parser, objects);
                 parser->state = DP_PS_NONE;
             }
             else if (isprint(c)) {
@@ -267,53 +261,39 @@ static int dp_parse(DP_Parser *parser, List *objects)
         case DP_PS_ESCAPE:
             if (c == 't') {
                 bufAddC(&parser->value, '\t');
+                parser->state = DP_PS_STRING;
             }
             else if (c == 'r') {
                 bufAddC(&parser->value, '\r');
+                parser->state = DP_PS_STRING;
             }
             else if (c == 'n') {
                 bufAddC(&parser->value, '\n');
+                parser->state = DP_PS_STRING;
             }
             else if (c == '\\') {
                 bufAddC(&parser->value, '\\');
+                parser->state = DP_PS_STRING;
             }
             else if (c == EOF) {
                 bufSetF(&parser->error, "%d: unexpected end of file in escape sequence",
                         parser->line);
                 parser->state = DP_PS_ERROR;
             }
-            parser->state = DP_PS_STRING;
-            break;
-        case DP_PS_INT:
-            if (isxdigit(c) || c == 'x') {
-                bufAddC(&parser->value, c);
-            }
-            else if (c == '.' || c == 'e' || c == 'E') {
-                bufAddC(&parser->value, c);
-                parser->state = DP_PS_FLOAT;
-            }
-            else if (isspace(c) || c == '{' || c == '}' || c == EOF) {
-                dp_unget_char(parser, c);
-                if (dp_add_object(parser, DP_INT, objects) == NULL) {
-                    parser->state = DP_PS_ERROR;
-                }
-                else {
-                    parser->state = DP_PS_NONE;
-                }
-            }
             else {
-                bufSetF(&parser->error, "%d: unexpected character '%c' following \"%s\"",
-                        parser->line, c, bufGet(&parser->value));
+                bufSetF(&parser->error, "%d: unrecognized escape sequence \"\\%c\"",
+                        parser->line, c);
                 parser->state = DP_PS_ERROR;
             }
             break;
-        case DP_PS_FLOAT:
-            if (isdigit(c) || c == '+' || c == '-' || c == '.' || c == 'e' || c == 'E') {
+        case DP_PS_NUMBER:
+            if (isxdigit(c) || c == 'x' || c == '.' ||
+                c == 'e' || c == 'E' || c == '+' || c == '-') {
                 bufAddC(&parser->value, c);
             }
             else if (isspace(c) || c == '{' || c == '}' || c == EOF) {
                 dp_unget_char(parser, c);
-                if (dp_add_object(parser, DP_FLOAT, objects) == NULL) {
+                if (dp_add_object(parser, objects) == NULL) {
                     parser->state = DP_PS_ERROR;
                 }
                 else {
@@ -417,7 +397,7 @@ const char *dpError(DP_Parser *parser)
 
 void dpFreeObject(DP_Object *obj)
 {
-    if (obj->type == DP_STRING && obj->u.s != NULL) free(obj->u.s);
+    if (obj->u.s != NULL) free(obj->u.s);
     if (obj->name != NULL) free(obj->name);
 
     free(obj);
@@ -434,21 +414,28 @@ typedef struct {
 } Test;
 
 Test test[] = {
-    { "Test1 123", 0, "Test1: I(123)" },
-    { "Test1 -123", 0, "Test1: I(-123)" },
-    { "Test2 1.3", 0, "Test2: F(1.3)" },
-    { "Test2 -1.3", 0, "Test2: F(-1.3)" },
-    { "Test2 1e3", 0, "Test2: F(1000)" },
-    { "Test2 1e-3", 0, "Test2: F(0.001)" },
-    { "Test2 -1e3", 0, "Test2: F(-1000)" },
-    { "Test2 -1e-3", 0, "Test2: F(-0.001)" },
-    { "Test3 \"ABC\"", 0, "Test3: S(ABC)" },
-    { "Test4 { Test4a 123 Test4b 1.3 Test4c \"ABC\" }",
-      0,
-      "Test4: { Test4a: I(123) Test4b: F(1.3) Test4c: S(ABC) }" },
-    { "123ABC", 1, "1: couldn't parse \"123ABC\"" },
+    { "Test 123", 0, "Test: I(123)" },
+    { "Test -123", 0, "Test: I(-123)" },
+    { "Test 033", 0, "Test: I(27)" },
+    { "Test 0x10", 0, "Test: I(16)" },
+    { "Test 1.3", 0, "Test: F(1.3)" },
+    { "Test -1.3", 0, "Test: F(-1.3)" },
+    { "Test 1e3", 0, "Test: F(1000)" },
+    { "Test 1e-3", 0, "Test: F(0.001)" },
+    { "Test -1e3", 0, "Test: F(-1000)" },
+    { "Test -1e-3", 0, "Test: F(-0.001)" },
+    { "Test \"ABC\"", 0, "Test: S(ABC)" },
+    { "Test \"\\t\\r\\n\\\\\"", 0, "Test: S(\t\r\n\\)" },
+    { "Test { Test1 123 Test2 1.3 Test3 \"ABC\" }", 0,
+      "Test: { Test1: I(123) Test2: F(1.3) Test3: S(ABC) }" },
+    { "Test 123 456", 0, "Test: I(123) Test: I(456)" },
+    { "123ABC", 1, "1: unrecognized value \"123ABC\"" },
+    { "123XYZ", 1, "1: unexpected character 'X' following \"123\"" },
     { "123", 1, "1: name expected" },
-    { "Test5 123 456", 0, "Test5: I(123) Test5: I(456)" },
+    { "ABC$", 1, "1: unexpected character '$' following \"ABC\"" },
+    { "123$", 1, "1: unexpected character '$' following \"123\"" },
+    { "Test {\n\tTest1 123\n\tTest2 1.3\n\tTest3 \"ABC\\0\"\n}", 1,
+      "4: unrecognized escape sequence \"\\0\"" },
 };
 
 static int num_tests = sizeof(test) / sizeof(test[0]);
