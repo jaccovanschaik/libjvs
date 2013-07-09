@@ -1,5 +1,5 @@
 /*
- * dp.c: Description
+ * dp.c: Data Parser.
  *
  * Copyright:   (c) 2013 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Version:     $Id$
@@ -49,12 +49,18 @@ struct DP_Parser {
     } u;
 };
 
+/*
+ * Push back character <c> onto the input stream.
+ */
 static void dp_unget_char(DP_Parser *parser, int c)
 {
     if (c == EOF) return;
 
     if (parser->type == DP_PT_STR) {
         parser->u.str--;
+
+        /* We don't want to overwrite the string that the user has given us, so we'll just assert
+         * that the character we're pushing back is the same that was already there. */
 
         assert(c == *parser->u.str);
     }
@@ -65,6 +71,9 @@ static void dp_unget_char(DP_Parser *parser, int c)
     if (c == '\n') parser->line--;
 }
 
+/*
+ * Get a character from the input stream.
+ */
 static int dp_get_char(DP_Parser *parser)
 {
     int c;
@@ -81,6 +90,8 @@ static int dp_get_char(DP_Parser *parser)
         c = fgetc(parser->u.fp);
     }
 
+    /* Squish any end-of-line sequence into just a line feed. */
+
     if (c == '\r') {
         int c2 = dp_get_char(parser);
 
@@ -96,6 +107,9 @@ static int dp_get_char(DP_Parser *parser)
     return c;
 }
 
+/*
+ * Push DP_Object list <list> onto <parser>'s stack.
+ */
 static void dp_push(DP_Parser *parser, List *list)
 {
     parser->stack_depth++;
@@ -105,6 +119,9 @@ static void dp_push(DP_Parser *parser, List *list)
     memcpy(parser->stack + parser->stack_depth - 1, list, sizeof(List));
 }
 
+/*
+ * Pop the top-level DP_Object list from <parser>'s stack and return it.
+ */
 static List *dp_pop(DP_Parser *parser)
 {
     List *top_of_stack;
@@ -115,8 +132,6 @@ static List *dp_pop(DP_Parser *parser)
 
     top_of_stack = parser->stack + parser->stack_depth - 1;
 
-    assert(parser->stack_depth > 0);
-
     parser->stack_depth--;
 
     parser->stack = realloc(parser->stack, parser->stack_depth * sizeof(List));
@@ -124,6 +139,9 @@ static List *dp_pop(DP_Parser *parser)
     return top_of_stack;
 }
 
+/*
+ * Add a DP_Object to <objects>, using the current data in <parser>.
+ */
 static DP_Object *dp_add_object(DP_Parser *parser, List *objects)
 {
     char *end = NULL;
@@ -170,6 +188,9 @@ static DP_Object *dp_add_object(DP_Parser *parser, List *objects)
     return obj;
 }
 
+/*
+ * Run <parser> and append the found objects to <objects>.
+ */
 static int dp_parse(DP_Parser *parser, List *objects)
 {
     DP_Object *obj;
@@ -317,6 +338,9 @@ static int dp_parse(DP_Parser *parser, List *objects)
     return 0;
 }
 
+/*
+ * Create a Data Parser.
+ */
 DP_Parser *dpCreate(void)
 {
     DP_Parser *parser = calloc(1, sizeof(DP_Parser));
@@ -324,6 +348,10 @@ DP_Parser *dpCreate(void)
     return parser;
 }
 
+/*
+ * Clear out <parser>. Call this before any of the dpParse functions if you want to re-use an
+ * existing parser.
+ */
 void dpClear(DP_Parser *parser)
 {
     if (parser->type == DP_PT_FILE || parser->type == DP_PT_FD) {
@@ -341,6 +369,9 @@ void dpClear(DP_Parser *parser)
     memset(parser, 0, sizeof(DP_Parser));
 }
 
+/*
+ * Free the memory occupied by <parser>.
+ */
 void dpFree(DP_Parser *parser)
 {
     dpClear(parser);
@@ -348,6 +379,9 @@ void dpFree(DP_Parser *parser)
     free(parser);
 }
 
+/*
+ * Using <parser>, parse the contents of <filename> and append the found objects to <objects>.
+ */
 int dpParseFile(DP_Parser *parser, const char *filename, List *objects)
 {
     parser->type = DP_PT_FILE;
@@ -361,6 +395,9 @@ int dpParseFile(DP_Parser *parser, const char *filename, List *objects)
     }
 }
 
+/*
+ * Using <parser>, parse the contents from <fp> and append the found objects to <objects>.
+ */
 int dpParseFP(DP_Parser *parser, FILE *fp, List *objects)
 {
     parser->type = DP_PT_FP;
@@ -369,6 +406,9 @@ int dpParseFP(DP_Parser *parser, FILE *fp, List *objects)
     return dp_parse(parser, objects);
 }
 
+/*
+ * Using <parser>, parse the contents from <fd> and append the found objects to <objects>.
+ */
 int dpParseFD(DP_Parser *parser, int fd, List *objects)
 {
     parser->type = DP_PT_FD;
@@ -382,6 +422,9 @@ int dpParseFD(DP_Parser *parser, int fd, List *objects)
     }
 }
 
+/*
+ * Using <parser>, parse <string> and append the found objects to <objects>.
+ */
 int dpParseString(DP_Parser *parser, const char *string, List *objects)
 {
     parser->type = DP_PT_STR;
@@ -390,11 +433,17 @@ int dpParseString(DP_Parser *parser, const char *string, List *objects)
     return dp_parse(parser, objects);
 }
 
+/*
+ * Retrieve an error text from <parser>, in case any function has returned an error.
+ */
 const char *dpError(DP_Parser *parser)
 {
     return bufGet(&parser->error);
 }
 
+/*
+ * Free DP_Object <obj>.
+ */
 void dpFreeObject(DP_Object *obj)
 {
     if (obj->u.s != NULL) free(obj->u.s);

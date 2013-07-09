@@ -35,6 +35,7 @@ install: libjvs.a libjvs.so
 	if [ ! -d $(INSTALL_LIB) ]; then mkdir -p $(INSTALL_LIB); fi
 	cp libjvs.a libjvs.so $(INSTALL_LIB)
 	if [ ! -d $(INSTALL_INC)/libjvs ]; then mkdir -p $(INSTALL_INC)/libjvs; fi
+	rm -f $(INSTALL_INC)/libjvs/*
 	cp *.h $(INSTALL_INC)/libjvs
 
 tags:
