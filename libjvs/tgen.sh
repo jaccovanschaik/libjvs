@@ -369,8 +369,7 @@ for size in 32 64; do
 cat << EOF
 
 /*
- * Binary-encode $ctype <value> into buffer <buf>, preceded by a bytes
- * count.
+ * Binary-encode $ctype <value> into buffer <buf>, preceded by a byte count.
  */
 EOF
     echo -n "int tgEncode${short}C(Buffer *buf, const $ctype *value)"

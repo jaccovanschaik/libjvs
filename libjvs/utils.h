@@ -18,6 +18,9 @@
 
 #define hexdump(f, s, n) ihexdump(f, 0, s, n)
 
+/*
+ * "Packable" types.
+ */
 enum {
     PACK_INT8,
     PACK_INT16,

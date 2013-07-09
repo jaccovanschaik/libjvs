@@ -13,7 +13,7 @@ include /home/jacco/.make/make.sysdep
 CC = gcc
 
 LIBJVS = vector.o buffer.o hash.o list.o dp.o debug.o cx.o \
-         utils.o tgen.o bitmask.o net.o tcp.o udp.o
+         utils.o tgen.o bitmask.o net.o tcp.o udp.o log.o
 
 CFLAGS = -g -fPIC -Wall
 

@@ -28,6 +28,7 @@ typedef enum {
 
 typedef enum {
     DP_PS_NONE,
+    DP_PS_COMMENT,
     DP_PS_NAME,
     DP_PS_STRING,
     DP_PS_ESCAPE,
@@ -41,7 +42,7 @@ struct DP_Parser {
     DP_ParserState state;
     Buffer name, value, error;
     int stack_depth;
-    List *stack;
+    List **stack;
     int line;
     union {
         FILE *fp;
@@ -114,9 +115,9 @@ static void dp_push(DP_Parser *parser, List *list)
 {
     parser->stack_depth++;
 
-    parser->stack = realloc(parser->stack, parser->stack_depth * sizeof(List));
+    parser->stack = realloc(parser->stack, parser->stack_depth * sizeof(List *));
 
-    memcpy(parser->stack + parser->stack_depth - 1, list, sizeof(List));
+    parser->stack[parser->stack_depth - 1] = list;
 }
 
 /*
@@ -130,11 +131,11 @@ static List *dp_pop(DP_Parser *parser)
         return NULL;
     }
 
-    top_of_stack = parser->stack + parser->stack_depth - 1;
+    top_of_stack = parser->stack[parser->stack_depth - 1];
 
     parser->stack_depth--;
 
-    parser->stack = realloc(parser->stack, parser->stack_depth * sizeof(List));
+    parser->stack = realloc(parser->stack, parser->stack_depth * sizeof(List *));
 
     return top_of_stack;
 }
@@ -197,14 +198,10 @@ static int dp_parse(DP_Parser *parser, List *objects)
 
     parser->line = 1;
 
-    while (1) {
+    while (parser->state != DP_PS_ERROR && parser->state != DP_PS_EOF) {
         int c = dp_get_char(parser);
 
         switch(parser->state) {
-        case DP_PS_ERROR:
-            return 1;
-        case DP_PS_EOF:
-            return 0;
         case DP_PS_NONE:
             if (c == '_' || isalpha(c)) {
                 bufSetC(&parser->name, c);
@@ -229,6 +226,9 @@ static int dp_parse(DP_Parser *parser, List *objects)
                     parser->state = DP_PS_ERROR;
                 }
             }
+            else if (c == '#') {
+                parser->state = DP_PS_COMMENT;
+            }
             else if (c == EOF) {
                 parser->state = DP_PS_EOF;
             }
@@ -236,6 +236,14 @@ static int dp_parse(DP_Parser *parser, List *objects)
                 bufSetF(&parser->error, "%d: unexpected character '%c' following \"%s\"",
                         parser->line, c, bufGet(&parser->value));
                 parser->state = DP_PS_ERROR;
+            }
+            break;
+        case DP_PS_COMMENT:
+            if (c == '\n') {
+                parser->state = DP_PS_NONE;
+            }
+            else if (c == EOF) {
+                parser->state = DP_PS_EOF;
             }
             break;
         case DP_PS_NAME:
@@ -327,15 +335,19 @@ static int dp_parse(DP_Parser *parser, List *objects)
                 parser->state = DP_PS_ERROR;
             }
             break;
+        default:
+            abort();
         }
     }
 
-    if (parser->stack_depth > 1) {
+    if (parser->state == DP_PS_ERROR)
+        return 1;
+    else if (parser->stack_depth > 0) {
         bufSetF(&parser->error, "%d: unbalanced '{'", parser->line);
         return 1;
     }
-
-    return 0;
+    else
+        return 0;
 }
 
 /*
@@ -355,7 +367,7 @@ DP_Parser *dpCreate(void)
 void dpClear(DP_Parser *parser)
 {
     if (parser->type == DP_PT_FILE || parser->type == DP_PT_FD) {
-        fclose(parser->u.fp);
+        if (parser->u.fp != NULL) fclose(parser->u.fp);
     }
 
     if (parser->stack != NULL) {
@@ -387,7 +399,7 @@ int dpParseFile(DP_Parser *parser, const char *filename, List *objects)
     parser->type = DP_PT_FILE;
 
     if ((parser->u.fp = fopen(filename, "r")) == NULL) {
-        bufSetF(&parser->error, "Couldn't open file \"%s\": %s", filename, strerror(errno));
+        bufSetF(&parser->error, "%s: %s", filename, strerror(errno));
         return 1;
     }
     else {
@@ -434,6 +446,25 @@ int dpParseString(DP_Parser *parser, const char *string, List *objects)
 }
 
 /*
+ * Return the name of type <type> as a string.
+ */
+const char *dpTypeAsString(DP_Type type)
+{
+    switch(type) {
+    case DP_STRING:
+        return "string";
+    case DP_INT:
+        return "integer";
+    case DP_FLOAT:
+        return "float";
+    case DP_CONTAINER:
+        return "container";
+    default:
+        return NULL;
+    }
+}
+
+/*
  * Retrieve an error text from <parser>, in case any function has returned an error.
  */
 const char *dpError(DP_Parser *parser)
@@ -446,10 +477,38 @@ const char *dpError(DP_Parser *parser)
  */
 void dpFreeObject(DP_Object *obj)
 {
-    if (obj->u.s != NULL) free(obj->u.s);
+    if (obj->type == DP_CONTAINER) {
+        dpClearObjects(&obj->u.c);
+    }
+    else if (obj->type == DP_STRING && obj->u.s != NULL) {
+        free(obj->u.s);
+    }
+
     if (obj->name != NULL) free(obj->name);
 
     free(obj);
+}
+
+/*
+ * Clear the list of objects in <objects>. <objects> itself is not removed.
+ */
+void dpClearObjects(List *objects)
+{
+    DP_Object *obj;
+
+    while ((obj = listRemoveHead(objects)) != NULL) {
+        dpFreeObject(obj);
+    }
+}
+
+/*
+ * Free the list of objects in <objects>.
+ */
+void dpFreeObjects(List *objects)
+{
+    dpClearObjects(objects);
+
+    free(objects);
 }
 
 #ifdef TEST
@@ -475,6 +534,7 @@ Test test[] = {
     { "Test -1e-3", 0, "Test: F(-0.001)" },
     { "Test \"ABC\"", 0, "Test: S(ABC)" },
     { "Test \"\\t\\r\\n\\\\\"", 0, "Test: S(\t\r\n\\)" },
+    { "Test 123 # Comment", 0, "Test: I(123)" },
     { "Test { Test1 123 Test2 1.3 Test3 \"ABC\" }", 0,
       "Test: { Test1: I(123) Test2: F(1.3) Test3: S(ABC) }" },
     { "Test 123 456", 0, "Test: I(123) Test: I(456)" },
@@ -485,6 +545,10 @@ Test test[] = {
     { "123$", 1, "1: unexpected character '$' following \"123\"" },
     { "Test {\n\tTest1 123\n\tTest2 1.3\n\tTest3 \"ABC\\0\"\n}", 1,
       "4: unrecognized escape sequence \"\\0\"" },
+    { "Test { { Test1 123 Test2 1.3 Test3 \"ABC\" }", 1,
+      "1: unbalanced '{'" },
+    { "Test { Test1 123 Test2 1.3 Test3 \"ABC\" } }", 1,
+      "1: unbalanced '}'" },
 };
 
 static int num_tests = sizeof(test) / sizeof(test[0]);

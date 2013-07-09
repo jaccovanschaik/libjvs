@@ -74,6 +74,11 @@ int dpParseFD(DP_Parser *parser, int fd, List *objects);
 int dpParseString(DP_Parser *parser, const char *string, List *objects);
 
 /*
+ * Return the name of type <type> as a string.
+ */
+const char *dpTypeAsString(DP_Type type);
+
+/*
  * Retrieve an error text from <parser>, in case any function has returned an error.
  */
 const char *dpError(DP_Parser *parser);
@@ -82,5 +87,15 @@ const char *dpError(DP_Parser *parser);
  * Free DP_Object <obj>.
  */
 void dpFreeObject(DP_Object *obj);
+
+/*
+ * Clear the list of objects in <objects>. <objects> itself is not removed.
+ */
+void dpClearObjects(List *objects);
+
+/*
+ * Free the list of objects in <objects>.
+ */
+void dpFreeObjects(List *objects);
 
 #endif
