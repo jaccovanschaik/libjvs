@@ -500,7 +500,7 @@ static void dump_object(Buffer *output, DP_Object *obj)
         bufAddF(output, "%s: S(%s)", obj->name, obj->u.s);
         break;
     case DP_INT:
-        bufAddF(output, "%s: I(%d)", obj->name, obj->u.i);
+        bufAddF(output, "%s: I(%ld)", obj->name, obj->u.i);
         break;
     case DP_FLOAT:
         bufAddF(output, "%s: F(%g)", obj->name, obj->u.f);
@@ -510,7 +510,7 @@ static void dump_object(Buffer *output, DP_Object *obj)
         for (child = listHead(&obj->u.c); child; child = listNext(child)) {
             dump_object(output, child);
         }
-        bufAddF(output, " }", obj->name);
+        bufAddF(output, " }");
         break;
     }
 }

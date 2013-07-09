@@ -98,7 +98,7 @@ Buffer *bufAddV(Buffer *buf, const char *fmt, va_list ap);
  * Append a string to <buf>, formatted according to <fmt> and with the
  * subsequent parameters.
  */
-Buffer *bufAddF(Buffer *buf, const char *fmt, ...);
+Buffer *bufAddF(Buffer *buf, const char *fmt, ...) __attribute__ ((format (printf, 2, 3)));
 
 /*
  * Replace <buf> with the <len> bytes starting at <data>.
@@ -114,7 +114,7 @@ Buffer *bufSetC(Buffer *buf, char c);
  * Set <buf> to a string formatted according to <fmt> and with the
  * subsequent parameters.
  */
-Buffer *bufSetF(Buffer *buf, const char *fmt, ...);
+Buffer *bufSetF(Buffer *buf, const char *fmt, ...) __attribute__ ((format (printf, 2, 3)));
 
 /*
  * Replace <buf> with a string formatted according to <fmt> and with the
