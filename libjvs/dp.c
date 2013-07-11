@@ -553,6 +553,8 @@ Test test[] = {
       "Test: { Test1: I(123) Test2: F(1.3) Test3: S(ABC) }" },
     { "Test 123 456", 0, "Test: I(123) Test: I(456)" },
     { "123", 0, "(null): I(123)" },
+    { "Test { 123 } { \"ABC\" }", 0,
+      "Test: { (null): I(123) } Test: { (null): S(ABC) }" },
     { "Test { Test1 123 } { Test2 \"ABC\" }", 0,
       "Test: { Test1: I(123) } Test: { Test2: S(ABC) }" },
     { "123ABC", 1, "1: unrecognized value \"123ABC\"" },
