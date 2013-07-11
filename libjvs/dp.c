@@ -150,7 +150,6 @@ static DP_Object *dp_add_object(DP_Parser *parser, List *objects)
     long i;
     double f;
 
-    const char *name  = bufGet(&parser->name);
     const char *value = bufGet(&parser->value);
 
     obj = calloc(1, sizeof(DP_Object));
@@ -177,12 +176,10 @@ static DP_Object *dp_add_object(DP_Parser *parser, List *objects)
         return NULL;
     }
 
-    if (name == NULL || strlen(name) == 0) {
-        bufSetF(&parser->error, "%d: name expected", parser->line);
-        return NULL;
-    }
-
-    obj->name = strdup(name);
+    if (bufLen(&parser->name) > 0)
+        obj->name = strdup(bufGet(&parser->name));
+    else
+        obj->name = NULL;
 
     listAppendTail(objects, obj);
 
@@ -216,14 +213,27 @@ static int dp_parse(DP_Parser *parser, List *objects)
                 parser->state = DP_PS_NUMBER;
             }
             else if (c == '{') {
-                obj = dp_add_object(parser, objects);
-                dp_push(parser, objects);
-                objects = &obj->u.c;
+                if ((obj = dp_add_object(parser, objects)) == NULL) {
+                    parser->state = DP_PS_ERROR;
+                }
+                else {
+                    dp_push(parser, objects);
+                    objects = &obj->u.c;
+                    bufClear(&parser->name);
+                }
             }
             else if (c == '}') {
+                DP_Object *last;
+
                 if ((objects = dp_pop(parser)) == NULL) {
                     bufSetF(&parser->error, "%d: unbalanced '}'", parser->line);
                     parser->state = DP_PS_ERROR;
+                }
+                else if ((last = listTail(objects)) == NULL) {
+                    bufClear(&parser->name);
+                }
+                else {
+                    bufSet(&parser->name, last->name, strlen(last->name));
                 }
             }
             else if (c == '#') {
@@ -270,8 +280,12 @@ static int dp_parse(DP_Parser *parser, List *objects)
                 parser->state = DP_PS_ESCAPE;
             }
             else if (c == '"') {
-                dp_add_object(parser, objects);
-                parser->state = DP_PS_NONE;
+                if (dp_add_object(parser, objects) == NULL) {
+                    parser->state = DP_PS_ERROR;
+                }
+                else {
+                    parser->state = DP_PS_NONE;
+                }
             }
             else if (isprint(c)) {
                 bufAddC(&parser->value, c);
@@ -538,14 +552,16 @@ Test test[] = {
     { "Test { Test1 123 Test2 1.3 Test3 \"ABC\" }", 0,
       "Test: { Test1: I(123) Test2: F(1.3) Test3: S(ABC) }" },
     { "Test 123 456", 0, "Test: I(123) Test: I(456)" },
+    { "123", 0, "(null): I(123)" },
+    { "Test { Test1 123 } { Test2 \"ABC\" }", 0,
+      "Test: { Test1: I(123) } Test: { Test2: S(ABC) }" },
     { "123ABC", 1, "1: unrecognized value \"123ABC\"" },
     { "123XYZ", 1, "1: unexpected character 'X' following \"123\"" },
-    { "123", 1, "1: name expected" },
     { "ABC$", 1, "1: unexpected character '$' following \"ABC\"" },
     { "123$", 1, "1: unexpected character '$' following \"123\"" },
     { "Test {\n\tTest1 123\n\tTest2 1.3\n\tTest3 \"ABC\\0\"\n}", 1,
       "4: unrecognized escape sequence \"\\0\"" },
-    { "Test { { Test1 123 Test2 1.3 Test3 \"ABC\" }", 1,
+    { "Test { Test2 { Test3 123 Test4 1.3 Test5 \"ABC\" }", 1,
       "1: unbalanced '{'" },
     { "Test { Test1 123 Test2 1.3 Test3 \"ABC\" } }", 1,
       "1: unbalanced '}'" },
