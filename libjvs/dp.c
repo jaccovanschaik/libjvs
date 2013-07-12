@@ -546,6 +546,10 @@ static void do_test(int index, Test *test)
             errors++;
         }
     }
+
+    dpClose(stream);
+    dpFree(object);
+    bufReset(&output);
 }
 
 static Test test[] = {
