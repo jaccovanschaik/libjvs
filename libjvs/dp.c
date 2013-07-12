@@ -1,22 +1,32 @@
-/*
- * dp.c: Data Parser.
+/* dp.c: Description
  *
- * Copyright:   (c) 2013 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id$
+ * Copyright:	(c) 2013 Jacco van Schaik (jacco@jaccovanschaik.net)
+ * Version:	$Id$
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
  */
 
+#include <ctype.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
 #include <assert.h>
-#include <ctype.h>
 
 #include "buffer.h"
 
 #include "dp.h"
+
+typedef enum {
+    DP_STATE_NONE,
+    DP_STATE_COMMENT,
+    DP_STATE_NAME,
+    DP_STATE_STRING,
+    DP_STATE_ESCAPE,
+    DP_STATE_NUMBER,
+    DP_STATE_ERROR,
+    DP_STATE_END
+} DP_State;
 
 typedef enum {
     DP_PT_NONE,
@@ -24,25 +34,11 @@ typedef enum {
     DP_PT_FD,
     DP_PT_FP,
     DP_PT_STR
-} DP_ParserType;
+} DP_StreamType;
 
-typedef enum {
-    DP_PS_NONE,
-    DP_PS_COMMENT,
-    DP_PS_NAME,
-    DP_PS_STRING,
-    DP_PS_ESCAPE,
-    DP_PS_NUMBER,
-    DP_PS_ERROR,
-    DP_PS_EOF
-} DP_ParserState;
-
-struct DP_Parser {
-    DP_ParserType type;
-    DP_ParserState state;
-    Buffer name, value, error;
-    int stack_depth;
-    List **stack;
+struct DP_Stream {
+    DP_StreamType type;
+    Buffer error;
     int line;
     union {
         FILE *fp;
@@ -53,300 +49,268 @@ struct DP_Parser {
 /*
  * Push back character <c> onto the input stream.
  */
-static void dp_unget_char(DP_Parser *parser, int c)
+static void dp_unget_char(DP_Stream *stream, int c)
 {
     if (c == EOF) return;
 
-    if (parser->type == DP_PT_STR) {
-        parser->u.str--;
+    if (stream->type == DP_PT_STR) {
+        stream->u.str--;
 
         /* We don't want to overwrite the string that the user has given us, so we'll just assert
          * that the character we're pushing back is the same that was already there. */
 
-        assert(c == *parser->u.str);
+        assert(c == *stream->u.str);
     }
     else {
-        ungetc(c, parser->u.fp);
+        ungetc(c, stream->u.fp);
     }
 
-    if (c == '\n') parser->line--;
+    if (c == '\n') stream->line--;
 }
 
 /*
  * Get a character from the input stream.
  */
-static int dp_get_char(DP_Parser *parser)
+static int dp_get_char(DP_Stream *stream)
 {
     int c;
 
-    if (parser->type == DP_PT_STR) {
-        c = *parser->u.str;
+    if (stream->type == DP_PT_STR) {
+        c = *stream->u.str;
 
         if (c == '\0')
             c = EOF;
         else
-            parser->u.str++;
+            stream->u.str++;
     }
     else {
-        c = fgetc(parser->u.fp);
+        c = fgetc(stream->u.fp);
     }
 
     /* Squish any end-of-line sequence into just a line feed. */
 
     if (c == '\r') {
-        int c2 = dp_get_char(parser);
+        int c2 = dp_get_char(stream);
 
         if (c2 != '\n') {
-            dp_unget_char(parser, c2);
+            dp_unget_char(stream, c2);
         }
 
         c = '\n';
     }
 
-    if (c == '\n') parser->line++;
+    if (c == '\n') stream->line++;
 
     return c;
 }
 
 /*
- * Push DP_Object list <list> onto <parser>'s stack.
+ * Generate an error message about unexpected character <c> (which may be EOF) on <stream>.
  */
-static void dp_push(DP_Parser *parser, List *list)
+static void dp_unexpected(DP_Stream *stream, int c)
 {
-    parser->stack_depth++;
+    bufSetF(&stream->error, "%d: unexpected ", stream->line);
 
-    parser->stack = realloc(parser->stack, parser->stack_depth * sizeof(List *));
-
-    parser->stack[parser->stack_depth - 1] = list;
-}
-
-/*
- * Pop the top-level DP_Object list from <parser>'s stack and return it.
- */
-static List *dp_pop(DP_Parser *parser)
-{
-    List *top_of_stack;
-
-    if (parser->stack_depth == 0) {
-        return NULL;
+    if (c == EOF) {
+        bufAddF(&stream->error, "end of file");
     }
-
-    top_of_stack = parser->stack[parser->stack_depth - 1];
-
-    parser->stack_depth--;
-
-    parser->stack = realloc(parser->stack, parser->stack_depth * sizeof(List *));
-
-    return top_of_stack;
+    else {
+        bufAddF(&stream->error, "character '%c' (ascii %d)", c, c);
+    }
 }
 
-/*
- * Add a DP_Object to <objects>, using the current data in <parser>.
- */
-static DP_Object *dp_add_object(DP_Parser *parser, List *objects)
+static int dp_interpret_value(const char *value, DP_Object *obj)
 {
-    char *end = NULL;
-    DP_Object *obj;
     long i;
     double f;
 
-    const char *value = bufGet(&parser->value);
+    char *end;
 
-    obj = calloc(1, sizeof(DP_Object));
-    obj->line = parser->line;
-
-    if (parser->state == DP_PS_NONE) {
-        obj->type = DP_CONTAINER;
-    }
-    else if (parser->state == DP_PS_STRING) {
-        obj->type = DP_STRING;
-        obj->u.s = strdup(value);
-    }
-    else if ((i = strtol(value, &end, 0)), end == value + strlen(value)) {
+    if ((i = strtol(value, &end, 0)), end == value + strlen(value)) {
         obj->type = DP_INT;
         obj->u.i = i;
+
+        return 0;
     }
     else if ((f = strtod(value, &end)), end == value + strlen(value)) {
         obj->type = DP_FLOAT;
         obj->u.f = f;
+
+        return 0;
     }
     else {
-        bufSetF(&parser->error, "%d: unrecognized value \"%s\"", parser->line, value);
-        dpFreeObject(obj);
-        return NULL;
+        return -1;
     }
+}
 
-    if (bufLen(&parser->name) > 0)
-        obj->name = strdup(bufGet(&parser->name));
-    else
-        obj->name = NULL;
+static DP_Object *dp_new_object(DP_Type type)
+{
+    DP_Object *obj = calloc(1, sizeof(DP_Object));
 
-    listAppendTail(objects, obj);
+    obj->type = type;
 
     return obj;
 }
 
-/*
- * Run <parser> and append the found objects to <objects>.
- */
-static int dp_parse(DP_Parser *parser, List *objects)
+static DP_Object *dp_add_object(DP_Type type, const Buffer *name,
+                                DP_Object **root, DP_Object **last)
 {
-    DP_Object *obj;
+    DP_Object *obj = dp_new_object(type);
 
-    parser->line = 1;
+    if (name != NULL && bufLen(name) != 0)
+        obj->name = strdup(bufGet(name));
+    else if (*last != NULL && (*last)->name != NULL)
+        obj->name = strdup((*last)->name);
 
-    while (parser->state != DP_PS_ERROR && parser->state != DP_PS_EOF) {
-        int c = dp_get_char(parser);
+    if (*last == NULL)
+        *root = obj;
+    else
+        (*last)->next = obj;
 
-        switch(parser->state) {
-        case DP_PS_NONE:
-            if (c == '_' || isalpha(c)) {
-                bufSetC(&parser->name, c);
-                parser->state = DP_PS_NAME;
+    *last = obj;
+
+    return obj;
+}
+
+static DP_Object *dp_parse(DP_Stream *stream, int level)
+{
+    int c;
+
+    DP_State state = DP_STATE_NONE;
+
+    DP_Object *root = NULL;
+    DP_Object *last = NULL;
+
+    Buffer name = { 0 };
+    Buffer value = { 0 };
+
+    while (1) {
+        if (state == DP_STATE_ERROR || state == DP_STATE_END) break;
+
+        c = dp_get_char(stream);
+
+        switch(state) {
+        case DP_STATE_NONE:
+            if (c =='#') {
+                state = DP_STATE_COMMENT;
+            }
+            else if (isalpha(c) || c == '_') {
+                bufSetC(&name, c);
+                state = DP_STATE_NAME;
+            }
+            else if (c == '+' || c == '-' || c == '.' || isdigit(c)) {
+                bufSetC(&value, c);
+                state = DP_STATE_NUMBER;
             }
             else if (c == '"') {
-                bufClear(&parser->value);
-                parser->state = DP_PS_STRING;
-            }
-            else if (isdigit(c) || c == '-' || c == '+' || c == '.') {
-                bufSetC(&parser->value, c);
-                parser->state = DP_PS_NUMBER;
+                state = DP_STATE_STRING;
+                bufClear(&value);
             }
             else if (c == '{') {
-                if ((obj = dp_add_object(parser, objects)) == NULL) {
-                    parser->state = DP_PS_ERROR;
-                }
-                else {
-                    dp_push(parser, objects);
-                    objects = &obj->u.c;
-                    bufClear(&parser->name);
+                DP_Object *obj = dp_add_object(DP_CONTAINER, &name, &root, &last);
+                if ((obj->u.c = dp_parse(stream, level + 1)) == NULL) {
+                    state = DP_STATE_ERROR;
                 }
             }
             else if (c == '}') {
-                DP_Object *last;
-
-                if ((objects = dp_pop(parser)) == NULL) {
-                    bufSetF(&parser->error, "%d: unbalanced '}'", parser->line);
-                    parser->state = DP_PS_ERROR;
-                }
-                else if ((last = listTail(objects)) == NULL) {
-                    bufClear(&parser->name);
+                if (level > 0) {
+                    state = DP_STATE_END;
                 }
                 else {
-                    bufSet(&parser->name, last->name, strlen(last->name));
+                    bufSetF(&stream->error, "%d: unbalanced '}'", stream->line);
+                    state = DP_STATE_ERROR;
                 }
             }
-            else if (c == '#') {
-                parser->state = DP_PS_COMMENT;
-            }
-            else if (c == EOF) {
-                parser->state = DP_PS_EOF;
+            else if (c == EOF && level == 0) {
+                state = DP_STATE_END;
             }
             else if (!isspace(c)) {
-                bufSetF(&parser->error, "%d: unexpected character '%c' following \"%s\"",
-                        parser->line, c, bufGet(&parser->value));
-                parser->state = DP_PS_ERROR;
+                dp_unexpected(stream, c);
+                state = DP_STATE_ERROR;
             }
             break;
-        case DP_PS_COMMENT:
+        case DP_STATE_COMMENT:
             if (c == '\n') {
-                parser->state = DP_PS_NONE;
+                state = DP_STATE_NONE;
             }
             else if (c == EOF) {
-                parser->state = DP_PS_EOF;
+                state = DP_STATE_END;
             }
             break;
-        case DP_PS_NAME:
+        case DP_STATE_NAME:
             if (c == '_' || isalnum(c)) {
-                bufAddC(&parser->name, c);
+                bufAddC(&name, c);
             }
             else if (isspace(c) || c == '{' || c == '}') {
-                dp_unget_char(parser, c);
-                parser->state = DP_PS_NONE;
-            }
-            else if (c == EOF) {
-                bufSetF(&parser->error, "%d: value for \"%s\" expected",
-                        parser->line, bufGet(&parser->name));
-                parser->state = DP_PS_ERROR;
+                dp_unget_char(stream, c);
+                state = DP_STATE_NONE;
             }
             else {
-                bufSetF(&parser->error, "%d: unexpected character '%c' following \"%s\"",
-                        parser->line, c, bufGet(&parser->name));
-                parser->state = DP_PS_ERROR;
+                dp_unexpected(stream, c);
+                state = DP_STATE_ERROR;
             }
             break;
-        case DP_PS_STRING:
+        case DP_STATE_STRING:
             if (c == '\\') {
-                parser->state = DP_PS_ESCAPE;
+                state = DP_STATE_ESCAPE;
             }
             else if (c == '"') {
-                if (dp_add_object(parser, objects) == NULL) {
-                    parser->state = DP_PS_ERROR;
-                }
-                else {
-                    parser->state = DP_PS_NONE;
-                }
+                DP_Object *obj = dp_add_object(DP_STRING, &name, &root, &last);
+                obj->u.s = strdup(bufGet(&value));
+                state = DP_STATE_NONE;
             }
             else if (isprint(c)) {
-                bufAddC(&parser->value, c);
-            }
-            else if (c == EOF) {
-                bufSetF(&parser->error, "%d: unexpected end of file following \"%s\"",
-                        parser->line, bufGet(&parser->value));
-                parser->state = DP_PS_ERROR;
+                bufAddC(&value, c);
             }
             else {
-                bufSetF(&parser->error, "%d: unexpected character '%c' following \"%s\"",
-                        parser->line, c, bufGet(&parser->value));
-                parser->state = DP_PS_ERROR;
+                dp_unexpected(stream, c);
+                state = DP_STATE_ERROR;
             }
             break;
-        case DP_PS_ESCAPE:
+        case DP_STATE_ESCAPE:
             if (c == 't') {
-                bufAddC(&parser->value, '\t');
-                parser->state = DP_PS_STRING;
+                bufAddC(&value, '\t');
+                state = DP_STATE_STRING;
             }
             else if (c == 'r') {
-                bufAddC(&parser->value, '\r');
-                parser->state = DP_PS_STRING;
+                bufAddC(&value, '\r');
+                state = DP_STATE_STRING;
             }
             else if (c == 'n') {
-                bufAddC(&parser->value, '\n');
-                parser->state = DP_PS_STRING;
+                bufAddC(&value, '\n');
+                state = DP_STATE_STRING;
             }
             else if (c == '\\') {
-                bufAddC(&parser->value, '\\');
-                parser->state = DP_PS_STRING;
-            }
-            else if (c == EOF) {
-                bufSetF(&parser->error, "%d: unexpected end of file in escape sequence",
-                        parser->line);
-                parser->state = DP_PS_ERROR;
+                bufAddC(&value, '\\');
+                state = DP_STATE_STRING;
             }
             else {
-                bufSetF(&parser->error, "%d: unrecognized escape sequence \"\\%c\"",
-                        parser->line, c);
-                parser->state = DP_PS_ERROR;
+                bufSetF(&stream->error, "%d: invalid escape sequence \"\\%c\"", stream->line, c);
+                state = DP_STATE_ERROR;
             }
             break;
-        case DP_PS_NUMBER:
+        case DP_STATE_NUMBER:
             if (isxdigit(c) || c == 'x' || c == '.' ||
                 c == 'e' || c == 'E' || c == '+' || c == '-') {
-                bufAddC(&parser->value, c);
+                bufAddC(&value, c);
             }
             else if (isspace(c) || c == '{' || c == '}' || c == EOF) {
-                dp_unget_char(parser, c);
-                if (dp_add_object(parser, objects) == NULL) {
-                    parser->state = DP_PS_ERROR;
+                DP_Object *obj = dp_add_object(DP_INT, &name, &root, &last);
+
+                if (dp_interpret_value(bufGet(&value), obj) == 0) {
+                    state = DP_STATE_NONE;
                 }
                 else {
-                    parser->state = DP_PS_NONE;
+                    bufSetF(&stream->error, "%d: unrecognized value \"%s\"",
+                            stream->line, bufGet(&value));
+                    state = DP_STATE_ERROR;
                 }
+
+                dp_unget_char(stream, c);
             }
             else {
-                bufSetF(&parser->error, "%d: unexpected character '%c' following \"%s\"",
-                        parser->line, c, bufGet(&parser->value));
-                parser->state = DP_PS_ERROR;
+                dp_unexpected(stream, c);
+                state = DP_STATE_ERROR;
             }
             break;
         default:
@@ -354,310 +318,259 @@ static int dp_parse(DP_Parser *parser, List *objects)
         }
     }
 
-    if (parser->state == DP_PS_ERROR)
-        return 1;
-    else if (parser->stack_depth > 0) {
-        bufSetF(&parser->error, "%d: unbalanced '{'", parser->line);
-        return 1;
-    }
-    else
-        return 0;
-}
+    bufReset(&name);
+    bufReset(&value);
 
-/*
- * Create a Data Parser.
- */
-DP_Parser *dpCreate(void)
-{
-    DP_Parser *parser = calloc(1, sizeof(DP_Parser));
-
-    return parser;
-}
-
-/*
- * Clear out <parser>. Call this before any of the dpParse functions if you want to re-use an
- * existing parser.
- */
-void dpClear(DP_Parser *parser)
-{
-    if (parser->type == DP_PT_FILE || parser->type == DP_PT_FD) {
-        if (parser->u.fp != NULL) fclose(parser->u.fp);
-    }
-
-    if (parser->stack != NULL) {
-        free(parser->stack);
-    }
-
-    bufReset(&parser->name);
-    bufReset(&parser->value);
-    bufReset(&parser->error);
-
-    memset(parser, 0, sizeof(DP_Parser));
-}
-
-/*
- * Free the memory occupied by <parser>.
- */
-void dpFree(DP_Parser *parser)
-{
-    dpClear(parser);
-
-    free(parser);
-}
-
-/*
- * Using <parser>, parse the contents of <filename> and append the found objects to <objects>.
- */
-int dpParseFile(DP_Parser *parser, const char *filename, List *objects)
-{
-    parser->type = DP_PT_FILE;
-
-    if ((parser->u.fp = fopen(filename, "r")) == NULL) {
-        bufSetF(&parser->error, "%s: %s", filename, strerror(errno));
-        return 1;
-    }
-    else {
-        return dp_parse(parser, objects);
-    }
-}
-
-/*
- * Using <parser>, parse the contents from <fp> and append the found objects to <objects>.
- */
-int dpParseFP(DP_Parser *parser, FILE *fp, List *objects)
-{
-    parser->type = DP_PT_FP;
-    parser->u.fp = fp;
-
-    return dp_parse(parser, objects);
-}
-
-/*
- * Using <parser>, parse the contents from <fd> and append the found objects to <objects>.
- */
-int dpParseFD(DP_Parser *parser, int fd, List *objects)
-{
-    parser->type = DP_PT_FD;
-
-    if ((parser->u.fp = fdopen(fd, "r")) == NULL) {
-        bufSetF(&parser->error, "Couldn't fdopen file descriptor %d: %s", fd, strerror(errno));
-        return 1;
-    }
-    else {
-        return dp_parse(parser, objects);
-    }
-}
-
-/*
- * Using <parser>, parse <string> and append the found objects to <objects>.
- */
-int dpParseString(DP_Parser *parser, const char *string, List *objects)
-{
-    parser->type = DP_PT_STR;
-    parser->u.str = string;
-
-    return dp_parse(parser, objects);
-}
-
-/*
- * Return the name of type <type> as a string.
- */
-const char *dpTypeAsString(DP_Type type)
-{
-    switch(type) {
-    case DP_STRING:
-        return "string";
-    case DP_INT:
-        return "integer";
-    case DP_FLOAT:
-        return "float";
-    case DP_CONTAINER:
-        return "container";
-    default:
+    if (state == DP_STATE_ERROR) {
+        dpFree(root);
         return NULL;
     }
-}
-
-/*
- * Retrieve an error text from <parser>, in case any function has returned an error.
- */
-const char *dpError(DP_Parser *parser)
-{
-    return bufGet(&parser->error);
-}
-
-/*
- * Free DP_Object <obj>.
- */
-void dpFreeObject(DP_Object *obj)
-{
-    if (obj->type == DP_CONTAINER) {
-        dpClearObjects(&obj->u.c);
-    }
-    else if (obj->type == DP_STRING && obj->u.s != NULL) {
-        free(obj->u.s);
-    }
-
-    if (obj->name != NULL) free(obj->name);
-
-    free(obj);
-}
-
-/*
- * Clear the list of objects in <objects>. <objects> itself is not removed.
- */
-void dpClearObjects(List *objects)
-{
-    DP_Object *obj;
-
-    while ((obj = listRemoveHead(objects)) != NULL) {
-        dpFreeObject(obj);
+    else {
+        return root;
     }
 }
 
-/*
- * Free the list of objects in <objects>.
- */
-void dpFreeObjects(List *objects)
+static DP_Stream *dp_create_stream(DP_StreamType type)
 {
-    dpClearObjects(objects);
+    DP_Stream *stream = calloc(1, sizeof(DP_Stream));
 
-    free(objects);
+    stream->type = type;
+
+    return stream;
+}
+
+/*
+ * Create and return a DP_Stream, using data from file <filename>.
+ */
+DP_Stream *dpOpenFile(const char *filename)
+{
+    DP_Stream *stream = dp_create_stream(DP_PT_FILE);
+
+    if ((stream->u.fp = fopen(filename, "r")) == NULL) {
+        dpClose(stream);
+        return NULL;
+    }
+
+    return stream;
+}
+
+/*
+ * Create and return a DP_Stream, using data from FILE pointer <fp>.
+ */
+DP_Stream *dpOpenFP(FILE *fp)
+{
+    DP_Stream *stream = dp_create_stream(DP_PT_FP);
+
+    stream->u.fp = fp;
+
+    return stream;
+}
+
+/*
+ * Create and return a DP_Stream, using data from file descriptor <fd>.
+ */
+DP_Stream *dpOpenFD(int fd)
+{
+    DP_Stream *stream = dp_create_stream(DP_PT_FD);
+
+    if ((stream->u.fp = fdopen(fd, "r")) == NULL) {
+        dpClose(stream);
+        return NULL;
+    }
+
+    return stream;
+}
+
+/*
+ * Create and return a DP_Stream, using data from string <string>.
+ */
+DP_Stream *dpOpenString(const char *string)
+{
+    DP_Stream *stream = dp_create_stream(DP_PT_STR);
+
+    stream->u.str = string;
+
+    return stream;
+}
+
+/*
+ * Parse <stream>, returning the first of the found objects.
+ */
+DP_Object *dpParse(DP_Stream *stream)
+{
+    stream->line = 1;
+
+    return dp_parse(stream, 0);
+}
+
+/*
+ * Retrieve an error text from <stream>, in case any function has returned an error.
+ */
+const char *dpError(DP_Stream *stream)
+{
+    return bufGet(&stream->error);
+}
+
+/*
+ * Free the object list starting at <root>.
+ */
+void dpFree(DP_Object *root)
+{
+    while (root != NULL) {
+        DP_Object *temp = root;
+
+        if (root->name != NULL)
+            free(root->name);
+
+        if (root->type == DP_STRING && root->u.s != NULL)
+            free(root->u.s);
+        else if (root->type == DP_CONTAINER && root->u.c != NULL)
+            dpFree(root->u.c);
+
+        root = root->next;
+
+        free(temp);
+    }
+}
+
+/*
+ * Free the memory occupied by <stream>.
+ */
+void dpClose(DP_Stream *stream)
+{
+    if (stream->type == DP_PT_FILE || stream->type == DP_PT_FD) {
+        if (stream->u.fp != NULL) fclose(stream->u.fp);
+    }
+
+    bufReset(&stream->error);
+
+    free(stream);
 }
 
 #ifdef TEST
+static void dump(DP_Object *obj, Buffer *buf)
+{
+    while (obj != NULL) {
+        if (bufLen(buf) > 0) bufAddC(buf, ' ');
+
+        bufAddF(buf, "%s ", obj->name);
+
+        switch(obj->type) {
+        case DP_STRING:
+            bufAddF(buf, "\"%s\"", obj->u.s);
+            break;
+        case DP_INT:
+            bufAddF(buf, "%ld", obj->u.i);
+            break;
+        case DP_FLOAT:
+            bufAddF(buf, "%g", obj->u.f);
+            break;
+        case DP_CONTAINER:
+            bufAddF(buf, "{");
+            dump(obj->u.c, buf);
+            bufAddF(buf, " }");
+            break;
+        }
+
+        obj = obj->next;
+    }
+}
 
 static int errors = 0;
 
 typedef struct {
+    int error;
     const char *input;
-    int status;
     const char *output;
 } Test;
 
-Test test[] = {
-    { "Test 123", 0, "Test: I(123)" },
-    { "Test -123", 0, "Test: I(-123)" },
-    { "Test 033", 0, "Test: I(27)" },
-    { "Test 0x10", 0, "Test: I(16)" },
-    { "Test 1.3", 0, "Test: F(1.3)" },
-    { "Test -1.3", 0, "Test: F(-1.3)" },
-    { "Test 1e3", 0, "Test: F(1000)" },
-    { "Test 1e-3", 0, "Test: F(0.001)" },
-    { "Test -1e3", 0, "Test: F(-1000)" },
-    { "Test -1e-3", 0, "Test: F(-0.001)" },
-    { "Test \"ABC\"", 0, "Test: S(ABC)" },
-    { "Test \"\\t\\r\\n\\\\\"", 0, "Test: S(\t\r\n\\)" },
-    { "Test 123 # Comment", 0, "Test: I(123)" },
-    { "Test { Test1 123 Test2 1.3 Test3 \"ABC\" }", 0,
-      "Test: { Test1: I(123) Test2: F(1.3) Test3: S(ABC) }" },
-    { "Test 123 456", 0, "Test: I(123) Test: I(456)" },
-    { "123", 0, "(null): I(123)" },
-    { "Test { 123 } { \"ABC\" }", 0,
-      "Test: { (null): I(123) } Test: { (null): S(ABC) }" },
-    { "Test { Test1 123 } { Test2 \"ABC\" }", 0,
-      "Test: { Test1: I(123) } Test: { Test2: S(ABC) }" },
-    { "123ABC", 1, "1: unrecognized value \"123ABC\"" },
-    { "123XYZ", 1, "1: unexpected character 'X' following \"123\"" },
-    { "ABC$", 1, "1: unexpected character '$' following \"ABC\"" },
-    { "123$", 1, "1: unexpected character '$' following \"123\"" },
-    { "Test {\n\tTest1 123\n\tTest2 1.3\n\tTest3 \"ABC\\0\"\n}", 1,
-      "4: unrecognized escape sequence \"\\0\"" },
-    { "Test { Test2 { Test3 123 Test4 1.3 Test5 \"ABC\" }", 1,
-      "1: unbalanced '{'" },
-    { "Test { Test1 123 Test2 1.3 Test3 \"ABC\" } }", 1,
-      "1: unbalanced '}'" },
+static void do_test(int index, Test *test)
+{
+    Buffer output = { 0 };
+
+    DP_Stream *stream = dpOpenString(test->input);
+    DP_Object *object = dpParse(stream);
+
+    dump(object, &output);
+
+    if (test->error) {
+        if (object != NULL) {
+            fprintf(stderr, "Test %d:\n", index);
+            fprintf(stderr, "\texpected error \"%s\"\n", test->output);
+            fprintf(stderr, "\tgot output \"%s\"\n", bufGet(&output));
+
+            errors++;
+        }
+        else if (strcmp(dpError(stream), test->output) != 0) {
+            fprintf(stderr, "Test %d:\n", index);
+            fprintf(stderr, "\texpected error \"%s\"\n", test->output);
+            fprintf(stderr, "\tgot error \"%s\"\n", dpError(stream));
+
+            errors++;
+        }
+    }
+    else {
+        if (object == NULL) {
+            fprintf(stderr, "Test %d:\n", index);
+            fprintf(stderr, "\texpected output \"%s\"\n", test->output);
+            fprintf(stderr, "\tgot error \"%s\"\n", dpError(stream));
+
+            errors++;
+        }
+        else if (strcmp(bufGet(&output), test->output) != 0) {
+            fprintf(stderr, "Test %d:\n", index);
+            fprintf(stderr, "\texpected output \"%s\"\n", test->output);
+            fprintf(stderr, "\tgot output \"%s\"\n", bufGet(&output));
+
+            errors++;
+        }
+    }
+}
+
+static Test test[] = {
+    { 0, "Test 123",               "Test 123" },
+    { 0, "Test -123",              "Test -123" },
+    { 0, "Test 033",               "Test 27" },
+    { 0, "Test 0x10",              "Test 16" },
+    { 0, "Test 1.3",               "Test 1.3" },
+    { 0, "Test -1.3",              "Test -1.3" },
+    { 0, "Test 1e3",               "Test 1000" },
+    { 0, "Test 1e-3",              "Test 0.001" },
+    { 0, "Test -1e3",              "Test -1000" },
+    { 0, "Test -1e-3",             "Test -0.001" },
+    { 0, "Test \"ABC\"",           "Test \"ABC\"" },
+    { 0, "Test \"\\t\\r\\n\\\\\"", "Test \"\t\r\n\\\"" },
+    { 0, "Test 123 # Comment",     "Test 123" },
+    { 0, "Test { Test1 123 Test2 1.3 Test3 \"ABC\" }",
+         "Test { Test1 123 Test2 1.3 Test3 \"ABC\" }" },
+    { 0, "Test 123 456",           "Test 123 Test 456" },
+    { 0, "123",                    "(null) 123" },
+    { 0, "Test { 123 } { \"ABC\" }",
+         "Test { (null) 123 } Test { (null) \"ABC\" }" },
+    { 0, "Test { Test1 123 } { Test2 \"ABC\" }",
+         "Test { Test1 123 } Test { Test2 \"ABC\" }" },
+    { 1, "123ABC",                 "1: unrecognized value \"123ABC\"" },
+    { 1, "123XYZ",                 "1: unexpected character 'X' (ascii 88)" },
+    { 1, "ABC$",                   "1: unexpected character '$' (ascii 36)" },
+    { 1, "123$",                   "1: unexpected character '$' (ascii 36)" },
+    { 1, "Test {\n\tTest1 123\n\tTest2 1.3\n\tTest3 \"ABC\\0\"\n}",
+         "4: invalid escape sequence \"\\0\"" },
+    { 1, "Test { Test2 { Test3 123 Test4 1.3 Test5 \"ABC\" }",
+         "1: unexpected end of file" },
+    { 1, "Test { Test1 123 Test2 1.3 Test3 \"ABC\" } }",
+         "1: unbalanced '}'" },
 };
 
 static int num_tests = sizeof(test) / sizeof(test[0]);
-
-static void dump_object(Buffer *output, DP_Object *obj)
-{
-    DP_Object *child;
-
-    if (bufLen(output) > 0) bufAddC(output, ' ');
-
-    switch(obj->type) {
-    case DP_STRING:
-        bufAddF(output, "%s: S(%s)", obj->name, obj->u.s);
-        break;
-    case DP_INT:
-        bufAddF(output, "%s: I(%ld)", obj->name, obj->u.i);
-        break;
-    case DP_FLOAT:
-        bufAddF(output, "%s: F(%g)", obj->name, obj->u.f);
-        break;
-    case DP_CONTAINER:
-        bufAddF(output, "%s: {", obj->name);
-        for (child = listHead(&obj->u.c); child; child = listNext(child)) {
-            dump_object(output, child);
-        }
-        bufAddF(output, " }");
-        break;
-    }
-}
-
-static void run_test(Test *test, DP_Parser *parser)
-{
-    int r;
-    DP_Object *obj;
-
-    char *output;
-    List objects = { 0 };
-
-    dpClear(parser);
-
-    r = dpParseString(parser, test->input, &objects);
-
-    if (r == 0) {
-        Buffer buf = { 0 };
-
-        for (obj = listHead(&objects); obj; obj = listNext(obj)) {
-            dump_object(&buf, obj);
-        }
-
-        output = strdup(bufGet(&buf));
-
-        bufReset(&buf);
-    }
-    else {
-        output = strdup(dpError(parser));
-    }
-
-    if (r != test->status) {
-        errors++;
-
-        fprintf(stderr, "Test failed:\n");
-        fprintf(stderr, "\tInput:    \"%s\"\n", test->input);
-        fprintf(stderr, "\tReturned: %d\n", r);
-        fprintf(stderr, "\tExpected: %d\n", test->status);
-    }
-
-    if (r != test->status || strcmp(output, test->output) != 0) {
-        errors++;
-
-        fprintf(stderr, "Test failed:\n");
-        fprintf(stderr, "\tInput:    \"%s\"\n", test->input);
-        fprintf(stderr, "\tOutput:   \"%s\"\n", output);
-        fprintf(stderr, "\tExpected: \"%s\"\n", test->output);
-    }
-
-    free(output);
-}
 
 int main(int argc, char *argv[])
 {
     int i;
 
-    DP_Parser *parser = dpCreate();
-
     for (i = 0; i < num_tests; i++) {
-        run_test(test + i, parser);
+        do_test(i, test + i);
     }
-
-    dpFree(parser);
 
     return errors;
 }
-
 #endif

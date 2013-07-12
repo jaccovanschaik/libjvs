@@ -2,18 +2,16 @@
 #define DP_H
 
 /*
- * dp.c: Data Parser.
+ * dp.h: Description
  *
- * Copyright:   (c) 2013 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id$
- *
- * This software is distributed under the terms of the MIT license. See
- * http://www.opensource.org/licenses/mit-license.php for details.
+ * Author:	Jacco van Schaik (jacco.van.schaik@dnw.aero)
+ * Copyright:	(c) 2013 DNW German-Dutch Windtunnels
+ * Created:	2013-07-12
+ * Version:	$Id$
  */
 
-#include <stdio.h>
-
-#include "list.h"
+typedef struct DP_Stream DP_Stream;
+typedef struct DP_Object DP_Object;
 
 typedef enum {
     DP_STRING,
@@ -22,80 +20,56 @@ typedef enum {
     DP_CONTAINER
 } DP_Type;
 
-typedef struct {
-    ListNode _node;
+struct DP_Object {
+    DP_Object *next;
     DP_Type type;
     char *name;
-    int line;
     union {
-        char       *s;
-        long int    i;
-        double      f;
-        List        c;
+        char      *s;
+        long int   i;
+        double     f;
+        DP_Object *c;
     } u;
-} DP_Object;
-
-typedef struct DP_Parser DP_Parser;
+};
 
 /*
- * Create a Data Parser.
+ * Create and return a DP_Stream, using data from file <filename>.
  */
-DP_Parser *dpCreate(void);
+DP_Stream *dpOpenFile(const char *filename);
 
 /*
- * Clear out <parser>. Call this before any of the dpParse functions if you want to re-use an
- * existing parser.
+ * Create and return a DP_Stream, using data from FILE pointer <fp>.
  */
-void dpClear(DP_Parser *parser);
+DP_Stream *dpOpenFP(FILE *fp);
 
 /*
- * Free the memory occupied by <parser>.
+ * Create and return a DP_Stream, using data from file descriptor <fd>.
  */
-void dpFree(DP_Parser *parser);
+DP_Stream *dpOpenFD(int fd);
 
 /*
- * Using <parser>, parse the contents of <filename> and append the found objects to <objects>.
+ * Create and return a DP_Stream, using data from string <string>.
  */
-int dpParseFile(DP_Parser *parser, const char *filename, List *objects);
+DP_Stream *dpOpenString(const char *string);
 
 /*
- * Using <parser>, parse the contents from <fp> and append the found objects to <objects>.
+ * Parse <stream>, returning the first of the found objects.
  */
-int dpParseFP(DP_Parser *parser, FILE *fp, List *objects);
+DP_Object *dpParse(DP_Stream *stream);
 
 /*
- * Using <parser>, parse the contents from <fd> and append the found objects to <objects>.
+ * Retrieve an error text from <stream>, in case any function has returned an error.
  */
-int dpParseFD(DP_Parser *parser, int fd, List *objects);
+const char *dpError(DP_Stream *stream);
 
 /*
- * Using <parser>, parse <string> and append the found objects to <objects>.
+ * Free the object list starting at <root>.
  */
-int dpParseString(DP_Parser *parser, const char *string, List *objects);
+void dpFree(DP_Object *root);
 
 /*
- * Return the name of type <type> as a string.
+ * Free the memory occupied by <stream>.
  */
-const char *dpTypeAsString(DP_Type type);
-
-/*
- * Retrieve an error text from <parser>, in case any function has returned an error.
- */
-const char *dpError(DP_Parser *parser);
-
-/*
- * Free DP_Object <obj>.
- */
-void dpFreeObject(DP_Object *obj);
-
-/*
- * Clear the list of objects in <objects>. <objects> itself is not removed.
- */
-void dpClearObjects(List *objects);
-
-/*
- * Free the list of objects in <objects>.
- */
-void dpFreeObjects(List *objects);
+void dpClose(DP_Stream *stream);
 
 #endif
