@@ -1,4 +1,4 @@
-/* dp.c: Description
+/* dp.c: Data parser
  *
  * Copyright:	(c) 2013 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Version:	$Id$
@@ -152,10 +152,12 @@ static DP_Object *dp_new_object(DP_Type type)
     return obj;
 }
 
-static DP_Object *dp_add_object(DP_Type type, const Buffer *name,
+static DP_Object *dp_add_object(DP_Type type, const Buffer *name, int line,
                                 DP_Object **root, DP_Object **last)
 {
     DP_Object *obj = dp_new_object(type);
+
+    obj->line = line;
 
     if (name != NULL && bufLen(name) != 0)
         obj->name = strdup(bufGet(name));
@@ -207,7 +209,7 @@ static DP_Object *dp_parse(DP_Stream *stream, int level)
                 bufClear(&value);
             }
             else if (c == '{') {
-                DP_Object *obj = dp_add_object(DP_CONTAINER, &name, &root, &last);
+                DP_Object *obj = dp_add_object(DP_CONTAINER, &name, stream->line, &root, &last);
                 if ((obj->u.c = dp_parse(stream, level + 1)) == NULL) {
                     state = DP_STATE_ERROR;
                 }
@@ -255,7 +257,7 @@ static DP_Object *dp_parse(DP_Stream *stream, int level)
                 state = DP_STATE_ESCAPE;
             }
             else if (c == '"') {
-                DP_Object *obj = dp_add_object(DP_STRING, &name, &root, &last);
+                DP_Object *obj = dp_add_object(DP_STRING, &name, stream->line, &root, &last);
                 obj->u.s = strdup(bufGet(&value));
                 state = DP_STATE_NONE;
             }
@@ -295,7 +297,7 @@ static DP_Object *dp_parse(DP_Stream *stream, int level)
                 bufAddC(&value, c);
             }
             else if (isspace(c) || c == '{' || c == '}' || c == EOF) {
-                DP_Object *obj = dp_add_object(DP_INT, &name, &root, &last);
+                DP_Object *obj = dp_add_object(DP_INT, &name, stream->line, &root, &last);
 
                 if (dp_interpret_value(bufGet(&value), obj) == 0) {
                     state = DP_STATE_NONE;
@@ -401,6 +403,25 @@ DP_Object *dpParse(DP_Stream *stream)
     stream->line = 1;
 
     return dp_parse(stream, 0);
+}
+
+/*
+ * Return the type of <obj> as a string.
+ */
+const char *dpType(DP_Object *obj)
+{
+    switch(obj->type) {
+    case DP_STRING:
+        return "string";
+    case DP_INT:
+        return "int";
+    case DP_FLOAT:
+        return "float";
+    case DP_CONTAINER:
+        return "container";
+    default:
+        return NULL;
+    }
 }
 
 /*

@@ -2,7 +2,7 @@
  * Provides a simplified interface to UDP networking.
  *
  * Copyright:   (c) 2007 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: net.c 237 2012-02-10 14:09:38Z jacco $
+ * Version:     $Id$
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.

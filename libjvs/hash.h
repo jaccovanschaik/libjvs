@@ -2,7 +2,7 @@
  * Provides hash tables. Entries are hashed using arbitrary-length keys.
  *
  * Copyright:   (c) 2007 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: hash.h 242 2007-06-23 23:12:05Z jacco $
+ * Version:     $Id$
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.

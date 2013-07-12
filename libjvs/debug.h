@@ -2,7 +2,7 @@
  * Functions to assist debugging.
  *
  * Copyright: (c) 2004 Jacco van Schaik (jacco@frontier.nl)
- * Version:   $Id: debug.h 243 2007-06-24 13:33:24Z jacco $
+ * Version:   $Id$
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.

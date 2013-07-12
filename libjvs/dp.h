@@ -1,13 +1,13 @@
 #ifndef DP_H
 #define DP_H
 
-/*
- * dp.h: Description
+/* dp.c: Data parser
  *
- * Author:	Jacco van Schaik (jacco.van.schaik@dnw.aero)
- * Copyright:	(c) 2013 DNW German-Dutch Windtunnels
- * Created:	2013-07-12
- * Version:	$Id$
+ * Copyright:   (c) 2013 Jacco van Schaik (jacco@jaccovanschaik.net)
+ * Version:     $Id$
+ *
+ * This software is distributed under the terms of the MIT license. See
+ * http://www.opensource.org/licenses/mit-license.php for details.
  */
 
 typedef struct DP_Stream DP_Stream;
@@ -24,6 +24,7 @@ struct DP_Object {
     DP_Object *next;
     DP_Type type;
     char *name;
+    int   line;
     union {
         char      *s;
         long int   i;
@@ -56,6 +57,11 @@ DP_Stream *dpOpenString(const char *string);
  * Parse <stream>, returning the first of the found objects.
  */
 DP_Object *dpParse(DP_Stream *stream);
+
+/*
+ * Return the type of <obj> as a string.
+ */
+const char *dpType(DP_Object *obj);
 
 /*
  * Retrieve an error text from <stream>, in case any function has returned an error.

@@ -2,7 +2,7 @@
  * liblist: A package for handling linked lists.
  *
  * Copyright: (c) 2004-2005 Jacco van Schaik (jacco@frontier.nl)
- * Version:   $Id: list.c 242 2007-06-23 23:12:05Z jacco $
+ * Version:   $Id$
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -17,7 +17,7 @@
 
 #define N(pointer) ((ListNode *) pointer)
 
-char *_id_list = "$Id: list.c 242 2007-06-23 23:12:05Z jacco $\n";
+char *_id_list = "$Id$\n";
 
 /* Create a new, empty list. */
 
