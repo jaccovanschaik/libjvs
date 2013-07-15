@@ -1,5 +1,3 @@
-include /home/jacco/.make/make.sysdep
-
 # Makefile for libjvs.
 #
 # Copyright:	(c) 2007 Jacco van Schaik (jacco@jaccovanschaik.net)
@@ -9,6 +7,12 @@ include /home/jacco/.make/make.sysdep
 # http://www.opensource.org/licenses/mit-license.php for details.
 
 .PHONY: tags test
+
+MAKE_ALIB = ar rv
+MAKE_SLIB = gcc -shared -o
+
+INSTALL_LIB = /home/jacco/lib
+INSTALL_INC = /home/jacco/include/libjvs
 
 CC = gcc
 
