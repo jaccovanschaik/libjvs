@@ -494,13 +494,21 @@ int cxRun(CX *cx)
 
         r = cxGetTimeout(cx, &tv);
 
-D       dbgPrint(stderr, "nfds = %d, r = %d\n", nfds, r);
-
         if (nfds == 0 && r == 0) break;
 
         r = select(nfds, &rfds, &wfds, NULL, r ? &tv : NULL);
 
+        if (r < 0) {
+            dbgPrint(stderr, "select returned %d (%s)\n", r, strerror(errno));
+            break;
+        }
+
         r = cxProcessSelect(cx, r, &rfds, &wfds);
+
+        if (r < 0) {
+            dbgPrint(stderr, "cxProcessSelect returned %d (%s)\n", r, strerror(errno));
+            break;
+        }
     }
 
     return r;

@@ -18,6 +18,7 @@
 #include "buffer.h"
 #include "utils.h"
 #include "defs.h"
+#include "debug.h"
 
 #define INITIAL_SIZE 16
 
@@ -36,7 +37,7 @@ static void buf_enlarge(Buffer *buf, int len)
 
         buf->data = realloc(buf->data, new_len);
 
-        assert(buf->data);
+        dbgAssert(stderr, buf->data != NULL, "Could not (re-)allocate buffer data");
 
         buf->max_len = new_len;
     }
@@ -117,6 +118,8 @@ void bufDestroy(Buffer *buf)
  */
 Buffer *bufAdd(Buffer *buf, const void *data, int len)
 {
+    dbgAssert(stderr, len >= 0, "bufAdd called with length %d", len);
+
     buf_enlarge(buf, len);
 
     memcpy(buf->data + buf->act_len, data, len);
