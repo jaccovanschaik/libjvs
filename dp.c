@@ -13,6 +13,10 @@
 #include <string.h>
 #include <assert.h>
 
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
 #include "buffer.h"
 
 #include "dp.h"
@@ -29,16 +33,17 @@ typedef enum {
 } DP_State;
 
 typedef enum {
-    DP_PT_NONE,
-    DP_PT_FILE,
-    DP_PT_FD,
-    DP_PT_FP,
-    DP_PT_STR
+    DP_ST_NONE,
+    DP_ST_FILE,
+    DP_ST_FD,
+    DP_ST_FP,
+    DP_ST_STR
 } DP_StreamType;
 
 struct DP_Stream {
     DP_StreamType type;
     Buffer error;
+    char *file;
     int line;
     union {
         FILE *fp;
@@ -53,7 +58,7 @@ static void dp_unget_char(DP_Stream *stream, int c)
 {
     if (c == EOF) return;
 
-    if (stream->type == DP_PT_STR) {
+    if (stream->type == DP_ST_STR) {
         stream->u.str--;
 
         /* We don't want to overwrite the string that the user has given us, so we'll just assert
@@ -75,7 +80,7 @@ static int dp_get_char(DP_Stream *stream)
 {
     int c;
 
-    if (stream->type == DP_PT_STR) {
+    if (stream->type == DP_ST_STR) {
         c = *stream->u.str;
 
         if (c == '\0')
@@ -109,7 +114,7 @@ static int dp_get_char(DP_Stream *stream)
  */
 static void dp_unexpected(DP_Stream *stream, int c)
 {
-    bufSetF(&stream->error, "%d: unexpected ", stream->line);
+    bufSetF(&stream->error, "%s:%d: unexpected ", stream->file, stream->line);
 
     if (c == EOF) {
         bufAddF(&stream->error, "end of file");
@@ -219,7 +224,7 @@ static DP_Object *dp_parse(DP_Stream *stream, int level)
                     state = DP_STATE_END;
                 }
                 else {
-                    bufSetF(&stream->error, "%d: unbalanced '}'", stream->line);
+                    bufSetF(&stream->error, "%s:%d: unbalanced '}'", stream->file, stream->line);
                     state = DP_STATE_ERROR;
                 }
             }
@@ -287,7 +292,7 @@ static DP_Object *dp_parse(DP_Stream *stream, int level)
                 state = DP_STATE_STRING;
             }
             else {
-                bufSetF(&stream->error, "%d: invalid escape sequence \"\\%c\"", stream->line, c);
+                bufSetF(&stream->error, "%s:%d: invalid escape sequence \"\\%c\"", stream->file, stream->line, c);
                 state = DP_STATE_ERROR;
             }
             break;
@@ -303,8 +308,8 @@ static DP_Object *dp_parse(DP_Stream *stream, int level)
                     state = DP_STATE_NONE;
                 }
                 else {
-                    bufSetF(&stream->error, "%d: unrecognized value \"%s\"",
-                            stream->line, bufGet(&value));
+                    bufSetF(&stream->error, "%s:%d: unrecognized value \"%s\"",
+                            stream->file, stream->line, bufGet(&value));
                     state = DP_STATE_ERROR;
                 }
 
@@ -341,17 +346,41 @@ static DP_Stream *dp_create_stream(DP_StreamType type)
     return stream;
 }
 
+static char *dp_describe_stream(DP_Stream *stream)
+{
+    struct stat statbuf;
+
+    if (stream->type == DP_ST_STR) {
+        return "<string>";
+    }
+
+    fstat(fileno(stream->u.fp), &statbuf);
+
+    if (S_ISREG(statbuf.st_mode))
+        return "<file>";
+    else if (S_ISCHR(statbuf.st_mode) || S_ISBLK(statbuf.st_mode))
+        return "<device>";
+    else if (S_ISFIFO(statbuf.st_mode))
+        return "<fifo>";
+    else if (S_ISSOCK(statbuf.st_mode))
+        return "<socket>";
+    else
+        return "<unknown>";
+}
+
 /*
  * Create and return a DP_Stream, using data from file <filename>.
  */
 DP_Stream *dpOpenFile(const char *filename)
 {
-    DP_Stream *stream = dp_create_stream(DP_PT_FILE);
+    DP_Stream *stream = dp_create_stream(DP_ST_FILE);
 
     if ((stream->u.fp = fopen(filename, "r")) == NULL) {
         dpClose(stream);
         return NULL;
     }
+
+    stream->file = strdup(filename);
 
     return stream;
 }
@@ -361,9 +390,10 @@ DP_Stream *dpOpenFile(const char *filename)
  */
 DP_Stream *dpOpenFP(FILE *fp)
 {
-    DP_Stream *stream = dp_create_stream(DP_PT_FP);
+    DP_Stream *stream = dp_create_stream(DP_ST_FP);
 
     stream->u.fp = fp;
+    stream->file = strdup(dp_describe_stream(stream));
 
     return stream;
 }
@@ -373,12 +403,14 @@ DP_Stream *dpOpenFP(FILE *fp)
  */
 DP_Stream *dpOpenFD(int fd)
 {
-    DP_Stream *stream = dp_create_stream(DP_PT_FD);
+    DP_Stream *stream = dp_create_stream(DP_ST_FD);
 
     if ((stream->u.fp = fdopen(fd, "r")) == NULL) {
         dpClose(stream);
         return NULL;
     }
+
+    stream->file = strdup(dp_describe_stream(stream));
 
     return stream;
 }
@@ -388,9 +420,10 @@ DP_Stream *dpOpenFD(int fd)
  */
 DP_Stream *dpOpenString(const char *string)
 {
-    DP_Stream *stream = dp_create_stream(DP_PT_STR);
+    DP_Stream *stream = dp_create_stream(DP_ST_STR);
 
     stream->u.str = string;
+    stream->file = strdup(dp_describe_stream(stream));
 
     return stream;
 }
@@ -438,7 +471,7 @@ const char *dpError(DP_Stream *stream)
 void dpFree(DP_Object *root)
 {
     while (root != NULL) {
-        DP_Object *temp = root;
+        DP_Object *next = root->next;
 
         if (root->name != NULL)
             free(root->name);
@@ -448,9 +481,9 @@ void dpFree(DP_Object *root)
         else if (root->type == DP_CONTAINER && root->u.c != NULL)
             dpFree(root->u.c);
 
-        root = root->next;
+        free(root);
 
-        free(temp);
+        root = next;
     }
 }
 
@@ -459,11 +492,12 @@ void dpFree(DP_Object *root)
  */
 void dpClose(DP_Stream *stream)
 {
-    if (stream->type == DP_PT_FILE || stream->type == DP_PT_FD) {
+    if (stream->type == DP_ST_FILE || stream->type == DP_ST_FD) {
         if (stream->u.fp != NULL) fclose(stream->u.fp);
     }
 
     bufReset(&stream->error);
+    free(stream->file);
 
     free(stream);
 }
@@ -574,16 +608,16 @@ static Test test[] = {
          "Test { (null) 123 } Test { (null) \"ABC\" }" },
     { 0, "Test { Test1 123 } { Test2 \"ABC\" }",
          "Test { Test1 123 } Test { Test2 \"ABC\" }" },
-    { 1, "123ABC",                 "1: unrecognized value \"123ABC\"" },
-    { 1, "123XYZ",                 "1: unexpected character 'X' (ascii 88)" },
-    { 1, "ABC$",                   "1: unexpected character '$' (ascii 36)" },
-    { 1, "123$",                   "1: unexpected character '$' (ascii 36)" },
+    { 1, "123ABC",                 "<string>:1: unrecognized value \"123ABC\"" },
+    { 1, "123XYZ",                 "<string>:1: unexpected character 'X' (ascii 88)" },
+    { 1, "ABC$",                   "<string>:1: unexpected character '$' (ascii 36)" },
+    { 1, "123$",                   "<string>:1: unexpected character '$' (ascii 36)" },
     { 1, "Test {\n\tTest1 123\n\tTest2 1.3\n\tTest3 \"ABC\\0\"\n}",
-         "4: invalid escape sequence \"\\0\"" },
+         "<string>:4: invalid escape sequence \"\\0\"" },
     { 1, "Test { Test2 { Test3 123 Test4 1.3 Test5 \"ABC\" }",
-         "1: unexpected end of file" },
+         "<string>:1: unexpected end of file" },
     { 1, "Test { Test1 123 Test2 1.3 Test3 \"ABC\" } }",
-         "1: unbalanced '}'" },
+         "<string>:1: unbalanced '}'" },
 };
 
 static int num_tests = sizeof(test) / sizeof(test[0]);

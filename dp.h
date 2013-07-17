@@ -24,6 +24,7 @@ struct DP_Object {
     DP_Object *next;
     DP_Type type;
     char *name;
+    const char *file;
     int   line;
     union {
         char      *s;
