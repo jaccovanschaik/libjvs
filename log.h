@@ -96,7 +96,7 @@ void _logSetLocation(const char *file, int line, const char *func);
  * Send out a logging message using <fmt> and the subsequent parameters through <logger>. Called as
  * part of the logWrite macro, not to be called on its own.
  */
-void _logWrite(Logger *logger, const char *fmt, ...);
+void _logWrite(Logger *logger, const char *fmt, ...) __attribute__ ((format (printf, 2, 3)));
 
 /*
  * Close logger <logger>.
