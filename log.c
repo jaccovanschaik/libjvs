@@ -48,13 +48,31 @@ typedef struct {
     } u;
 } LOG_Output;
 
+typedef enum {
+    PFX_DATE,
+    PFX_TIME,
+    PFX_FILE,
+    PFX_LINE,
+    PFX_FUNC,
+    PFX_STR
+} PFX_Type;
+
+typedef struct {
+    ListNode _node;
+    PFX_Type type;
+    union {
+        char *string;
+        int precision;
+    } u;
+} LOG_Prefix;
+
 /*
  * A logger.
  */
 struct Logger {
     List outputs;
+    List prefixes;
     Buffer scratch;
-    int with_date, with_time, with_file, with_func, with_line;
 };
 
 /*
@@ -106,14 +124,30 @@ static void log_close_output(LOG_Output *out)
     free(out);
 }
 
+static LOG_Prefix *log_add_prefix(Logger *logger, PFX_Type type)
+{
+    LOG_Prefix *prefix = calloc(1, sizeof(LOG_Prefix));
+
+    prefix->type = type;
+
+    listAppendTail(&logger->prefixes, prefix);
+
+    return prefix;
+}
+
+static void log_get_time(struct tm *tm, struct timeval *tv)
+{
+    gettimeofday(tv, NULL);
+
+    localtime_r(&tv->tv_sec, tm);
+}
+
 /*
  * Create a new logger.
  */
 Logger *logCreate(void)
 {
     Logger *logger = calloc(1, sizeof(Logger));
-
-    logger->with_time = -1;
 
     return logger;
 }
@@ -209,53 +243,56 @@ int logToSyslog(Logger *logger, const char *ident, int option, int facility, int
 }
 
 /*
- * Add (if <on> is TRUE) or leave out (if <on> is FALSE) a date of the form YYYY-MM-DD in output
- * messages. The default is FALSE.
+ * Add a date of the form YYYY-MM-DD in output messages.
  */
-void logWithDate(Logger *logger, int on)
+void logWithDate(Logger *logger)
 {
-    logger->with_date = on;
+    log_add_prefix(logger, PFX_DATE);
 }
 
 /*
- * Add (if <on> is TRUE) or leave out (if <on> is FALSE) a timestamp of the form HH:MM:SS to output
- * messages. <precision> is the number of sub-second digits to show. The default is FALSE.
+ * Add a timestamp of the form HH:MM:SS to output messages. <precision> is the number of sub-second
+ * digits to show.
  */
-void logWithTime(Logger *logger, int on, int precision)
+void logWithTime(Logger *logger, int precision)
 {
-    if (!on) {
-        logger->with_time = -1;
-    }
-    else {
-        logger->with_time = CLAMP(precision, 0, 6);
-    }
+    LOG_Prefix *prefix = log_add_prefix(logger, PFX_TIME);
+
+    prefix->u.precision = CLAMP(precision, 0, 6);
 }
 
 /*
- * Add (if <on> is TRUE) or leave out (if <on> is FALSE) the name of the file from which the
- * logWrite function was called in log messages. The default is FALSE.
+ * Add the name of the file from which the logWrite function was called to log messages.
  */
-void logWithFile(Logger *logger, int on)
+void logWithFile(Logger *logger)
 {
-    logger->with_file = on;
+    log_add_prefix(logger, PFX_FILE);
 }
 
 /*
- * Add (if <on> is TRUE) or leave out (if <on> is FALSE) the name of the function that called the
- * logWrite function. The default is FALSE.
+ * Add the name of the function that called the logWrite function to log messages.
  */
-void logWithFunction(Logger *logger, int on)
+void logWithFunction(Logger *logger)
 {
-    logger->with_func = on;
+    log_add_prefix(logger, PFX_FUNC);
 }
 
 /*
- * Add (if <on> is TRUE) or leave out (if <on> is FALSE) the line number of the call to the logWrite
- * function. The default is FALSE.
+ * Add the line number of the call to the logWrite function to log messages
  */
-void logWithLine(Logger *logger, int on)
+void logWithLine(Logger *logger)
 {
-    logger->with_line = on;
+    log_add_prefix(logger, PFX_FUNC);
+}
+
+/*
+ * Add string <string> to log messages.
+ */
+void logWithString(Logger *logger, const char *string)
+{
+    LOG_Prefix *prefix = log_add_prefix(logger, PFX_STR);
+
+    prefix->u.string = strdup(string);
 }
 
 /*
@@ -275,48 +312,53 @@ void _logSetLocation(const char *file, int line, const char *func)
  */
 void _logWrite(Logger *logger, const char *fmt, ...)
 {
-    struct timeval tv;
-    struct tm *tm;
+    struct tm tm = { 0 };
+    struct timeval tv = { 0 };
 
     va_list ap;
     LOG_Output *out;
-
-    if (logger->with_date || logger->with_time > -1) {
-        gettimeofday(&tv, NULL);
-        tm = localtime(&tv.tv_sec);
-    }
+    LOG_Prefix *pfx;
 
     bufClear(&logger->scratch);
 
-    if (logger->with_date) {
-        bufAddF(&logger->scratch, "%04d-%02d-%02d ",
-                tm->tm_year + 1900, tm->tm_mon + 1, tm->tm_mday);
-    }
+    for (pfx = listHead(&logger->prefixes); pfx; pfx = listNext(pfx)) {
+        switch(pfx->type) {
+        case PFX_DATE:
+            if (tv.tv_sec == 0) log_get_time(&tm, &tv);
 
-    if (logger->with_time > -1) {
-        bufAddF(&logger->scratch, "%02d:%02d:", tm->tm_hour, tm->tm_min);
+            bufAddF(&logger->scratch, "%04d-%02d-%02d ",
+                    tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday);
 
-        if (logger->with_time == 0) {
-            bufAddF(&logger->scratch, "%02d ", tm->tm_sec);
+            break;
+        case PFX_TIME:
+            if (tv.tv_sec == 0) log_get_time(&tm, &tv);
+
+            bufAddF(&logger->scratch, "%02d:%02d:", tm.tm_hour, tm.tm_min);
+
+            if (pfx->u.precision == 0) {
+                bufAddF(&logger->scratch, "%02d ", tm.tm_sec);
+            }
+            else {
+                double seconds = (double) tm.tm_sec + (double) tv.tv_usec / 1000000.0;
+
+                bufAddF(&logger->scratch, "%0*.*f ",
+                        3 + pfx->u.precision, pfx->u.precision, seconds);
+            }
+
+            break;
+        case PFX_FILE:
+            bufAddF(&logger->scratch, "%s ", _log_file);
+            break;
+        case PFX_LINE:
+            bufAddF(&logger->scratch, "%d ", _log_line);
+            break;
+        case PFX_FUNC:
+            bufAddF(&logger->scratch, "%s ", _log_func);
+            break;
+        case PFX_STR:
+            bufAddF(&logger->scratch, "%s ", pfx->u.string);
+            break;
         }
-        else {
-            double seconds = (double) tm->tm_sec + (double) tv.tv_usec / 1000000.0;
-
-            bufAddF(&logger->scratch, "%0*.*f ",
-                    3 + logger->with_time, logger->with_time, seconds);
-        }
-    }
-
-    if (logger->with_file) {
-        bufAddF(&logger->scratch, "%s ", _log_file);
-    }
-
-    if (logger->with_func) {
-        bufAddF(&logger->scratch, "%s ", _log_func);
-    }
-
-    if (logger->with_line) {
-        bufAddF(&logger->scratch, "%d ", _log_line);
     }
 
     va_start(ap, fmt);

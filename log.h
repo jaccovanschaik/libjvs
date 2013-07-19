@@ -57,34 +57,35 @@ int logToFD(Logger *logger, int fd);
 int logToSyslog(Logger *logger, const char *ident, int option, int facility, int priority);
 
 /*
- * Add (if <on> is TRUE) or leave out (if <on> is FALSE) a date of the form YYYY-MM-DD in output
- * messages. The default is FALSE.
+ * Add a date of the form YYYY-MM-DD in output messages.
  */
-void logWithDate(Logger *logger, int on);
+void logWithDate(Logger *logger);
 
 /*
- * Add (if <on> is TRUE) or leave out (if <on> is FALSE) a timestamp of the form HH:MM:SS to output
- * messages. <precision> is the number of sub-second digits to show. The default is FALSE.
+ * Add a timestamp of the form HH:MM:SS to output messages. <precision> is the number of sub-second
+ * digits to show.
  */
-void logWithTime(Logger *logger, int on, int precision);
+void logWithTime(Logger *logger, int precision);
 
 /*
- * Add (if <on> is TRUE) or leave out (if <on> is FALSE) the name of the file from which the
- * logWrite function was called in log messages. The default is FALSE.
+ * Add the name of the file from which the logWrite function was called to log messages.
  */
-void logWithFile(Logger *logger, int on);
+void logWithFile(Logger *logger);
 
 /*
- * Add (if <on> is TRUE) or leave out (if <on> is FALSE) the name of the function that called the
- * logWrite function. The default is FALSE.
+ * Add the name of the function that called the logWrite function to log messages.
  */
-void logWithFunction(Logger *logger, int on);
+void logWithFunction(Logger *logger);
 
 /*
- * Add (if <on> is TRUE) or leave out (if <on> is FALSE) the line number of the call to the logWrite
- * function. The default is FALSE.
+ * Add the line number of the call to the logWrite function to log messages
  */
-void logWithLine(Logger *logger, int on);
+void logWithLine(Logger *logger);
+
+/*
+ * Add string <string> to log messages.
+ */
+void logWithString(Logger *logger, const char *string);
 
 /*
  * Set _log_file, _log_line and _log_func to the given location. Called as part of the logWrite
@@ -96,7 +97,7 @@ void _logSetLocation(const char *file, int line, const char *func);
  * Send out a logging message using <fmt> and the subsequent parameters through <logger>. Called as
  * part of the logWrite macro, not to be called on its own.
  */
-void _logWrite(Logger *logger, const char *fmt, ...) __attribute__ ((format (printf, 2, 3)));
+void _logWrite(Logger *logger, const char *fmt, ...);
 
 /*
  * Close logger <logger>.
