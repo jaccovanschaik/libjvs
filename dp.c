@@ -467,7 +467,10 @@ const char *dpType(DP_Object *obj)
  */
 const char *dpError(DP_Stream *stream)
 {
-    return bufGet(&stream->error);
+    if (stream == NULL)
+        return NULL;
+    else
+        return bufGet(&stream->error);
 }
 
 /*
