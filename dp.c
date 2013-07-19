@@ -436,6 +436,8 @@ DP_Stream *dpOpenString(const char *string)
  */
 DP_Object *dpParse(DP_Stream *stream)
 {
+    if (stream == NULL) return NULL;
+
     stream->line = 1;
 
     return dp_parse(stream, 0);
