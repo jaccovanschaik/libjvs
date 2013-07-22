@@ -446,7 +446,7 @@ DP_Object *dpParse(DP_Stream *stream)
 /*
  * Return the type of <obj> as a string.
  */
-const char *dpType(DP_Object *obj)
+const char *dpType(const DP_Object *obj)
 {
     switch(obj->type) {
     case DP_STRING:
@@ -465,7 +465,7 @@ const char *dpType(DP_Object *obj)
 /*
  * Retrieve an error text from <stream>, in case any function has returned an error.
  */
-const char *dpError(DP_Stream *stream)
+const char *dpError(const DP_Stream *stream)
 {
     if (stream == NULL)
         return NULL;
