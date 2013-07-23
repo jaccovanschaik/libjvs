@@ -10,6 +10,8 @@
  * http://www.opensource.org/licenses/mit-license.php for details.
  */
 
+#include <stdio.h>
+
 typedef struct DP_Stream DP_Stream;
 typedef struct DP_Object DP_Object;
 
