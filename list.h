@@ -37,6 +37,7 @@ struct List {
 #define listNext(n)          f_listNext(&(n)->_node)
 #define listPrev(n)          f_listPrev(&(n)->_node)
 #define listRemove(l, n)     f_listRemove((l), &(n)->_node)
+#define listContaining(n)    f_listContaining(&(n)->_node)
 
 /* Create a new, empty list. */
 List *listCreate(void);
@@ -82,6 +83,11 @@ int listLength(const List *list);
 
 /* Return TRUE if <list> is empty. */
 int listIsEmpty(const List *list);
+
+/*
+ * Return the list that contains <node>, or NULL if <node> is not contained in a list.
+ */
+List *f_listContaining(ListNode *node);
 
 /* Sort <list> using comparison function <cmp>. */
 void listSort(List *list, int(*cmp)(const void *, const void *));

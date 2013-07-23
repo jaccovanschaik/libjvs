@@ -19,8 +19,9 @@
 
 char *_id_list = "$Id$\n";
 
-/* Create a new, empty list. */
-
+/*
+ * Create a new, empty list.
+ */
 List *listCreate(void)
 {
    List *list = calloc(1, sizeof(List));
@@ -30,8 +31,9 @@ List *listCreate(void)
    return list;
 }
 
-/* Initialize the list specified by <list>. */
-
+/*
+ * Initialize the list specified by <list>.
+ */
 void listInitialize(List *list)
 {
     assert(list != NULL);
@@ -39,8 +41,9 @@ void listInitialize(List *list)
     memset(list, 0, sizeof(List));
 }
 
-/* Insert <node> at the head of list <list>. */
-
+/*
+ * Insert <node> at the head of list <list>.
+ */
 void f_listInsertHead(List *list, ListNode *node)
 {
     assert(list != NULL);
@@ -65,8 +68,9 @@ void f_listInsertHead(List *list, ListNode *node)
     list->length++;
 }
 
-/* Append <node> to the tail of list <list>. */
-
+/*
+ * Append <node> to the tail of list <list>.
+ */
 void f_listAppendTail(List *list, ListNode *node)
 {
     assert(list != NULL);
@@ -91,8 +95,9 @@ void f_listAppendTail(List *list, ListNode *node)
     list->length++;
 }
 
-/* Insert <node> just before <before> in list <list>. */
-
+/*
+ * Insert <node> just before <before> in list <list>.
+ */
 void f_listInsert(List *list, ListNode *node, ListNode *before)
 {
     assert(list != NULL);
@@ -124,8 +129,9 @@ void f_listInsert(List *list, ListNode *node, ListNode *before)
     list->length++;
 }
 
-/* Append <node> to <after> in list <list>. */
-
+/*
+ * Append <node> to <after> in list <list>.
+ */
 void f_listAppend(List *list, ListNode *node, ListNode *after)
 {
     assert(list != NULL);
@@ -157,8 +163,9 @@ void f_listAppend(List *list, ListNode *node, ListNode *after)
     list->length++;
 }
 
-/* Remove <node> from list <list>. */
-
+/*
+ * Remove <node> from list <list>.
+ */
 void f_listRemove(List *list, ListNode *node)
 {
     assert(list != NULL);
@@ -184,36 +191,41 @@ void f_listRemove(List *list, ListNode *node)
     list->length--;
 }
 
-/* Return the node before <node>. */
-
+/*
+ * Return the node before <node>.
+ */
 void *f_listPrev(const ListNode *node)
 {
     return(N(node)->prev);
 }
 
-/* Return the node following <node>. */
-
+/*
+ * Return the node following <node>.
+ */
 void *f_listNext(const ListNode *node)
 {
     return(N(node)->next);
 }
 
-/* Return the node at the head of <list>. */
-
+/*
+ * Return the node at the head of <list>.
+ */
 void *listHead(const List *list)
 {
     return(list->head);
 }
 
-/* Return the node at the end of <list>. */
-
+/*
+ * Return the node at the end of <list>.
+ */
 void *listTail(const List *list)
 {
     return(list->tail);
 }
 
-/* Remove the first node in list <list> and return a pointer to it. */
-
+/*
+ * Remove the first node in list <list> and return a pointer to it.
+ */
 void *listRemoveHead(List *list)
 {
     ListNode *node;
@@ -229,8 +241,9 @@ void *listRemoveHead(List *list)
     return(node);
 }
 
-/* Remove the last node in list <list> and return a pointer to it. */
-
+/*
+ * Remove the last node in list <list> and return a pointer to it.
+ */
 void *listRemoveTail(List *list)
 {
     ListNode *node;
@@ -246,8 +259,9 @@ void *listRemoveTail(List *list)
     return(node);
 }
 
-/* Return the number of nodes in list <list>. */
-
+/*
+ * Return the number of nodes in list <list>.
+ */
 int listLength(const List *list)
 {
     assert(list != NULL);
@@ -255,8 +269,9 @@ int listLength(const List *list)
     return list->length;
 }
 
-/* Return TRUE if <list> is empty. */
-
+/*
+ * Return TRUE if <list> is empty.
+ */
 int listIsEmpty(const List *list)
 {
     assert(list != NULL);
@@ -264,8 +279,17 @@ int listIsEmpty(const List *list)
     return(list->length == 0);
 }
 
-/* Sort <list> using comparison function <cmp>. */
+/*
+ * Return the list that contains <node>, or NULL if <node> is not contained in a list.
+ */
+List *f_listContaining(ListNode *node)
+{
+    return node->list;
+}
 
+/*
+ * Sort <list> using comparison function <cmp>.
+ */
 void listSort(List *list, int(*cmp)(const void *, const void *))
 {
     ListNode *l, *r;        /* Current node in l(eft) and r(ight) list. */
@@ -398,6 +422,11 @@ int main(int argc, char *argv[])
     TEST_PTR(listPrev(data[1]), data[0]);
     TEST_PTR(listPrev(data[0]), NULL);
 
+    TEST_PTR(listContaining(data[0]), &list);
+    TEST_PTR(listContaining(data[1]), &list);
+    TEST_PTR(listContaining(data[2]), &list);
+    TEST_PTR(listContaining(data[3]), &list);
+
     listRemove(&list, data[0]);
     listRemove(&list, data[1]);
     listRemove(&list, data[2]);
@@ -405,6 +434,11 @@ int main(int argc, char *argv[])
 
     TEST_INT(listLength(&list), 0);
     TEST_INT(listIsEmpty(&list),  TRUE);
+
+    TEST_PTR(listContaining(data[0]), NULL);
+    TEST_PTR(listContaining(data[1]), NULL);
+    TEST_PTR(listContaining(data[2]), NULL);
+    TEST_PTR(listContaining(data[3]), NULL);
 
     listInsertHead(&list, data[3]);
     listInsertHead(&list, data[2]);
