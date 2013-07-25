@@ -15,6 +15,8 @@
 typedef struct DP_Stream DP_Stream;
 typedef struct DP_Object DP_Object;
 
+/* Type of the object. */
+
 typedef enum {
     DP_STRING,
     DP_INT,
@@ -22,17 +24,19 @@ typedef enum {
     DP_CONTAINER
 } DP_Type;
 
+/* The object itself. */
+
 struct DP_Object {
-    DP_Object *next;
-    DP_Type type;
-    char *name;
-    const char *file;
-    int   line;
+    DP_Object *next;    /* Next object in the sequence. */
+    DP_Type type;       /* Type of the object. */
+    char *name;         /* Name of the object. */
+    const char *file;   /* File... */
+    int   line;         /* ... and line where the object was found. */
     union {
-        char      *s;
-        long int   i;
-        double     f;
-        DP_Object *c;
+        char      *s;   /* Pointer to a string (if type == DP_STRING) */
+        long int   i;   /* An integer (if type == DP_INT) */
+        double     f;   /* A float (if type == DP_FLOAT) */
+        DP_Object *c;   /* First in a sub-list of objects (if type == DP_CONTAINER) */
     } u;
 };
 
