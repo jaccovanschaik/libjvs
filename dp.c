@@ -37,7 +37,7 @@ typedef enum {
     DP_ST_FILE,
     DP_ST_FD,
     DP_ST_FP,
-    DP_ST_STR
+    DP_ST_STRING
 } DP_StreamType;
 
 struct DP_Stream {
@@ -58,11 +58,12 @@ static void dp_unget_char(DP_Stream *stream, int c)
 {
     if (c == EOF) return;
 
-    if (stream->type == DP_ST_STR) {
+    if (stream->type == DP_ST_STRING) {
         stream->u.str--;
 
-        /* We don't want to overwrite the string that the user has given us, so we'll just assert
-         * that the character we're pushing back is the same that was already there. */
+        /* We can't overwrite the string that the user has given us sinze it's declared const, so
+         * we'll just assert that the character we're pushing back is the same that was already
+         * there. */
 
         assert(c == *stream->u.str);
     }
@@ -80,7 +81,7 @@ static int dp_get_char(DP_Stream *stream)
 {
     int c;
 
-    if (stream->type == DP_ST_STR) {
+    if (stream->type == DP_ST_STRING) {
         c = *stream->u.str;
 
         if (c == '\0')
@@ -124,30 +125,40 @@ static void dp_unexpected(DP_Stream *stream, int c)
     }
 }
 
-static int dp_interpret_value(const char *value, DP_Object *obj)
+/*
+ * Interpret <value> as a number and update <obj> with what we think it is.
+ */
+static int dp_interpret_number(const char *value, DP_Object *obj)
 {
     long i;
     double f;
 
     char *end;
 
-    if ((i = strtol(value, &end, 0)), end == value + strlen(value)) {
+    i = strtol(value, &end, 0);
+
+    if (end == value + strlen(value)) {
         obj->type = DP_INT;
         obj->u.i = i;
 
         return 0;
     }
-    else if ((f = strtod(value, &end)), end == value + strlen(value)) {
+
+    f = strtod(value, &end);
+
+    if (end == value + strlen(value)) {
         obj->type = DP_FLOAT;
         obj->u.f = f;
 
         return 0;
     }
-    else {
-        return -1;
-    }
+
+    return -1;
 }
 
+/*
+ * Create and return a DP_Object of type <type>.
+ */
 static DP_Object *dp_new_object(DP_Type type)
 {
     DP_Object *obj = calloc(1, sizeof(DP_Object));
@@ -157,6 +168,11 @@ static DP_Object *dp_new_object(DP_Type type)
     return obj;
 }
 
+/*
+ * Create an object with type <type> and name <name>, which was found in file <file> on line <line>.
+ * <root> and <last> are pointers to the addresses of the first and last elements in the list to
+ * which the new object must be added.
+ */
 static DP_Object *dp_add_object(DP_Type type, const Buffer *name,
                                 const char *file, int line,
                                 DP_Object **root, DP_Object **last)
@@ -166,32 +182,44 @@ static DP_Object *dp_add_object(DP_Type type, const Buffer *name,
     obj->line = line;
     obj->file = file;
 
+    /* If a name was given use it. Otherwise, if there is a preceding object copy its name.
+     * Otherwise simply set the name to NULL. */
+
     if (name != NULL && bufLen(name) != 0)
         obj->name = strdup(bufGet(name));
     else if (*last != NULL && (*last)->name != NULL)
         obj->name = strdup((*last)->name);
+
+    /* If there is no preceding object, this new object is the first in a new list which makes it
+     * the root of the new list. */
 
     if (*last == NULL)
         *root = obj;
     else
         (*last)->next = obj;
 
+    /* In any case, this object is the last in the current list. */
+
     *last = obj;
 
     return obj;
 }
 
-static DP_Object *dp_parse(DP_Stream *stream, int level)
+/*
+ * Parse input stream <stream> and return the first element in the list of objects that was found.
+ * <nesting_level> is the nesting level (w.r.t. braces) we're currently at.
+ */
+static DP_Object *dp_parse(DP_Stream *stream, int nesting_level)
 {
     int c;
 
-    DP_State state = DP_STATE_NONE;
+    DP_State state = DP_STATE_NONE;     /* Current parser state. */
 
-    DP_Object *root = NULL;
-    DP_Object *last = NULL;
+    DP_Object *root = NULL;             /* Root (i.e. first) element of current object list. */
+    DP_Object *last = NULL;             /* Last added element of current object list. */
 
-    Buffer name = { 0 };
-    Buffer value = { 0 };
+    Buffer name = { 0 };                /* Name of current object. */
+    Buffer value = { 0 };               /* Value of current object. */
 
     while (1) {
         if (state == DP_STATE_ERROR || state == DP_STATE_END) break;
@@ -200,6 +228,8 @@ static DP_Object *dp_parse(DP_Stream *stream, int level)
 
         switch(state) {
         case DP_STATE_NONE:
+            /* We're in whitespace. Let's see what we find. */
+
             if (c =='#') {
                 state = DP_STATE_COMMENT;
             }
@@ -216,38 +246,51 @@ static DP_Object *dp_parse(DP_Stream *stream, int level)
                 bufClear(&value);
             }
             else if (c == '{') {
-                DP_Object *obj = dp_add_object(DP_CONTAINER,
-                        &name, stream->file, stream->line, &root, &last);
-                if ((obj->u.c = dp_parse(stream, level + 1)) == NULL) {
+                /* Parse the remainder of this container, including the closing brace. */
+
+                DP_Object *obj =
+                    dp_add_object(DP_CONTAINER, &name, stream->file, stream->line, &root, &last);
+
+                if ((obj->u.c = dp_parse(stream, nesting_level + 1)) == NULL) {
                     state = DP_STATE_ERROR;
                 }
             }
             else if (c == '}') {
-                if (level > 0) {
+                if (nesting_level > 0) {    /* OK, end of this container. */
                     state = DP_STATE_END;
                 }
-                else {
+                else {                      /* We're at top-level, what's this doing here?! */
                     bufSetF(&stream->error, "%s:%d: unbalanced '}'", stream->file, stream->line);
                     state = DP_STATE_ERROR;
                 }
             }
-            else if (c == EOF && level == 0) {
+            else if (c == EOF && nesting_level == 0) {
                 state = DP_STATE_END;
             }
             else if (!isspace(c)) {
                 dp_unexpected(stream, c);
                 state = DP_STATE_ERROR;
             }
+            else {
+                /* OK, another whitespace character. Just keep going. */
+            }
             break;
         case DP_STATE_COMMENT:
+            /* We're in a comment. Just keep going until the end of the line, or the file. */
+
             if (c == '\n') {
                 state = DP_STATE_NONE;
             }
             else if (c == EOF) {
                 state = DP_STATE_END;
             }
+            else {
+                /* Anything else just adds to the comment. */
+            }
             break;
         case DP_STATE_NAME:
+            /* We're in a name. We'll accept underscores, letters and digits. */
+
             if (c == '_' || isalnum(c)) {
                 bufAddC(&name, c);
             }
@@ -261,11 +304,15 @@ static DP_Object *dp_parse(DP_Stream *stream, int level)
             }
             break;
         case DP_STATE_STRING:
+            /* We're in a string. Keep going until the closing quote (but: escape sequences!) */
+
             if (c == '\\') {
                 state = DP_STATE_ESCAPE;
             }
             else if (c == '"') {
-                DP_Object *obj = dp_add_object(DP_STRING, &name, stream->file, stream->line, &root, &last);
+                DP_Object *obj =
+                    dp_add_object(DP_STRING, &name, stream->file, stream->line, &root, &last);
+
                 obj->u.s = strdup(bufGet(&value));
                 state = DP_STATE_NONE;
             }
@@ -278,6 +325,8 @@ static DP_Object *dp_parse(DP_Stream *stream, int level)
             }
             break;
         case DP_STATE_ESCAPE:
+            /* Escape sequence encountered. Interpret it. */
+
             if (c == 't') {
                 bufAddC(&value, '\t');
                 state = DP_STATE_STRING;
@@ -295,19 +344,24 @@ static DP_Object *dp_parse(DP_Stream *stream, int level)
                 state = DP_STATE_STRING;
             }
             else {
-                bufSetF(&stream->error, "%s:%d: invalid escape sequence \"\\%c\"", stream->file, stream->line, c);
+                bufSetF(&stream->error,
+                        "%s:%d: invalid escape sequence \"\\%c\"", stream->file, stream->line, c);
                 state = DP_STATE_ERROR;
             }
             break;
         case DP_STATE_NUMBER:
+            /* A number (float or int). Accept anything that can occur in a number (floating point,
+             * octal or hex) and let strtod or strtol sort it out later. */
+
             if (isxdigit(c) || c == 'x' || c == '.' ||
                 c == 'e' || c == 'E' || c == '+' || c == '-') {
                 bufAddC(&value, c);
             }
             else if (isspace(c) || c == '{' || c == '}' || c == EOF) {
-                DP_Object *obj = dp_add_object(DP_INT, &name, stream->file, stream->line, &root, &last);
+                DP_Object *obj =
+                    dp_add_object(DP_INT, &name, stream->file, stream->line, &root, &last);
 
-                if (dp_interpret_value(bufGet(&value), obj) == 0) {
+                if (dp_interpret_number(bufGet(&value), obj) == 0) {
                     state = DP_STATE_NONE;
                 }
                 else {
@@ -340,6 +394,9 @@ static DP_Object *dp_parse(DP_Stream *stream, int level)
     }
 }
 
+/*
+ * Create and return a stream of type <type>.
+ */
 static DP_Stream *dp_create_stream(DP_StreamType type)
 {
     DP_Stream *stream = calloc(1, sizeof(DP_Stream));
@@ -349,11 +406,14 @@ static DP_Stream *dp_create_stream(DP_StreamType type)
     return stream;
 }
 
+/*
+ * Describe the type of stream <stream>.
+ */
 static char *dp_describe_stream(DP_Stream *stream)
 {
     struct stat statbuf;
 
-    if (stream->type == DP_ST_STR) {
+    if (stream->type == DP_ST_STRING) {
         return "<string>";
     }
 
@@ -423,7 +483,7 @@ DP_Stream *dpOpenFD(int fd)
  */
 DP_Stream *dpOpenString(const char *string)
 {
-    DP_Stream *stream = dp_create_stream(DP_ST_STR);
+    DP_Stream *stream = dp_create_stream(DP_ST_STRING);
 
     stream->u.str = string;
     stream->file = strdup(dp_describe_stream(stream));
@@ -496,7 +556,7 @@ void dpFree(DP_Object *root)
 }
 
 /*
- * Free the memory occupied by <stream>.
+ * Close <stream> and free all its memory.
  */
 void dpClose(DP_Stream *stream)
 {
