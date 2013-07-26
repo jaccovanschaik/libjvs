@@ -19,12 +19,12 @@
 
 /* An entry in a hash table. */
 
-typedef struct {
+struct HashEntry {
     ListNode _node;     /* Make it listable. */
     const void *data;   /* Pointer to some data. */
     void *key;          /* Points to the associated key. */
     int key_len;        /* Length of the key. */
-} HashEntry;
+};
 
 /* Definition of a hash key. Depending on the number of significant bits, an
  * unsigned integer type is picked from stdint.h. The maximum theoretical number
@@ -212,6 +212,66 @@ void hashDel(HashTable *tbl, const void *key, int key_len)
    free(entry);
 }
 
+static List *hash_next_bucket(HashTable *tbl, List *bucket)
+{
+    int i;
+
+    if (bucket == NULL)
+        i = 0;
+    else
+        i = bucket - tbl->bucket + 1;
+
+    do {
+        bucket = tbl->bucket + i;
+
+        if (!listIsEmpty(bucket)) {
+            return bucket;
+        }
+    } while (++i < HASH_BUCKETS);
+
+    return NULL;
+}
+
+/*
+ * Return a pointer to the first entry in <tbl>, or NULL if <tbl> is empty.
+ */
+const void *hashFirst(HashTable *tbl)
+{
+    tbl->bucket_iter = hash_next_bucket(tbl, NULL);
+
+    if (tbl->bucket_iter == NULL) {
+        tbl->entry_iter = NULL;
+        return NULL;
+    }
+    else {
+        tbl->entry_iter = listHead(tbl->bucket_iter);
+        return tbl->entry_iter->data;
+    }
+}
+
+/*
+ * Return the next entry in <tbl>, or NULL if there are no more entries. Note that this function
+ * (and hashFirst() above) is not particularly quick. If you need to iterate over the entries in
+ * the hash table, and do it quickly, it might be best to also put those entries in a linked list
+ * and use that to iterate, rather than these functions.
+ */
+const void *hashNext(HashTable *tbl)
+{
+    if (tbl->entry_iter == NULL) {
+        return NULL;
+    }
+    else if ((tbl->entry_iter = listNext(tbl->entry_iter)) != NULL) {
+        return tbl->entry_iter->data;
+    }
+    else if ((tbl->bucket_iter = hash_next_bucket(tbl, tbl->bucket_iter)) != NULL) {
+        tbl->entry_iter = listHead(tbl->bucket_iter);
+        return tbl->entry_iter->data;
+    }
+    else {
+        return NULL;
+    }
+}
+
 #ifdef TEST
 #include <stdio.h>
 
@@ -231,28 +291,85 @@ int main(int argc, char *argv[])
 {
     HashTable *table = hashCreateTable();
 
-    int *data1 = malloc(sizeof(int));
-    char *data2 = strdup("Hoi");
+    struct Data {
+        int i;
+        char *s;
+    };
 
-    *data1 = 123;
+    const struct Data *item;
 
-    hashAdd(table, data1, HASH_VALUE(*data1));
-    hashAdd(table, data2, HASH_STRING(data2));
+    struct Data data[] = {
+        { 0, "zero" },
+        { 1, "one" },
+        { 2, "two" },
+        { 3, "three" },
+        { 4, "four" },
+    };
 
-    make_sure_that(hashGet(table, HASH_VALUE(*data1)) == data1);
-    make_sure_that(hashGet(table, HASH_STRING(data2)) == data2);
+    int i, count = sizeof(data) / sizeof(data[0]);
 
-    hashSet(table, data2, HASH_VALUE(*data1));
-    hashSet(table, data1, HASH_STRING(data2));
+    for (i = 0; i < count; i++) {
+        hashAdd(table, data + i, HASH_VALUE(data[i].i));
+        hashAdd(table, data + i, HASH_STRING(data[i].s));
+    }
 
-    make_sure_that(hashGet(table, HASH_VALUE(*data1)) == data2);
-    make_sure_that(hashGet(table, HASH_STRING(data2)) == data1);
+    make_sure_that(hashGet(table, HASH_VALUE(data[0].i)) == &data[0]);
+    make_sure_that(hashGet(table, HASH_VALUE(data[1].i)) == &data[1]);
+    make_sure_that(hashGet(table, HASH_VALUE(data[2].i)) == &data[2]);
+    make_sure_that(hashGet(table, HASH_VALUE(data[3].i)) == &data[3]);
+    make_sure_that(hashGet(table, HASH_VALUE(data[4].i)) == &data[4]);
 
-    hashDel(table, HASH_VALUE(*data1));
-    hashDel(table, HASH_STRING(data2));
+    make_sure_that(hashGet(table, HASH_STRING("zero"))  == &data[0]);
+    make_sure_that(hashGet(table, HASH_STRING("one"))   == &data[1]);
+    make_sure_that(hashGet(table, HASH_STRING("two"))   == &data[2]);
+    make_sure_that(hashGet(table, HASH_STRING("three")) == &data[3]);
+    make_sure_that(hashGet(table, HASH_STRING("four"))  == &data[4]);
 
-    make_sure_that(hashGet(table, HASH_VALUE(*data1)) == NULL);
-    make_sure_that(hashGet(table, HASH_STRING(data2)) == NULL);
+    for (i = 0; i < count; i++) {
+        hashDel(table, HASH_VALUE(i));
+    }
+
+    make_sure_that(hashGet(table, HASH_VALUE(data[0].i)) == NULL);
+    make_sure_that(hashGet(table, HASH_VALUE(data[1].i)) == NULL);
+    make_sure_that(hashGet(table, HASH_VALUE(data[2].i)) == NULL);
+    make_sure_that(hashGet(table, HASH_VALUE(data[3].i)) == NULL);
+    make_sure_that(hashGet(table, HASH_VALUE(data[4].i)) == NULL);
+
+    make_sure_that(hashGet(table, HASH_STRING("zero"))  == &data[0]);
+    make_sure_that(hashGet(table, HASH_STRING("one"))   == &data[1]);
+    make_sure_that(hashGet(table, HASH_STRING("two"))   == &data[2]);
+    make_sure_that(hashGet(table, HASH_STRING("three")) == &data[3]);
+    make_sure_that(hashGet(table, HASH_STRING("four"))  == &data[4]);
+
+    for (i = 0; i < count; i++) {
+        hashDel(table, HASH_STRING(data[i].s));
+    }
+
+    make_sure_that(hashGet(table, HASH_VALUE(data[0].i)) == NULL);
+    make_sure_that(hashGet(table, HASH_VALUE(data[1].i)) == NULL);
+    make_sure_that(hashGet(table, HASH_VALUE(data[2].i)) == NULL);
+    make_sure_that(hashGet(table, HASH_VALUE(data[3].i)) == NULL);
+    make_sure_that(hashGet(table, HASH_VALUE(data[4].i)) == NULL);
+
+    make_sure_that(hashGet(table, HASH_STRING("zero"))  == NULL);
+    make_sure_that(hashGet(table, HASH_STRING("one"))   == NULL);
+    make_sure_that(hashGet(table, HASH_STRING("two"))   == NULL);
+    make_sure_that(hashGet(table, HASH_STRING("three")) == NULL);
+    make_sure_that(hashGet(table, HASH_STRING("four"))  == NULL);
+
+    hashDeleteTable(table);
+
+    table = hashCreateTable();
+
+    for (i = 0; i < count; i++) {
+        hashAdd(table, data + i, HASH_VALUE(data[i].i));
+        hashAdd(table, data + i, HASH_STRING(data[i].s));
+    }
+
+    for (item = hashFirst(table); item != NULL; item = hashNext(table)) {
+        hashDel(table, HASH_STRING(item->s));
+        hashDel(table, HASH_VALUE(item->i));
+    }
 
     hashDeleteTable(table);
 

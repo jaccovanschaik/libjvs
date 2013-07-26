@@ -22,8 +22,12 @@
 /* A hash table. Contains <HASH_BUCKETS> buckets, each of which consists of a
  * list of HashEntry structs. */
 
+typedef struct HashEntry HashEntry;
+
 typedef struct {
-   List bucket[HASH_BUCKETS];
+    List bucket[HASH_BUCKETS];
+    HashEntry *entry_iter;
+    List *bucket_iter;
 } HashTable;
 
 /* Use these macros to provide the <key> and <key_len> parameters in the
@@ -84,5 +88,18 @@ void *hashGet(const HashTable *tbl, const void *key, int key_len);
  * this function calls abort().
  */
 void hashDel(HashTable *tbl, const void *key, int key_len);
+
+/*
+ * Return a pointer to the first entry in <tbl>, or NULL if <tbl> is empty.
+ */
+const void *hashFirst(HashTable *tbl);
+
+/*
+ * Return the next entry in <tbl>, or NULL if there are no more entries. Note that this function
+ * (and hashFirst() above) is not particularly quick. If you need to iterate over the entries in
+ * the hash table, and do it quickly, it might be best to also put those entries in a linked list
+ * and use that to iterate, rather than these functions.
+ */
+const void *hashNext(HashTable *tbl);
 
 #endif
