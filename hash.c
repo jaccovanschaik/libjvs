@@ -8,6 +8,7 @@
  * http://www.opensource.org/licenses/mit-license.php for details.
  */
 
+#include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -212,20 +213,23 @@ void hashDel(HashTable *tbl, const void *key, int key_len)
    free(entry);
 }
 
-static List *hash_next_bucket(HashTable *tbl, List *bucket)
+/*
+ * Return the address of the next non-empty bucket after <after>, or NULL if there is none.
+ */
+static List *hash_next_bucket(HashTable *tbl, List *after)
 {
     int i;
 
-    if (bucket == NULL)
+    if (after == NULL)
         i = 0;
     else
-        i = bucket - tbl->bucket + 1;
+        i = after - tbl->bucket + 1;
 
     do {
-        bucket = tbl->bucket + i;
+        after = tbl->bucket + i;
 
-        if (!listIsEmpty(bucket)) {
-            return bucket;
+        if (!listIsEmpty(after)) {
+            return after;
         }
     } while (++i < HASH_BUCKETS);
 
@@ -233,42 +237,58 @@ static List *hash_next_bucket(HashTable *tbl, List *bucket)
 }
 
 /*
+ * Return the address of the next entry after <after>, or NULL if there is none.
+ */
+static HashEntry *hash_next_entry(HashTable *tbl, HashEntry *after)
+{
+    List *next_bucket;
+
+    if (after == NULL) {
+        if ((next_bucket = hash_next_bucket(tbl, NULL)) == NULL)
+            return NULL;
+        else
+            return listHead(next_bucket);
+    }
+    else if (listNext(after) != NULL)
+        return listNext(after);
+    else if ((next_bucket = hash_next_bucket(tbl, listContaining(after))) != NULL)
+        return listHead(next_bucket);
+    else
+        return NULL;
+}
+
+/*
  * Return a pointer to the first entry in <tbl>, or NULL if <tbl> is empty.
  */
 const void *hashFirst(HashTable *tbl)
 {
-    tbl->bucket_iter = hash_next_bucket(tbl, NULL);
+    HashEntry *first = hash_next_entry(tbl, NULL);
 
-    if (tbl->bucket_iter == NULL) {
-        tbl->entry_iter = NULL;
+    if (first == NULL)
         return NULL;
-    }
     else {
-        tbl->entry_iter = listHead(tbl->bucket_iter);
-        return tbl->entry_iter->data;
+        tbl->next_entry = hash_next_entry(tbl, first);
+        return first->data;
     }
 }
 
 /*
- * Return the next entry in <tbl>, or NULL if there are no more entries. Note that this function
- * (and hashFirst() above) is not particularly quick. If you need to iterate over the entries in
- * the hash table, and do it quickly, it might be best to also put those entries in a linked list
- * and use that to iterate, rather than these functions.
+ * Return the next entry in <tbl>, or NULL if there are no more entries. Note that hashNext() and
+ * hashFirst() above are not particularly quick. If you need to iterate over the entries in the hash
+ * table, and do it quickly, it might be best to also put those entries in a linked list and use
+ * that to iterate, rather than these functions. Also, these functions return entries in order of
+ * their hash key, which may not be what you want.
  */
 const void *hashNext(HashTable *tbl)
 {
-    if (tbl->entry_iter == NULL) {
+    if (tbl->next_entry == NULL)
         return NULL;
-    }
-    else if ((tbl->entry_iter = listNext(tbl->entry_iter)) != NULL) {
-        return tbl->entry_iter->data;
-    }
-    else if ((tbl->bucket_iter = hash_next_bucket(tbl, tbl->bucket_iter)) != NULL) {
-        tbl->entry_iter = listHead(tbl->bucket_iter);
-        return tbl->entry_iter->data;
-    }
     else {
-        return NULL;
+        const void *data = tbl->next_entry->data;
+
+        tbl->next_entry = hash_next_entry(tbl, tbl->next_entry);
+
+        return data;
     }
 }
 
@@ -362,14 +382,24 @@ int main(int argc, char *argv[])
     table = hashCreateTable();
 
     for (i = 0; i < count; i++) {
-        hashAdd(table, data + i, HASH_VALUE(data[i].i));
+        hashAdd(table, data + i, HASH_VALUE(i));
+    }
+
+    for (item = hashFirst(table); item != NULL; item = hashNext(table)) {
+        hashDel(table, HASH_VALUE(item->i));
+    }
+
+    make_sure_that(hashFirst(table) == NULL);
+
+    for (i = 0; i < count; i++) {
         hashAdd(table, data + i, HASH_STRING(data[i].s));
     }
 
     for (item = hashFirst(table); item != NULL; item = hashNext(table)) {
         hashDel(table, HASH_STRING(item->s));
-        hashDel(table, HASH_VALUE(item->i));
     }
+
+    make_sure_that(hashFirst(table) == NULL);
 
     hashDeleteTable(table);
 

@@ -26,8 +26,7 @@ typedef struct HashEntry HashEntry;
 
 typedef struct {
     List bucket[HASH_BUCKETS];
-    HashEntry *entry_iter;
-    List *bucket_iter;
+    HashEntry *next_entry;
 } HashTable;
 
 /* Use these macros to provide the <key> and <key_len> parameters in the
@@ -95,10 +94,11 @@ void hashDel(HashTable *tbl, const void *key, int key_len);
 const void *hashFirst(HashTable *tbl);
 
 /*
- * Return the next entry in <tbl>, or NULL if there are no more entries. Note that this function
- * (and hashFirst() above) is not particularly quick. If you need to iterate over the entries in
- * the hash table, and do it quickly, it might be best to also put those entries in a linked list
- * and use that to iterate, rather than these functions.
+ * Return the next entry in <tbl>, or NULL if there are no more entries. Note that hashNext() and
+ * hashFirst() above are not particularly quick. If you need to iterate over the entries in the hash
+ * table, and do it quickly, it might be best to also put those entries in a linked list and use
+ * that to iterate, rather than these functions. Also, these functions return entries in order of
+ * their hash key, which may not be what you want.
  */
 const void *hashNext(HashTable *tbl);
 
