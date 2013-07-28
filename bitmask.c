@@ -1,5 +1,5 @@
 /*
- * Type generator library, to be used together with the tgen program.
+ * bitmask.c: Handle bitmasks of unlimited size.
  *
  * Copyright:	(c) 2008 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Version:	$Id$
@@ -17,7 +17,6 @@
 #include "buffer.h"
 #include "bitmask.h"
 #include "utils.h"
-#include "tgen.h"
 #include "defs.h"
 
 #define ONE_INDENT "    "

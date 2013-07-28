@@ -308,99 +308,6 @@ int bufCompare(const Buffer *left, const Buffer *right)
 }
 
 /*
- * Encode buffer <value> into <buf>.
- */
-int bufEncode(Buffer *buf, const Buffer *value)
-{
-    uint64_t len = bufLen(value);
-    unsigned int zeros;
-    int shift = 8 * sizeof(uint64_t) - 8;
-    uint8_t bytes = 0, byte[sizeof(uint64_t)];
-
-    for (shift = 8 * sizeof(uint64_t) - 8; shift >= 0; shift -= 8) {
-        byte[bytes++] = (len >> shift) & 0xFF;
-    }
-
-    for (zeros = 0; zeros < sizeof(uint64_t); zeros++) {
-        if (byte[zeros] != 0) break;
-    }
-
-    bytes -= zeros;
-
-    bufAddC(buf, bytes);
-
-    bufAdd(buf, byte + zeros, bytes);
-
-    bufCat(buf, value);
-
-    return 0;
-}
-
-/*
- * Get a binary-encoded buffer from <buf> and store it in <value>. If
- * succesful, the first part where the int8_t was stored will be
- * stripped from <buf>.
- */
-int bufDecode(Buffer *buf, Buffer *value)
-{
-    const char *ptr = bufGet(buf);
-    int remaining = bufLen(buf);
-
-    if (bufExtract(&ptr, &remaining, value) == 0) {
-        bufTrim(buf, bufLen(buf) - remaining, 0);
-        return 0;
-    }
-
-    return 1;
-}
-
-/*
- * Get an encoded buffer from <ptr> (with <remaining> bytes
- * remaining) and store it in <value>.
- */
-int bufExtract(const char **ptr, int *remaining, Buffer *value)
-{
-    const char *my_ptr = *ptr;
-    int i;
-
-    uint64_t len, my_remaining = *remaining;
-    uint8_t byte, bytes;
-
-    if (my_remaining < 1) return 1;
-
-    bytes = *my_ptr;
-
-    my_ptr++;
-    my_remaining--;
-
-    if (my_remaining < bytes) return 1;
-
-    len = 0;
-
-    for (i = 0; i < bytes; i++) {
-        byte = *my_ptr;
-
-        len <<= 8;
-        len += byte;
-
-        my_ptr++;
-        my_remaining--;
-    }
-
-    if (my_remaining < len) return 1;
-
-    bufSet(value, my_ptr, len);
-
-    my_ptr += len;
-    my_remaining -= len;
-
-    *ptr = my_ptr;
-    *remaining = my_remaining;
-
-    return 0;
-}
-
-/*
  * This function does the same as vstrpack from utils.[ch] but on a
  * Buffer instead of a char *.
  */
@@ -488,11 +395,6 @@ int main(int argc, char *argv[])
    Buffer buf1 = { };
    Buffer buf2 = { };
    Buffer *buf3;
-
-   bufSet(&buf1, "Hoi!", 4);
-   bufEncode(&buf2, &buf1);
-
-   make_sure_that(memcmp(bufGet(&buf2), "\01\04Hoi!", 6) == 0);
 
    bufClear(&buf1);
 

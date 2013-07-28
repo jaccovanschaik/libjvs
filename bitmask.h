@@ -2,7 +2,7 @@
 #define BITMASK_H
 
 /*
- * Type generator library, to be used together with the tgen program.
+ * bitmask.h: Handle bitmasks of unlimited size.
  *
  * Copyright:	(c) 2008 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Version:	$Id$
