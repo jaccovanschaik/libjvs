@@ -1,5 +1,5 @@
 /*
- * log.c: Handle logging.
+ * log.c: Write log messages.
  *
  * Copyright:	(c) 2013 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Version:	$Id$

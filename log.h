@@ -2,7 +2,7 @@
 #define LOG_H
 
 /*
- * log.h: Description
+ * log.h: Write log messages.
  *
  * Copyright:	(c) 2013 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Version:	$Id$
