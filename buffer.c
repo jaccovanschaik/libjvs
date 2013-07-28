@@ -25,7 +25,7 @@
 /*
  * Increase the size of <buf> to allow for another <len> bytes.
  */
-static void buf_enlarge(Buffer *buf, int len)
+static void buf_enlarge(Buffer *buf, size_t len)
 {
     int new_len;
 
@@ -57,7 +57,7 @@ Buffer *bufCreate(void)
 Buffer *bufInit(Buffer *buf)
 {
     buf->max_len = INITIAL_SIZE;
-    buf->data = calloc(1, (size_t) buf->max_len);
+    buf->data = calloc(1, buf->max_len);
     buf->act_len = 0;
 
     return buf;
@@ -116,9 +116,9 @@ void bufDestroy(Buffer *buf)
 /*
  * Add <len> bytes, starting at <data> to <buf>.
  */
-Buffer *bufAdd(Buffer *buf, const void *data, int len)
+Buffer *bufAdd(Buffer *buf, const void *data, size_t len)
 {
-    dbgAssert(stderr, len >= 0, "bufAdd called with length %d", len);
+    dbgAssert(stderr, len >= 0, "bufAdd called with length %lu", len);
 
     buf_enlarge(buf, len);
 
@@ -148,8 +148,7 @@ Buffer *bufAddC(Buffer *buf, char c)
  */
 Buffer *bufAddV(Buffer *buf, const char *fmt, va_list ap)
 {
-    int size;
-
+    size_t size;
     va_list my_ap;
 
     va_copy(my_ap, ap);
@@ -187,7 +186,7 @@ Buffer *bufAddF(Buffer *buf, const char *fmt, ...)
 /*
  * Replace <buf> with the <len> bytes starting at <data>.
  */
-Buffer *bufSet(Buffer *buf, const void *data, int len)
+Buffer *bufSet(Buffer *buf, const void *data, size_t len)
 {
     bufClear(buf);
 
@@ -274,7 +273,7 @@ Buffer *bufCat(Buffer *base, const Buffer *addition)
 /*
  * Trim <left> bytes from the left and <right> bytes from the right of <buf>.
  */
-Buffer *bufTrim(Buffer *buf, unsigned int left, unsigned int right)
+Buffer *bufTrim(Buffer *buf, size_t left, size_t right)
 {
     if (buf->data == NULL) return buf;
 

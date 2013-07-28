@@ -45,17 +45,17 @@ void bmDestroy(Bitmask *mask);
 /*
  * Set bit <bit> in <mask>.
  */
-void bmSetBit(Bitmask *mask, int bit);
+void bmSetBit(Bitmask *mask, unsigned int bit);
 
 /*
  * Get bit <bit> in <mask>. Returns 1 if the bit is set, 0 otherwise.
  */
-int bmGetBit(const Bitmask *mask, int bit);
+int bmGetBit(const Bitmask *mask, unsigned int bit);
 
 /*
  * Clear bit <bit> in <mask>.
  */
-void bmClrBit(Bitmask *mask, int bit);
+void bmClrBit(Bitmask *mask, unsigned int bit);
 
 /*
  * Set the bits given after <mask>. End the list with END.

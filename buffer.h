@@ -15,34 +15,10 @@
 #include <stdarg.h>
 
 typedef struct {
-    char *data;
-    int   act_len;  /* The number of bytes in use (excluding a trailing null byte!). */
-    int   max_len;  /* The number of bytes allocated. */
+    char  *data;
+    size_t act_len; /* The number of bytes in use (excluding a trailing null byte!). */
+    size_t max_len; /* The number of bytes allocated. */
 } Buffer;
-
-/*
- * Encode buffer <value> into <buf>.
- */
-int bufEncode(Buffer *buf, const Buffer *value);
-
-/*
- * Get a binary-encoded buffer from <buf> and store it in <value>. If
- * succesful, the first part where the int8_t was stored will be
- * stripped from <buf>.
- */
-int bufDecode(Buffer *buf, Buffer *value);
-
-/*
- * Get an encoded buffer from <ptr> (with <remaining> bytes
- * remaining) and store it in <value>.
- */
-int bufExtract(const char **ptr, int *remaining, Buffer *value);
-
-/*
- * Return -1, 1 or 0 if <left> is smaller than, greater than or equal to
- * <right> (according to memcmp()).
- */
-int bufCompare(const Buffer *left, const Buffer *right);
 
 /*
  * Create an empty buffer.
@@ -81,7 +57,7 @@ void bufDestroy(Buffer *buf);
 /*
  * Add <len> bytes, starting at <data> to <buf>.
  */
-Buffer *bufAdd(Buffer *buf, const void *data, int len);
+Buffer *bufAdd(Buffer *buf, const void *data, size_t len);
 
 /*
  * Add the single character <c>.
@@ -98,12 +74,12 @@ Buffer *bufAddV(Buffer *buf, const char *fmt, va_list ap);
  * Append a string to <buf>, formatted according to <fmt> and with the
  * subsequent parameters.
  */
-Buffer *bufAddF(Buffer *buf, const char *fmt, ...) __attribute__ ((format (printf, 2, 3)));
+Buffer *bufAddF(Buffer *buf, const char *fmt, ...);
 
 /*
  * Replace <buf> with the <len> bytes starting at <data>.
  */
-Buffer *bufSet(Buffer *buf, const void *data, int len);
+Buffer *bufSet(Buffer *buf, const void *data, size_t len);
 
 /*
  * Set <buf> to the single character <c>.
@@ -114,7 +90,7 @@ Buffer *bufSetC(Buffer *buf, char c);
  * Set <buf> to a string formatted according to <fmt> and with the
  * subsequent parameters.
  */
-Buffer *bufSetF(Buffer *buf, const char *fmt, ...) __attribute__ ((format (printf, 2, 3)));
+Buffer *bufSetF(Buffer *buf, const char *fmt, ...);
 
 /*
  * Replace <buf> with a string formatted according to <fmt> and with the
@@ -146,7 +122,13 @@ Buffer *bufCat(Buffer *base, const Buffer *addition);
 /*
  * Trim <left> bytes from the left and <right> bytes from the right of <buf>.
  */
-Buffer *bufTrim(Buffer *buf, unsigned int left, unsigned int right);
+Buffer *bufTrim(Buffer *buf, size_t left, size_t right);
+
+/*
+ * Return -1, 1 or 0 if <left> is smaller than, greater than or equal to <right>, either in size, or
+ * (when both have the same size) according to memcmp().
+ */
+int bufCompare(const Buffer *left, const Buffer *right);
 
 /*
  * This function does the same as vstrpack from utils.[ch] but on a
