@@ -21,8 +21,10 @@
 
 #define ONE_INDENT "    "
 
-/* Check that <mask> is big enough for <bit> and, if necessary, resize it. */
-static void check_size(Bitmask *mask, int bit)
+/*
+ * Check that <mask> is big enough for <bit> and, if necessary, resize it.
+ */
+static void bm_check_size(Bitmask *mask, unsigned int bit)
 {
     int n_required_bytes = 1 + (bit / 8);
 
@@ -34,42 +36,6 @@ static void check_size(Bitmask *mask, int bit)
 
         mask->n_bytes = n_required_bytes;
     }
-}
-
-/* Read a bitmask from <fp> and store it at <p>. */
-int bmExtract(const char **p, int *remaining, Bitmask *mask)
-{
-    int i;
-    uint8_t n_bytes;
-
-    if (*remaining == 0) return 1;
-
-    if (tgExtractU8(p, remaining, &n_bytes) != 0) return 1;
-
-    if (n_bytes != mask->n_bytes) {
-        mask->n_bytes = n_bytes;
-        mask->bits = realloc(mask->bits, mask->n_bytes);
-    }
-
-    for (i = mask->n_bytes - 1; i >= 0; i--) {
-        if (tgExtractU8(p, remaining, &mask->bits[i]) != 0) return 1;
-    }
-
-    return 0;
-}
-
-/* Write the bitmask at <mask> to <fp>. */
-int bmEncode(Buffer *buf, const Bitmask *mask)
-{
-    int i;
-
-    if (tgEncodeU8(buf, &mask->n_bytes) != 0) return 1;
-
-    for (i = mask->n_bytes - 1; i >= 0; i--) {
-        if (tgEncodeU8(buf, &mask->bits[i]) != 0) return 1;
-    }
-
-    return 0;
 }
 
 /*
@@ -91,13 +57,17 @@ int bmCompare(const Bitmask *left, const Bitmask *right)
     return 0;
 }
 
-/* Allocate a new Bitmask and return a pointer to it. */
+/*
+ * Allocate a new Bitmask and return a pointer to it.
+ */
 Bitmask *bmCreate(void)
 {
     return calloc(1, sizeof(Bitmask));
 }
 
-/* Clear all bits in <mask>. */
+/*
+ * Clear all bits in <mask>.
+ */
 void bmZero(Bitmask *mask)
 {
     if (mask->bits) free(mask->bits);
@@ -106,7 +76,9 @@ void bmZero(Bitmask *mask)
     mask->n_bytes = 0;
 }
 
-/* Free the Bitmask at <mask>. */
+/*
+ * Free the Bitmask at <mask>.
+ */
 void bmDelete(Bitmask *mask)
 {
     bmZero(mask);
@@ -114,15 +86,19 @@ void bmDelete(Bitmask *mask)
     free(mask);
 }
 
-/* Set bit <bit> in <mask>. */
+/*
+ * Set bit <bit> in <mask>.
+ */
 void bmSetBit(Bitmask *mask, int bit)
 {
-    check_size(mask, bit);
+    bm_check_size(mask, bit);
 
     mask->bits[bit / 8] |= (1 << (bit % 8));
 }
 
-/* Get bit <bit> in <mask>. Returns 1 if the bit is set, 0 otherwise. */
+/*
+ * Get bit <bit> in <mask>. Returns 1 if the bit is set, 0 otherwise.
+ */
 int bmGetBit(const Bitmask *mask, int bit)
 {
     if (bit >= 8 * mask->n_bytes)
@@ -131,7 +107,9 @@ int bmGetBit(const Bitmask *mask, int bit)
         return (mask->bits[bit / 8] & (1 << (bit % 8))) ? 1 : 0;
 }
 
-/* Clear bit <bit> in <mask>. */
+/*
+ * Clear bit <bit> in <mask>.
+ */
 void bmClrBit(Bitmask *mask, int bit)
 {
     if (bit >= 8 * mask->n_bytes)
@@ -140,7 +118,9 @@ void bmClrBit(Bitmask *mask, int bit)
         mask->bits[bit / 8] &= ~(1 << (bit % 8));
 }
 
-/* Set the bits given after <mask>. End the list with END. */
+/*
+ * Set the bits given after <mask>. End the list with END.
+ */
 void bmSetBits(Bitmask *mask, ...)
 {
     int b;
@@ -155,7 +135,9 @@ void bmSetBits(Bitmask *mask, ...)
     va_end(ap);
 }
 
-/* Clear the bits given after <mask>. End the list with END. */
+/*
+ * Clear the bits given after <mask>. End the list with END.
+ */
 void bmClrBits(Bitmask *mask, ...)
 {
     int b;
