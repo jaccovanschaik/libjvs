@@ -458,18 +458,21 @@ int strunpack(const char *str, int size, ...)
     return r;
 }
 
-#ifdef TEST
-static int errors = 0;
-
-void _make_sure_that(const char *file, int line, const char *str, int val)
+/*
+ * Test <val>. If it is FALSE, print that fact, along with the textual representation of <val> in
+ * <str>, the file and line on which the error occurred in <file> and <line> to stderr, and increase
+ * <error> by 1.
+ */
+void _make_sure_that(const char *file, int line, int *errors, const char *str, int val)
 {
-   if (!val) {
-      fprintf(stderr, "%s:%d: Expression \"%s\" failed\n", file, line, str);
-      errors++;
-   }
+    if (!val) {
+        fprintf(stderr, "%s:%d: Expression \"%s\" failed\n", file, line, str);
+        (*errors)++;
+    }
 }
 
-#define make_sure_that(expr) _make_sure_that(__FILE__, __LINE__, #expr, (expr))
+#ifdef TEST
+int errors = 0;
 
 int main(int argc, char *argv[])
 {

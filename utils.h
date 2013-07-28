@@ -18,6 +18,8 @@
 
 #define hexdump(f, s, n) ihexdump(f, 0, s, n)
 
+#define make_sure_that(expr) _make_sure_that(__FILE__, __LINE__, &errors, #expr, (expr))
+
 /*
  * "Packable" types.
  */
@@ -143,5 +145,12 @@ int vstrunpack(const char *str, int size, va_list ap);
  * Unpack data from <str> (which has size <size>) into the pointers following "size".
  */
 int strunpack(const char *str, int size, ...);
+
+/*
+ * Test <val>. If it is FALSE, print that fact, along with the textual representation of <val> in
+ * <str>, the file and line on which the error occurred in <file> and <line> to stderr, and increase
+ * <error> by 1.
+ */
+void _make_sure_that(const char *file, int line, int *errors, const char *str, int val);
 
 #endif

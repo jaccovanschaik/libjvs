@@ -15,7 +15,7 @@
 #include <assert.h>
 
 #include "list.h"
-
+#include "utils.h"
 #include "hash.h"
 
 /* An entry in a hash table. */
@@ -296,16 +296,6 @@ const void *hashNext(HashTable *tbl)
 #include <stdio.h>
 
 static int errors = 0;
-
-void _make_sure_that(const char *file, int line, const char *str, int val)
-{
-   if (!val) {
-      fprintf(stderr, "%s:%d: Expression \"%s\" failed\n", file, line, str);
-      errors++;
-   }
-}
-
-#define make_sure_that(expr) _make_sure_that(__FILE__, __LINE__, #expr, (expr))
 
 int main(int argc, char *argv[])
 {

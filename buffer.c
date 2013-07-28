@@ -483,16 +483,6 @@ Buffer *bufUnpack(Buffer *buf, ...)
 #ifdef TEST
 static int errors = 0;
 
-void _make_sure_that(const char *file, int line, const char *str, int val)
-{
-   if (!val) {
-      fprintf(stderr, "%s:%d: Expression \"%s\" failed\n", file, line, str);
-      errors++;
-   }
-}
-
-#define make_sure_that(expr) _make_sure_that(__FILE__, __LINE__, #expr, (expr))
-
 int main(int argc, char *argv[])
 {
    Buffer buf1 = { };

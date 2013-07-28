@@ -567,7 +567,8 @@ void cxFree(CX *cx)
  * and sends them data. The client itself tests the cxOnTime and cxOnDisconnect functions.
  */
 
-static int errors = 0;
+int errors = 0;
+
 static int global_report_fd;
 
 /* ### Callbacks shared by the servers ### */
