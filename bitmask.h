@@ -40,7 +40,7 @@ void bmZero(Bitmask *mask);
 /*
  * Free the Bitmask at <mask>.
  */
-void bmDelete(Bitmask *mask);
+void bmDestroy(Bitmask *mask);
 
 /*
  * Set bit <bit> in <mask>.
