@@ -1,0 +1,55 @@
+This is the README for "libjvs".
+
+Copyright: (c) 2013 Jacco van Schaik (jacco@jaccovanschaik.net)
+
+Libjvs is a library of utilities in the C programming language.
+
+It is distributed under the MIT license.
+
+bitmask.c, bitmask.h
+    Handles bitmasks of unlimited size.
+
+buffer.c, buffer.h
+    Provides growing byte buffers.
+
+const.h
+    Useful constants.
+    
+cx.c, cx.h
+    Communications Exchange.
+
+debug.c, debug.h
+    Functions to assist in debugging.
+
+defs.h
+    Some useful definitions.
+
+dp.c, dp.h
+    Data parser.
+
+hash.c, hash.h
+    Provides hash tables.
+
+list.c, list.h
+    Provides linked lists.
+
+log.c, log.h
+    Provides logging functions.
+
+net.c, net.h
+    Provides general networking utilities.
+
+tcp.c, tcp.h
+    Provides TCP networking utilities.
+
+udp.c, udp.h
+    Provides UDP networking utilities.
+
+units.h
+    Provides conversion from/to SI units.
+
+utils.c, utils.h
+    General utilities.
+
+vector.c, vector.h
+    Provides some functions to work with arbitrary-size vectors.
