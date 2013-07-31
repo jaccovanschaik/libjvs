@@ -1,4 +1,5 @@
-/* dp.c: Data parser
+/*
+ * dp.c: Data parser
  *
  * Copyright:	(c) 2013 Jacco van Schaik (jacco@jaccovanschaik.net)
  *
