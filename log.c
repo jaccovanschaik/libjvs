@@ -26,12 +26,12 @@
  * Out put types.
  */
 typedef enum {
-    OT_UDP,
-    OT_TCP,
-    OT_FILE,
-    OT_FP,
-    OT_FD,
-    OT_SYSLOG
+    LOG_OT_UDP,
+    LOG_OT_TCP,
+    LOG_OT_FILE,
+    LOG_OT_FP,
+    LOG_OT_FD,
+    LOG_OT_SYSLOG
 } LOG_OutputType;
 
 /*
@@ -41,24 +41,24 @@ typedef struct {
     ListNode _node;
     LOG_OutputType type;
     union {
-        FILE *fp;       /* OT_FILE, OT_FP */
-        int fd;         /* OT_UDP, OT_TCP, OT_FD */
-        int priority;   /* OT_SYSLOG */
+        FILE *fp;       /* LOG_OT_FILE, LOG_OT_FP */
+        int fd;         /* LOG_OT_UDP, LOG_OT_TCP, LOG_OT_FD */
+        int priority;   /* LOG_OT_SYSLOG */
     } u;
 } LOG_Output;
 
 typedef enum {
-    PFX_DATE,
-    PFX_TIME,
-    PFX_FILE,
-    PFX_LINE,
-    PFX_FUNC,
-    PFX_STR
-} PFX_Type;
+    LOG_PT_DATE,
+    LOG_PT_TIME,
+    LOG_PT_FILE,
+    LOG_PT_LINE,
+    LOG_PT_FUNC,
+    LOG_PT_STR
+} LOG_PrefixType;
 
 typedef struct {
     ListNode _node;
-    PFX_Type type;
+    LOG_PrefixType type;
     union {
         char *string;
         int precision;
@@ -101,20 +101,20 @@ static LOG_Output *log_create_output(Logger *logger, LOG_OutputType type)
 static void log_close_output(LOG_Output *out)
 {
     switch(out->type) {
-    case OT_UDP:
-    case OT_TCP:
+    case LOG_OT_UDP:
+    case LOG_OT_TCP:
         /* Opened as file descriptors. */
         close(out->u.fd);
         break;
-    case OT_FILE:
+    case LOG_OT_FILE:
         /* Opened as FILE pointers. */
         fclose(out->u.fp);
         break;
-    case OT_FP:
-    case OT_FD:
+    case LOG_OT_FP:
+    case LOG_OT_FD:
         /* Not opened by me, so leave them alone. */
         break;
-    case OT_SYSLOG:
+    case LOG_OT_SYSLOG:
         /* Opened using openlog(). */
         closelog();
         break;
@@ -123,7 +123,7 @@ static void log_close_output(LOG_Output *out)
     free(out);
 }
 
-static LOG_Prefix *log_add_prefix(Logger *logger, PFX_Type type)
+static LOG_Prefix *log_add_prefix(Logger *logger, LOG_PrefixType type)
 {
     LOG_Prefix *prefix = calloc(1, sizeof(LOG_Prefix));
 
@@ -162,7 +162,7 @@ int logToUDP(Logger *logger, const char *host, int port)
     if ((fd = udpConnect(host, port)) < 0)
         return -1;
     else {
-        LOG_Output *out = log_create_output(logger, OT_UDP);
+        LOG_Output *out = log_create_output(logger, LOG_OT_UDP);
         out->u.fd = fd;
         return 0;
     }
@@ -179,7 +179,7 @@ int logToTCP(Logger *logger, const char *host, int port)
     if ((fd = tcpConnect(host, port)) < 0)
         return -1;
     else {
-        LOG_Output *out = log_create_output(logger, OT_TCP);
+        LOG_Output *out = log_create_output(logger, LOG_OT_TCP);
         out->u.fd = fd;
         return 0;
     }
@@ -196,7 +196,7 @@ int logToFile(Logger *logger, const char *filename)
     if ((fp = fopen(filename, "w")) == NULL)
         return -1;
     else {
-        LOG_Output *out = log_create_output(logger, OT_FILE);
+        LOG_Output *out = log_create_output(logger, LOG_OT_FILE);
         out->u.fp = fp;
         return 0;
     }
@@ -207,7 +207,7 @@ int logToFile(Logger *logger, const char *filename)
  */
 int logToFP(Logger *logger, FILE *fp)
 {
-    LOG_Output *out = log_create_output(logger, OT_FP);
+    LOG_Output *out = log_create_output(logger, LOG_OT_FP);
 
     out->u.fp = fp;
 
@@ -219,7 +219,7 @@ int logToFP(Logger *logger, FILE *fp)
  */
 int logToFD(Logger *logger, int fd)
 {
-    LOG_Output *out = log_create_output(logger, OT_FD);
+    LOG_Output *out = log_create_output(logger, LOG_OT_FD);
 
     out->u.fd = fd;
 
@@ -232,7 +232,7 @@ int logToFD(Logger *logger, int fd)
  */
 int logToSyslog(Logger *logger, const char *ident, int option, int facility, int priority)
 {
-    LOG_Output *out = log_create_output(logger, OT_SYSLOG);
+    LOG_Output *out = log_create_output(logger, LOG_OT_SYSLOG);
 
     openlog(ident, option, facility);
 
@@ -246,7 +246,7 @@ int logToSyslog(Logger *logger, const char *ident, int option, int facility, int
  */
 void logWithDate(Logger *logger)
 {
-    log_add_prefix(logger, PFX_DATE);
+    log_add_prefix(logger, LOG_PT_DATE);
 }
 
 /*
@@ -255,7 +255,7 @@ void logWithDate(Logger *logger)
  */
 void logWithTime(Logger *logger, int precision)
 {
-    LOG_Prefix *prefix = log_add_prefix(logger, PFX_TIME);
+    LOG_Prefix *prefix = log_add_prefix(logger, LOG_PT_TIME);
 
     prefix->u.precision = CLAMP(precision, 0, 6);
 }
@@ -265,7 +265,7 @@ void logWithTime(Logger *logger, int precision)
  */
 void logWithFile(Logger *logger)
 {
-    log_add_prefix(logger, PFX_FILE);
+    log_add_prefix(logger, LOG_PT_FILE);
 }
 
 /*
@@ -273,7 +273,7 @@ void logWithFile(Logger *logger)
  */
 void logWithFunction(Logger *logger)
 {
-    log_add_prefix(logger, PFX_FUNC);
+    log_add_prefix(logger, LOG_PT_FUNC);
 }
 
 /*
@@ -281,7 +281,7 @@ void logWithFunction(Logger *logger)
  */
 void logWithLine(Logger *logger)
 {
-    log_add_prefix(logger, PFX_FUNC);
+    log_add_prefix(logger, LOG_PT_FUNC);
 }
 
 /*
@@ -289,7 +289,7 @@ void logWithLine(Logger *logger)
  */
 void logWithString(Logger *logger, const char *string)
 {
-    LOG_Prefix *prefix = log_add_prefix(logger, PFX_STR);
+    LOG_Prefix *prefix = log_add_prefix(logger, LOG_PT_STR);
 
     prefix->u.string = strdup(string);
 }
@@ -322,14 +322,14 @@ void _logWrite(Logger *logger, const char *fmt, ...)
 
     for (pfx = listHead(&logger->prefixes); pfx; pfx = listNext(pfx)) {
         switch(pfx->type) {
-        case PFX_DATE:
+        case LOG_PT_DATE:
             if (tv.tv_sec == 0) log_get_time(&tm, &tv);
 
             bufAddF(&logger->scratch, "%04d-%02d-%02d ",
                     tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday);
 
             break;
-        case PFX_TIME:
+        case LOG_PT_TIME:
             if (tv.tv_sec == 0) log_get_time(&tm, &tv);
 
             bufAddF(&logger->scratch, "%02d:%02d:", tm.tm_hour, tm.tm_min);
@@ -345,16 +345,16 @@ void _logWrite(Logger *logger, const char *fmt, ...)
             }
 
             break;
-        case PFX_FILE:
+        case LOG_PT_FILE:
             bufAddF(&logger->scratch, "%s ", _log_file);
             break;
-        case PFX_LINE:
+        case LOG_PT_LINE:
             bufAddF(&logger->scratch, "%d ", _log_line);
             break;
-        case PFX_FUNC:
+        case LOG_PT_FUNC:
             bufAddF(&logger->scratch, "%s ", _log_func);
             break;
-        case PFX_STR:
+        case LOG_PT_STR:
             bufAddF(&logger->scratch, "%s ", pfx->u.string);
             break;
         }
@@ -366,17 +366,17 @@ void _logWrite(Logger *logger, const char *fmt, ...)
 
     for (out = listHead(&logger->outputs); out; out = listNext(out)) {
         switch(out->type) {
-        case OT_UDP:
-        case OT_TCP:
-        case OT_FD:
+        case LOG_OT_UDP:
+        case LOG_OT_TCP:
+        case LOG_OT_FD:
             tcpWrite(out->u.fd, bufGet(&logger->scratch), bufLen(&logger->scratch));
             break;
-        case OT_FILE:
-        case OT_FP:
+        case LOG_OT_FILE:
+        case LOG_OT_FP:
             fwrite(bufGet(&logger->scratch), bufLen(&logger->scratch), 1, out->u.fp);
             fflush(out->u.fp);
             break;
-        case OT_SYSLOG:
+        case LOG_OT_SYSLOG:
             syslog(out->u.priority, "%s", bufGet(&logger->scratch));
             break;
         }
