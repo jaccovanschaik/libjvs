@@ -10,10 +10,6 @@
 #ifndef LIST_H
 #define LIST_H
 
-#ifndef NULL
-#define NULL 0
-#endif
-
 typedef struct ListNode ListNode;
 typedef struct List List;
 

@@ -16,8 +16,6 @@
 
 #define N(pointer) ((ListNode *) pointer)
 
-char *_id_list = "$Id$\n";
-
 /*
  * Create a new, empty list.
  */
