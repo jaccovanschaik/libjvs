@@ -73,7 +73,7 @@ Buffer *bufAddV(Buffer *buf, const char *fmt, va_list ap);
  * Append a string to <buf>, formatted according to <fmt> and with the
  * subsequent parameters.
  */
-Buffer *bufAddF(Buffer *buf, const char *fmt, ...);
+Buffer *bufAddF(Buffer *buf, const char *fmt, ...) __attribute__ ((format (printf, 2, 3)));
 
 /*
  * Replace <buf> with the <len> bytes starting at <data>.
@@ -89,7 +89,7 @@ Buffer *bufSetC(Buffer *buf, char c);
  * Set <buf> to a string formatted according to <fmt> and with the
  * subsequent parameters.
  */
-Buffer *bufSetF(Buffer *buf, const char *fmt, ...);
+Buffer *bufSetF(Buffer *buf, const char *fmt, ...) __attribute__ ((format (printf, 2, 3)));
 
 /*
  * Replace <buf> with a string formatted according to <fmt> and with the
@@ -152,5 +152,14 @@ Buffer *bufVaUnpack(Buffer *buf, va_list ap);
  * Buffer instead of a char *.
  */
 Buffer *bufUnpack(Buffer *buf, ...);
+
+/*
+ * This function assists in building textual lists of the form "Tom, Dick and Harry". Call it three
+ * times with the arguments "Tom", "Dick" and "Harry". Set sep1 to ", " and sep2 to " and ". Set
+ * is_first to TRUE when passing in "Tom", set is_last to TRUE when passing in "Harry", set them
+ * both to FALSE for "Dick". Returns the same pointer to <buf> that was passed in.
+ */
+Buffer *bufList(Buffer *buf, const char *sep1, const char *sep2,
+        int is_first, int is_last, const char *fmt, ...) __attribute__ ((format (printf, 6, 7)));
 
 #endif

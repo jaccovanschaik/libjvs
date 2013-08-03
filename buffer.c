@@ -385,6 +385,31 @@ Buffer *bufUnpack(Buffer *buf, ...)
     return buf;
 }
 
+/*
+ * This function assists in building textual lists of the form "Tom, Dick and Harry". Call it three
+ * times with the arguments "Tom", "Dick" and "Harry". Set sep1 to ", " and sep2 to " and ". Set
+ * is_first to TRUE when passing in "Tom", set is_last to TRUE when passing in "Harry", set them
+ * both to FALSE for "Dick". Returns the same pointer to <buf> that was passed in.
+ */
+Buffer *bufList(Buffer *buf, const char *sep1, const char *sep2,
+        int is_first, int is_last, const char *fmt, ...)
+{
+    va_list ap;
+
+    if (is_first)
+        bufClear(buf);
+    else if (is_last)
+        bufAddF(buf, "%s", sep2);
+    else
+        bufAddF(buf, "%s", sep1);
+
+    va_start(ap, fmt);
+    bufAddV(buf, fmt, ap);
+    va_end(ap);
+
+    return buf;
+}
+
 #ifdef TEST
 static int errors = 0;
 
@@ -473,6 +498,32 @@ int main(int argc, char *argv[])
        "\x00\x00\x00\x00\x00\x00\x00\x00"
        "\x00\x00\x00\x04Hoi1"
        "\x00\x00\x00\x04Hoi2", 43) == 0);
+
+   {
+       const char *name[] = { "Mills", "Berry", "Buck", "Stipe" };
+
+       bufList(&buf1, ", ", " and ", TRUE, TRUE, "%s", name[0]);
+
+       make_sure_that(strcmp(bufGet(&buf1), "Mills") == 0);
+
+       bufList(&buf1, ", ", " and ", TRUE, FALSE, "%s", name[0]);
+       bufList(&buf1, ", ", " and ", FALSE, TRUE, "%s", name[1]);
+
+       make_sure_that(strcmp(bufGet(&buf1), "Mills and Berry") == 0);
+
+       bufList(&buf1, ", ", " and ", TRUE,  FALSE, "%s", name[0]);
+       bufList(&buf1, ", ", " and ", FALSE, FALSE, "%s", name[1]);
+       bufList(&buf1, ", ", " and ", FALSE, TRUE,  "%s", name[2]);
+
+       make_sure_that(strcmp(bufGet(&buf1), "Mills, Berry and Buck") == 0);
+
+       bufList(&buf1, ", ", " and ", TRUE,  FALSE, "%s", name[0]);
+       bufList(&buf1, ", ", " and ", FALSE, FALSE, "%s", name[1]);
+       bufList(&buf1, ", ", " and ", FALSE, FALSE, "%s", name[2]);
+       bufList(&buf1, ", ", " and ", FALSE, TRUE,  "%s", name[3]);
+
+       make_sure_that(strcmp(bufGet(&buf1), "Mills, Berry, Buck and Stipe") == 0);
+   }
 
    bufReset(&buf1);
    bufReset(&buf2);
