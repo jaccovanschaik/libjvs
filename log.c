@@ -305,20 +305,12 @@ void _logSetLocation(const char *file, int line, const char *func)
     _log_func = func;
 }
 
-/*
- * Send out a logging message using <fmt> and the subsequent parameters through <logger>. Called as
- * part of the logWrite macro, not to be called on its own.
- */
-void _logWrite(Logger *logger, const char *fmt, ...)
+static void log_add_prefixes(Logger *logger)
 {
     struct tm tm = { 0 };
     struct timeval tv = { 0 };
 
-    va_list ap;
-    LOG_Output *out;
     LOG_Prefix *pfx;
-
-    bufClear(&logger->scratch);
 
     for (pfx = listHead(&logger->prefixes); pfx; pfx = listNext(pfx)) {
         switch(pfx->type) {
@@ -359,10 +351,11 @@ void _logWrite(Logger *logger, const char *fmt, ...)
             break;
         }
     }
+}
 
-    va_start(ap, fmt);
-    bufAddV(&logger->scratch, fmt, ap);
-    va_end(ap);
+static void log_output(Logger *logger)
+{
+    LOG_Output *out;
 
     for (out = listHead(&logger->outputs); out; out = listNext(out)) {
         switch(out->type) {
@@ -381,6 +374,42 @@ void _logWrite(Logger *logger, const char *fmt, ...)
             break;
         }
     }
+}
+
+/*
+ * Send out a logging message using <fmt> and the subsequent parameters through <logger>. Called as
+ * part of the logWrite macro, not to be called on its own.
+ */
+void _logWrite(Logger *logger, const char *fmt, ...)
+{
+    va_list ap;
+
+    bufClear(&logger->scratch);
+
+    log_add_prefixes(logger);
+
+    va_start(ap, fmt);
+    bufAddV(&logger->scratch, fmt, ap);
+    va_end(ap);
+
+    log_output(logger);
+}
+
+/*
+ * Log <fmt> and the subsequent parameters through <logger>, *without* any prefixes. Useful to
+ * continue a previous log message.
+ */
+void logAppend(Logger *logger, const char *fmt, ...)
+{
+    va_list ap;
+
+    bufClear(&logger->scratch);
+
+    va_start(ap, fmt);
+    bufAddV(&logger->scratch, fmt, ap);
+    va_end(ap);
+
+    log_output(logger);
 }
 
 /*
