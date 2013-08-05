@@ -1,5 +1,5 @@
 /*
- * Provides growing byte buffers. Strings can contain binary data, but are
+ * Provides growing byte buffers. Buffers can contain binary data, but are
  * always null-terminated for convenience's sake.
  *
  * Copyright:	(c) 2007 Jacco van Schaik (jacco@jaccovanschaik.net)
@@ -14,7 +14,7 @@
 #include <stdarg.h>
 
 typedef struct {
-    char  *data;
+    char  *data;    /* Data contained in this buffer. */
     size_t act_len; /* The number of bytes in use (excluding a trailing null byte!). */
     size_t max_len; /* The number of bytes allocated. */
 } Buffer;

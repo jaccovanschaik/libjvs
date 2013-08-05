@@ -12,12 +12,40 @@
 
 #include <stdint.h>
 
-#include "buffer.h"
-
 typedef struct {
     uint8_t  n_bytes;
     uint8_t *bits;
 } Bitmask;
+
+/*
+ * Allocate a new Bitmask and return a pointer to it.
+ */
+Bitmask *bmCreate(void);
+
+/*
+ * Set bit number <bit> in <mask>.
+ */
+void bmSetBit(Bitmask *mask, unsigned int bit);
+
+/*
+ * Get bit number <bit> in <mask>. Returns 1 if the bit is set, 0 otherwise.
+ */
+int bmGetBit(const Bitmask *mask, unsigned int bit);
+
+/*
+ * Clear bit number <bit> in <mask>.
+ */
+void bmClrBit(Bitmask *mask, unsigned int bit);
+
+/*
+ * Set the bit numbers given after <mask>. End the list with END.
+ */
+void bmSetBits(Bitmask *mask, ...);
+
+/*
+ * Clear the bit numbers given after <mask>. End the list with END.
+ */
+void bmClrBits(Bitmask *mask, ...);
 
 /*
  * Compare masks <left> and <right>, and return 1 if <left> is larger
@@ -27,43 +55,13 @@ typedef struct {
 int bmCompare(const Bitmask *left, const Bitmask *right);
 
 /*
- * Allocate a new Bitmask and return a pointer to it.
+ * Clear all bits in <mask>. You may free() <mask> after this.
  */
-Bitmask *bmCreate(void);
+void bmClear(Bitmask *mask);
 
 /*
- * Clear all bits in <mask>.
- */
-void bmZero(Bitmask *mask);
-
-/*
- * Free the Bitmask at <mask>.
+ * Destroy the Bitmask at <mask>.
  */
 void bmDestroy(Bitmask *mask);
-
-/*
- * Set bit <bit> in <mask>.
- */
-void bmSetBit(Bitmask *mask, unsigned int bit);
-
-/*
- * Get bit <bit> in <mask>. Returns 1 if the bit is set, 0 otherwise.
- */
-int bmGetBit(const Bitmask *mask, unsigned int bit);
-
-/*
- * Clear bit <bit> in <mask>.
- */
-void bmClrBit(Bitmask *mask, unsigned int bit);
-
-/*
- * Set the bits given after <mask>. End the list with END.
- */
-void bmSetBits(Bitmask *mask, ...);
-
-/*
- * Clear the bits given after <mask>. End the list with END.
- */
-void bmClrBits(Bitmask *mask, ...);
 
 #endif

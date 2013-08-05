@@ -38,6 +38,80 @@ static void bm_check_size(Bitmask *mask, unsigned int bit)
 }
 
 /*
+ * Allocate a new Bitmask and return a pointer to it.
+ */
+Bitmask *bmCreate(void)
+{
+    return calloc(1, sizeof(Bitmask));
+}
+
+/*
+ * Set bit number <bit> in <mask>.
+ */
+void bmSetBit(Bitmask *mask, unsigned int bit)
+{
+    bm_check_size(mask, bit);
+
+    mask->bits[bit / 8] |= (1 << (bit % 8));
+}
+
+/*
+ * Get bit number <bit> in <mask>. Returns 1 if the bit is set, 0 otherwise.
+ */
+int bmGetBit(const Bitmask *mask, unsigned int bit)
+{
+    if (bit >= 8 * mask->n_bytes)
+        return 0;
+    else
+        return (mask->bits[bit / 8] & (1 << (bit % 8))) ? 1 : 0;
+}
+
+/*
+ * Clear bit number <bit> in <mask>.
+ */
+void bmClrBit(Bitmask *mask, unsigned int bit)
+{
+    if (bit >= 8 * mask->n_bytes)
+        return;
+    else
+        mask->bits[bit / 8] &= ~(1 << (bit % 8));
+}
+
+/*
+ * Set the bit numbers given after <mask>. End the list with END.
+ */
+void bmSetBits(Bitmask *mask, ...)
+{
+    int b;
+    va_list ap;
+
+    va_start(ap, mask);
+
+    while ((b = (va_arg(ap, int))) != END) {
+        bmSetBit(mask, b);
+    }
+
+    va_end(ap);
+}
+
+/*
+ * Clear the bit numbers given after <mask>. End the list with END.
+ */
+void bmClrBits(Bitmask *mask, ...)
+{
+    int b;
+    va_list ap;
+
+    va_start(ap, mask);
+
+    while ((b = (va_arg(ap, int))) != END) {
+        bmClrBit(mask, b);
+    }
+
+    va_end(ap);
+}
+
+/*
  * Compare masks <left> and <right>, and return 1 if <left> is larger
  * than <right>, -1 if <left> is smaller than <right> and 0 if both
  * masks are equal.
@@ -60,17 +134,9 @@ int bmCompare(const Bitmask *left, const Bitmask *right)
 }
 
 /*
- * Allocate a new Bitmask and return a pointer to it.
+ * Clear all bits in <mask>. You may free() <mask> after this.
  */
-Bitmask *bmCreate(void)
-{
-    return calloc(1, sizeof(Bitmask));
-}
-
-/*
- * Clear all bits in <mask>.
- */
-void bmZero(Bitmask *mask)
+void bmClear(Bitmask *mask)
 {
     if (mask->bits) free(mask->bits);
 
@@ -79,79 +145,13 @@ void bmZero(Bitmask *mask)
 }
 
 /*
- * Free the Bitmask at <mask>.
+ * Destroy the Bitmask at <mask>.
  */
 void bmDestroy(Bitmask *mask)
 {
-    bmZero(mask);
+    bmClear(mask);
 
     free(mask);
-}
-
-/*
- * Set bit <bit> in <mask>.
- */
-void bmSetBit(Bitmask *mask, unsigned int bit)
-{
-    bm_check_size(mask, bit);
-
-    mask->bits[bit / 8] |= (1 << (bit % 8));
-}
-
-/*
- * Get bit <bit> in <mask>. Returns 1 if the bit is set, 0 otherwise.
- */
-int bmGetBit(const Bitmask *mask, unsigned int bit)
-{
-    if (bit >= 8 * mask->n_bytes)
-        return 0;
-    else
-        return (mask->bits[bit / 8] & (1 << (bit % 8))) ? 1 : 0;
-}
-
-/*
- * Clear bit <bit> in <mask>.
- */
-void bmClrBit(Bitmask *mask, unsigned int bit)
-{
-    if (bit >= 8 * mask->n_bytes)
-        return;
-    else
-        mask->bits[bit / 8] &= ~(1 << (bit % 8));
-}
-
-/*
- * Set the bits given after <mask>. End the list with END.
- */
-void bmSetBits(Bitmask *mask, ...)
-{
-    int b;
-    va_list ap;
-
-    va_start(ap, mask);
-
-    while ((b = (va_arg(ap, int))) != END) {
-        bmSetBit(mask, b);
-    }
-
-    va_end(ap);
-}
-
-/*
- * Clear the bits given after <mask>. End the list with END.
- */
-void bmClrBits(Bitmask *mask, ...)
-{
-    int b;
-    va_list ap;
-
-    va_start(ap, mask);
-
-    while ((b = (va_arg(ap, int))) != END) {
-        bmClrBit(mask, b);
-    }
-
-    va_end(ap);
 }
 
 #ifdef TEST
@@ -262,7 +262,7 @@ int main(int argc, char *argv[])
 
     make_sure_that(bmCompare(&mask, mask2) == -1);
 
-    bmZero(&mask);
+    bmClear(&mask);
     bmDestroy(mask2);
 
     return errors;

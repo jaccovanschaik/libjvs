@@ -1,5 +1,6 @@
 /*
- * Provides growing byte buffers.
+ * buffer.c: Provides growing byte buffers. Buffers always include a trailing null-byte to make it
+ * easier to handle them as strings.
  *
  * Copyright:	(c) 2007 Jacco van Schaik (jacco@jaccovanschaik.net)
  *
@@ -64,7 +65,9 @@ Buffer *bufInit(Buffer *buf)
 
 /*
  * Reset buffer <buf> to a virgin state, freeing its internal data. Use this if you have an
- * automatically allocated Buffer and want to completely discard its contents.
+ * automatically allocated Buffer and want to completely discard its contents before it goes out of
+ * scope. If <buf> was dynamically allocated (using bufCreate() above) you may free() it after
+ * calling this function (or you could simply call bufDestroy()).
  */
 void bufReset(Buffer *buf)
 {
@@ -74,9 +77,8 @@ void bufReset(Buffer *buf)
 }
 
 /*
- * Detach the contents of <buf>. The buffer is re-initialized and the
- * old contents are returned. The caller is responsible for the contents
- * after this and should free() them when finished.
+ * Detach and return the contents of <buf>, and reinitialize the buffer. The caller is responsible
+ * for the returned data after this and should free() it when finished.
  */
 char *bufDetach(Buffer *buf)
 {
@@ -90,8 +92,8 @@ char *bufDetach(Buffer *buf)
 }
 
 /*
- * Destroy <buf>, but save and return its contents. The caller is responsible
- * for the contents after this and should free() them when finished.
+ * Destroy <buf>, but save and return its contents. The caller is responsible for the returned data
+ * after this and should free() it when finished.
  */
 char *bufFinish(Buffer *buf)
 {
@@ -131,9 +133,8 @@ Buffer *bufAdd(Buffer *buf, const void *data, size_t len)
 }
 
 /*
- * Add the single character <c>.
+ * Add the single character <c> to <buf>.
  */
-
 Buffer *bufAddC(Buffer *buf, char c)
 {
    bufAdd(buf, &c, 1);
@@ -142,8 +143,8 @@ Buffer *bufAddC(Buffer *buf, char c)
 }
 
 /*
- * Append a string to <buf>, formatted according to <fmt> and with the
- * subsequent parameters contained in <ap>.
+ * Append a string to <buf>, formatted according to <fmt> and with the subsequent parameters
+ * contained in <ap>.
  */
 Buffer *bufAddV(Buffer *buf, const char *fmt, va_list ap)
 {
@@ -166,8 +167,7 @@ Buffer *bufAddV(Buffer *buf, const char *fmt, va_list ap)
 }
 
 /*
- * Append a string to <buf>, formatted according to <fmt> and with the
- * subsequent parameters.
+ * Append a string to <buf>, formatted according to <fmt> and the subsequent parameters.
  */
 Buffer *bufAddF(Buffer *buf, const char *fmt, ...)
 {
@@ -203,8 +203,7 @@ Buffer *bufSetC(Buffer *buf, char c)
 }
 
 /*
- * Set <buf> to a string formatted according to <fmt> and with the
- * subsequent parameters.
+ * Set <buf> to a string formatted according to <fmt> and the subsequent parameters.
  */
 Buffer *bufSetF(Buffer *buf, const char *fmt, ...)
 {
@@ -220,8 +219,8 @@ Buffer *bufSetF(Buffer *buf, const char *fmt, ...)
 }
 
 /*
- * Replace <buf> with a string formatted according to <fmt> and with the
- * subsequent parameters contained in <ap>.
+ * Replace <buf> with a string formatted according to <fmt> and the subsequent parameters contained
+ * in <ap>.
  */
 Buffer *bufSetV(Buffer *buf, const char *fmt, va_list ap)
 {
@@ -231,8 +230,9 @@ Buffer *bufSetV(Buffer *buf, const char *fmt, va_list ap)
 }
 
 /*
- * Get a pointer to the data from <buf>. Find the size of the buffer using
- * bufLen().
+ * Get a pointer to the data from <buf>. Find the size of the returned data using bufLen(). Note
+ * that this returns a direct pointer to the data in <buf>. You are not supposed to change it (hence
+ * the const keyword).
  */
 const char *bufGet(const Buffer *buf)
 {
@@ -240,7 +240,9 @@ const char *bufGet(const Buffer *buf)
 }
 
 /*
- * Clear the data in <buf>.
+ * Clear the data in <buf>. Not that this function deviates from the "ground rules" in README, in
+ * that it does not free <buf>'s internal data, so you shouldn't free() <buf> after this. If you
+ * want to do that, use bufReset() instead.
  */
 Buffer *bufClear(Buffer *buf)
 {

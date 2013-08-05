@@ -1,6 +1,18 @@
 /*
  * cx.c: Communications Exchange.
  *
+ * This module is useful to create network-oriented servers like web- or file servers.
+ *
+ * cxRun()
+ *
+ * or (if you want to call select() yourself)
+ *
+ * cxGetReadFDs
+ * cxGetWriteFDs
+ * cxGetTimeout
+ * select()
+ * cxProcessSelect
+ *
  * Copyright:	(c) 2012 Jacco van Schaik (jacco@jaccovanschaik.net)
  *
  * This software is distributed under the terms of the MIT license. See
@@ -85,6 +97,9 @@ static void cx_double_to_timeval(double time, struct timeval *tv)
     tv->tv_usec = 1000000 * fmod(time, 1.0);
 }
 
+/*
+ * Add file descriptor <fd> to <cx>, representing a connection of type <type>.
+ */
 static void cx_add_file(CX *cx, int fd, CX_ConnectionType type)
 {
     int new_num_connections = fd + 1;
@@ -105,6 +120,9 @@ static void cx_add_file(CX *cx, int fd, CX_ConnectionType type)
     cx->connection[fd]->type = type;
 }
 
+/*
+ * Handle incoming data on the socket at file descriptor <fd>. Callback for cxOnFile.
+ */
 static void cx_handle_socket_data(CX *cx, int fd, void *udata)
 {
     char data[9000];
@@ -134,6 +152,9 @@ static void cx_handle_socket_data(CX *cx, int fd, void *udata)
     }
 }
 
+/*
+ * A select() call has told us that <fd> is writable. Handle this.
+ */
 static void cx_handle_writeable(CX *cx, int fd)
 {
     int r;
@@ -158,13 +179,16 @@ static void cx_handle_writeable(CX *cx, int fd)
     }
 }
 
+/*
+ * Handle an incoming connection request on <fd>.
+ */
 static void cx_handle_connection_request(CX *cx, int fd, void *udata)
 {
     fd = tcpAccept(fd);
 
     if (fd < 0) return;
 
-    cxOnFileData(cx, fd, cx_handle_socket_data, NULL);
+    cxOnFile(cx, fd, cx_handle_socket_data, NULL);
 
     if (cx->on_connect != NULL) {
         cx->on_connect(cx, fd, cx->on_connect_udata);
@@ -172,7 +196,7 @@ static void cx_handle_connection_request(CX *cx, int fd, void *udata)
 }
 
 /*
- * Create a communications exchange.
+ * Create and return a communications exchange.
  */
 CX *cxCreate(void)
 {
@@ -180,50 +204,68 @@ CX *cxCreate(void)
 }
 
 /*
- * Subscribe to input. When data is available on <fd>, <on_file_data> will be called with the given
- * <cx>, <fd> and <udata>. Only one handler per file descriptor can be set, subsequent calls will
- * override earlier ones.
+ * Open a listen socket bound to <host> and <port> and return its file descriptor. If <host> is NULL
+ * the socket will listen on all interfaces. If <port> is equal to 0, the socket will be bound to a
+ * random local port (use tcpLocalPort() on the returned fd to find out which). Any connection
+ * requests will be accepted automatically. Use cxOnConnect to be notified of new connections.
+ * Incoming data will be reported through the handler installed by cxOnSocket.
  */
-void cxOnFileData(CX *cx, int fd, void (*on_file_data)(CX *cx, int fd, void *udata), void *udata)
+int cxTcpListen(CX *cx, const char *host, int port)
 {
-    cx_add_file(cx, fd, CX_CT_FILE);
+    int fd = tcpListen(host, port);
 
-    cx->connection[fd]->on_file_data_udata = udata;
-    cx->connection[fd]->on_file_data = on_file_data;
+    if (fd >= 0) {
+        cxOnFile(cx, fd, cx_handle_connection_request, NULL);
+    }
+
+    return fd;
 }
 
 /*
- * Drop subscription to fd <fd>.
+ * Open a UDP socket bound to <host> and <port> and listen on it for data. Incoming data will be
+ * reported through the handler installed by cxOnSocket. The file descriptor for the created
+ * socket is returned.
  */
-void cxDropFile(CX *cx, int fd)
+int cxUdpListen(CX *cx, const char *host, int port)
 {
-    int new_num_connections;
+    int fd = udpSocket(host, port);
 
-    if (fd < cx->num_connections) cx->connection[fd] = NULL;
-
-    for (fd = cx->num_connections - 1; fd >= 0; fd--) {
-        if (cx->connection[fd] != NULL) break;
+    if (fd >= 0) {
+        cxOnFile(cx, fd, cx_handle_socket_data, NULL);
     }
 
-    new_num_connections = fd + 1;
-
-    if (new_num_connections < cx->num_connections) {
-        cx->connection = realloc(cx->connection, new_num_connections * sizeof(CX_Connection *));
-
-        cx->num_connections = new_num_connections;
-    }
+    return fd;
 }
 
 /*
- * Return the current UTC time (number of seconds since 1970-01-01/00:00:00 UTC) as a double.
+ * Make a TCP connection to <host> on <port>. Incoming data will be reported through the handler
+ * installed by cxOnSocket. The file descriptor for the created socket is returned.
  */
-double cxNow(void)
+int cxTcpConnect(CX *cx, const char *host, int port)
 {
-    struct timeval tv;
+    int fd = tcpConnect(host, port);
 
-    gettimeofday(&tv, NULL);
+    if (fd >= 0) {
+        cxOnFile(cx, fd, cx_handle_socket_data, NULL);
+    }
 
-    return tv.tv_sec + tv.tv_usec / 1000000.0;
+    return fd;
+}
+
+/*
+ * Make a UDP "connection" to <host> on <port>. Connection in this case means that data is sent to
+ * the indicated address by default, without the need to specify an address on every send. The
+ * file descriptor for the created socket is returned.
+ */
+int cxUdpConnect(CX *cx, const char *host, int port)
+{
+    int fd = udpConnect(host, port);
+
+    if (fd >= 0) {
+        cxOnFile(cx, fd, cx_handle_socket_data, NULL);
+    }
+
+    return fd;
 }
 
 /*
@@ -261,7 +303,66 @@ void cxDropTime(CX *cx, double t, void (*on_time)(CX *cx, double t, void *udata)
 }
 
 /*
- * Call <handler> with <udata> when a new connection is made on <fd>.
+ * Return the current UTC time (number of seconds since 1970-01-01/00:00:00 UTC) as a double.
+ */
+double cxNow(void)
+{
+    struct timeval tv;
+
+    gettimeofday(&tv, NULL);
+
+    return tv.tv_sec + tv.tv_usec / 1000000.0;
+}
+
+/*
+ * Call <handler> when new data on one of the connected sockets comes in.
+ */
+void cxOnSocket(CX *cx,
+        void (*handler)(CX *cx, int fd, const char *data, size_t size, void *udata),
+        void *udata)
+{
+    cx->on_socket_data = handler;
+    cx->on_socket_data_udata = udata;
+}
+
+/*
+ * Subscribe to input. When data is available on <fd>, <on_file_data> will be called with the given
+ * <cx>, <fd> and <udata>. Only one handler per file descriptor can be set, subsequent calls will
+ * override earlier ones.
+ */
+void cxOnFile(CX *cx, int fd, void (*on_file_data)(CX *cx, int fd, void *udata), void *udata)
+{
+    cx_add_file(cx, fd, CX_CT_FILE);
+
+    cx->connection[fd]->on_file_data_udata = udata;
+    cx->connection[fd]->on_file_data = on_file_data;
+}
+
+/*
+ * Drop subscription to fd <fd>.
+ */
+void cxDropFile(CX *cx, int fd)
+{
+    int new_num_connections;
+
+    if (fd < cx->num_connections) cx->connection[fd] = NULL;
+
+    for (fd = cx->num_connections - 1; fd >= 0; fd--) {
+        if (cx->connection[fd] != NULL) break;
+    }
+
+    new_num_connections = fd + 1;
+
+    if (new_num_connections < cx->num_connections) {
+        cx->connection = realloc(cx->connection, new_num_connections * sizeof(CX_Connection *));
+
+        cx->num_connections = new_num_connections;
+    }
+}
+
+/*
+ * Call <handler> with <udata> when a new connection is made, reporting the new file descriptor
+ * through <fd>.
  */
 void cxOnConnect(CX *cx, void (*handler)(CX *cx, int fd, void *udata), void *udata)
 {
@@ -281,77 +382,10 @@ void cxOnDisconnect(CX *cx, void (*handler)(CX *cx, int fd, void *udata), void *
 /*
  * Call <handler> when an error has occurred on <fd>. <error> is the associated errno.
  */
-void cxOnSocketError(CX *cx, void (*handler)(CX *cx, int fd, int error, void *udata), void *udata)
+void cxOnError(CX *cx, void (*handler)(CX *cx, int fd, int error, void *udata), void *udata)
 {
     cx->on_error = handler;
     cx->on_error_udata = udata;
-}
-
-/*
- * Call <handler> when new data on one of the connected sockets comes in.
- */
-void cxOnSocketData(CX *cx,
-        void (*handler)(CX *cx, int fd, const char *data, size_t size, void *udata),
-        void *udata)
-{
-    cx->on_socket_data = handler;
-    cx->on_socket_data_udata = udata;
-}
-
-/*
- * Open a listen socket bound to <host> and <port>.
- */
-int cxTcpListen(CX *cx, const char *host, int port)
-{
-    int fd = tcpListen(host, port);
-
-    if (fd >= 0) {
-        cxOnFileData(cx, fd, cx_handle_connection_request, NULL);
-    }
-
-    return fd;
-}
-
-/*
- * Open a UDP socket bound to <host> and <port> and listen on it for data.
- */
-int cxUdpListen(CX *cx, const char *host, int port)
-{
-    int fd = udpSocket(host, port);
-
-    if (fd >= 0) {
-        cxOnFileData(cx, fd, cx_handle_socket_data, NULL);
-    }
-
-    return fd;
-}
-
-/*
- * Make a TCP connection to <host> on <port>.
- */
-int cxTcpConnect(CX *cx, const char *host, int port)
-{
-    int fd = tcpConnect(host, port);
-
-    if (fd >= 0) {
-        cxOnFileData(cx, fd, cx_handle_socket_data, NULL);
-    }
-
-    return fd;
-}
-
-/*
- * Make a UDP "connection" to <host> on <port>.
- */
-int cxUdpConnect(CX *cx, const char *host, int port)
-{
-    int fd = udpConnect(host, port);
-
-    if (fd >= 0) {
-        cxOnFileData(cx, fd, cx_handle_socket_data, NULL);
-    }
-
-    return fd;
 }
 
 /*
@@ -370,7 +404,7 @@ void cxSend(CX *cx, int fd, const char *data, size_t size)
 
 /*
  * Clear <rfds>, then fill it with the file descriptors that have been given to <cx> in a
- * cxOnFileData call. Return the number of file descriptors that may be set. <rfds> can then be
+ * cxOnFile call. Return the number of file descriptors that may be set. <rfds> can then be
  * passed to select().
  */
 int cxGetReadFDs(CX *cx, fd_set *rfds)
@@ -439,7 +473,7 @@ int cxGetTimeout(CX *cx, struct timeval *tv)
 }
 
 /*
- * Process the results from a select() call.
+ * Process the results from a select() call. Returns 0 on success or -1 on error.
  */
 int cxProcessSelect(CX *cx, int r, fd_set *rfds, fd_set *wfds)
 {
@@ -476,7 +510,8 @@ int cxProcessSelect(CX *cx, int r, fd_set *rfds, fd_set *wfds)
 
 /*
  * Run the communications exchange. This function will return when there are no more timeouts to
- * wait for and no file descriptors to listen on (which can be forced by calling cxClose()).
+ * wait for and no file descriptors to listen on (which can be forced by calling cxClose()). The
+ * return value in this case will be 0. If any error occurred it will be -1.
  */
 int cxRun(CX *cx)
 {
@@ -560,8 +595,8 @@ void cxFree(CX *cx)
 
 /*
  * The test code forks off two servers. The first handles connections by opening its own sockets and
- * monitoring them through the cxOnFileData function. The second uses the cxTcpListen, cxUdpListen,
- * cxOnConnect and cxOnSocketData functions. The remaining parent process is connected to both
+ * monitoring them through the cxOnFile function. The second uses the cxTcpListen, cxUdpListen,
+ * cxOnConnect and cxOnSocket functions. The remaining parent process is connected to both
  * servers using pipes, through which it monitors the output of the servers as it connects to them
  * and sends them data. The client itself tests the cxOnTime and cxOnDisconnect functions.
  */
@@ -570,7 +605,7 @@ int errors = 0;
 
 static int global_report_fd;
 
-/* ### Callbacks shared by the servers ### */
+/* ### Callbacks shared by both servers ### */
 
 /*
  * Report an update to the client through <fd>.
@@ -589,7 +624,7 @@ void report(int fd, const char *fmt, ...)
 }
 
 /*
- * Handle incoming data (callback for cxOnFileData on a connected socket).
+ * Handle incoming data (callback for cxOnFile on a connected socket).
  */
 void handle_data(CX *cx, int fd, void *udata)
 {
@@ -605,7 +640,7 @@ void handle_data(CX *cx, int fd, void *udata)
 }
 
 /*
- * Accept connection request (callback for cxOnFileData on a listen socket).
+ * Accept connection request (callback for cxOnFile on a listen socket).
  */
 void accept_connection(CX *cx, int fd, void *udata)
 {
@@ -613,7 +648,7 @@ void accept_connection(CX *cx, int fd, void *udata)
 
     fd = tcpAccept(fd);
 
-    cxOnFileData(cx, fd, handle_data, udata);
+    cxOnFile(cx, fd, handle_data, udata);
 }
 
 /*
@@ -625,7 +660,7 @@ void report_connect(CX *cx, int fd, void *udata)
 }
 
 /*
- * Handle incoming socket data (callback for cxOnSocketData).
+ * Handle incoming socket data (callback for cxOnSocket).
  */
 void handle_socket(CX *cx, int fd, const char *data, size_t size, void *udata)
 {
@@ -647,8 +682,8 @@ void server1(int report_fd, int tcp_port, int udp_port)
 
     global_report_fd = report_fd;
 
-    cxOnFileData(cx, tcp_fd, accept_connection, "server1 tcp");
-    cxOnFileData(cx, udp_fd, handle_data, "server1 udp");
+    cxOnFile(cx, tcp_fd, accept_connection, "server1 tcp");
+    cxOnFile(cx, udp_fd, handle_data, "server1 udp");
 
     cxRun(cx);
 
@@ -669,7 +704,7 @@ void server2(int report_fd, int tcp_port, int udp_port)
     cxUdpListen(cx, "localhost", udp_port);
 
     cxOnConnect(cx, report_connect, "server2 tcp");
-    cxOnSocketData(cx, handle_socket, "server2");
+    cxOnSocket(cx, handle_socket, "server2");
 
     cxRun(cx);
 
@@ -695,7 +730,7 @@ void handle_timeout(CX *cx, double t, void *udata)
 }
 
 /*
- * Handle an incoming report from <fd>. Callback for cxOnFileData and also, slightly hackishly for
+ * Handle an incoming report from <fd>. Callback for cxOnFile and also, slightly hackishly for
  * cxOnDisconnect.
  */
 void handle_report(CX *cx, int fd, void *udata)
@@ -789,8 +824,8 @@ int main(int argc, char *argv[])
 
     cx = cxCreate();
 
-    cxOnFileData(cx, server1_pipe[0], handle_report, fds);
-    cxOnFileData(cx, server2_pipe[0], handle_report, fds);
+    cxOnFile(cx, server1_pipe[0], handle_report, fds);
+    cxOnFile(cx, server2_pipe[0], handle_report, fds);
 
     cxOnTime(cx, cxNow() + 1, handle_timeout, fds);
 
