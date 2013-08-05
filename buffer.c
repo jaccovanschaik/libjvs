@@ -396,12 +396,12 @@ Buffer *bufList(Buffer *buf, const char *sep1, const char *sep2,
 {
     va_list ap;
 
-    if (is_first)
-        bufClear(buf);
-    else if (is_last)
-        bufAddF(buf, "%s", sep2);
-    else
-        bufAddF(buf, "%s", sep1);
+    if (!is_first) {
+        if (is_last)
+            bufAddF(buf, "%s", sep2);
+        else
+            bufAddF(buf, "%s", sep1);
+    }
 
     va_start(ap, fmt);
     bufAddV(buf, fmt, ap);
@@ -502,20 +502,28 @@ int main(int argc, char *argv[])
    {
        const char *name[] = { "Mills", "Berry", "Buck", "Stipe" };
 
+       bufClear(&buf1);
+
        bufList(&buf1, ", ", " and ", TRUE, TRUE, "%s", name[0]);
 
        make_sure_that(strcmp(bufGet(&buf1), "Mills") == 0);
+
+       bufClear(&buf1);
 
        bufList(&buf1, ", ", " and ", TRUE, FALSE, "%s", name[0]);
        bufList(&buf1, ", ", " and ", FALSE, TRUE, "%s", name[1]);
 
        make_sure_that(strcmp(bufGet(&buf1), "Mills and Berry") == 0);
 
+       bufClear(&buf1);
+
        bufList(&buf1, ", ", " and ", TRUE,  FALSE, "%s", name[0]);
        bufList(&buf1, ", ", " and ", FALSE, FALSE, "%s", name[1]);
        bufList(&buf1, ", ", " and ", FALSE, TRUE,  "%s", name[2]);
 
        make_sure_that(strcmp(bufGet(&buf1), "Mills, Berry and Buck") == 0);
+
+       bufClear(&buf1);
 
        bufList(&buf1, ", ", " and ", TRUE,  FALSE, "%s", name[0]);
        bufList(&buf1, ", ", " and ", FALSE, FALSE, "%s", name[1]);
