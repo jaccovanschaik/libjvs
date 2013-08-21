@@ -48,7 +48,7 @@ test: libjvs.a
 	for f in `grep -l '#ifdef TEST' *.c`; do \
           base=`basename $$f .c`; \
           echo "Testing $$f"; \
-          $(CC) $(CFLAGS) -DTEST -o test-$$base $$f libjvs.a -lm; \
+          $(CC) $(CFLAGS) -DTEST -DDEBUG -D_GNU_SOURCE -o test-$$base $$f libjvs.a -lm; \
           ./test-$$base; \
         done
 

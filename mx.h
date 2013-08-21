@@ -5,7 +5,7 @@
  * mx.h: Message Exchange.
  *
  * Copyright:	(c) 2013 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:	$Id: mx.h 172 2013-08-19 14:48:41Z jacco $
+ * Version:	$Id: mx.h 174 2013-08-20 14:05:45Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -80,7 +80,7 @@ int mxConnect(MX *mx, const char *host, int port);
 /*
  * Tell <mx> to drop the connection on <fd>.
  */
-int mxDisconnect(MX *mx, int fd);
+void mxDisconnect(MX *mx, int fd);
 
 /*
  * Send a message with message type <type>, version <version> and payload <payload> with size
@@ -117,16 +117,15 @@ void mxOnConnect(MX *mx, void (*cb)(MX *mx, int fd, void *udata), void *udata);
  * passed to <cb>, along with the user data pointer <udata>. This function is *not* called for
  * connections dropped using mxDisconnect().
  */
-void mxOnDisconnect(MX *mx, void (*cb)(MX *mx, int fd, void *udata), void *udata);
+void mxOnDisconnect(MX *mx, void (*cb)(MX *mx, int fd, const char *whence, void *udata), void
+                      *udata);
 
 /*
  * Tell <mx> to call <cb> when an error occurs on the connection using file descriptor <fd>. The
  * error code is passed to <cb>, along with the user data pointer <udata>.
  */
-void mxOnError(MX *mx, void (*cb)(MX *mx, int fd, int error, void *udata), void *udata);
-
-int mx_process_select(MX *mx, int r, int nfds, fd_set *rfds, fd_set *wfds, int await_fd, MX_Type
-                        await_type);
+void mxOnError(MX *mx, void (*cb)(MX *mx, int fd, const char *whence, int error, void *udata), void
+                 *udata);
 
 /*
  * Tell <mx> to wait until a message of message type <type> arrives on file descriptor <fd>. The
