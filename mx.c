@@ -2,7 +2,7 @@
  * mx.c: Message Exchange.
  *
  * Copyright:	(c) 2013 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:	$Id: mx.c 182 2013-08-21 14:15:25Z jacco $
+ * Version:	$Id: mx.c 183 2013-08-21 14:39:22Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -1120,7 +1120,7 @@ void c_handle_tcp_traffic(MX *mx, int fd, void *udata)
 
     int r = read(fd, buffer, sizeof(buffer));
 
-    c_log(mx, "Received %d bytes of TCP data: %*s", r, r, buffer);
+    c_log(mx, "Received %d bytes of TCP data: %.*s", r, r, buffer);
 }
 
 void c_test_tcp_traffic(MX *mx)
@@ -1144,7 +1144,7 @@ void c_handle_udp_traffic(MX *mx, int fd, void *udata)
 
     int r = read(fd, buffer, sizeof(buffer));
 
-    c_log(mx, "Received %d bytes of UDP data: %*s", r, r, buffer);
+    c_log(mx, "Received %d bytes of UDP data: %.*s", r, r, buffer);
 }
 
 void c_test_udp_traffic(MX *mx)

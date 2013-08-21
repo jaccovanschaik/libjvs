@@ -119,7 +119,7 @@ void bufDestroy(Buffer *buf)
  */
 Buffer *bufAdd(Buffer *buf, const void *data, size_t len)
 {
-    dbgAssert(stderr, len >= 0, "bufAdd called with length %lu", len);
+    dbgAssert(stderr, len >= 0, "bufAdd called with length %zd", len);
 
     buf_enlarge(buf, len);
 
