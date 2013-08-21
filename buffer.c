@@ -137,9 +137,9 @@ Buffer *bufAdd(Buffer *buf, const void *data, size_t len)
  */
 Buffer *bufAddC(Buffer *buf, char c)
 {
-   bufAdd(buf, &c, 1);
+    bufAdd(buf, &c, 1);
 
-   return buf;
+    return buf;
 }
 
 /*
@@ -171,15 +171,15 @@ Buffer *bufAddV(Buffer *buf, const char *fmt, va_list ap)
  */
 Buffer *bufAddF(Buffer *buf, const char *fmt, ...)
 {
-   va_list ap;
+    va_list ap;
 
-   va_start(ap, fmt);
+    va_start(ap, fmt);
 
-   bufAddV(buf, fmt, ap);
+    bufAddV(buf, fmt, ap);
 
-   va_end(ap);
+    va_end(ap);
 
-   return buf;
+    return buf;
 }
 
 /*
@@ -197,9 +197,9 @@ Buffer *bufSet(Buffer *buf, const void *data, size_t len)
  */
 Buffer *bufSetC(Buffer *buf, char c)
 {
-   bufClear(buf);
+    bufClear(buf);
 
-   return bufAdd(buf, &c, 1);
+    return bufAdd(buf, &c, 1);
 }
 
 /*
@@ -207,15 +207,15 @@ Buffer *bufSetC(Buffer *buf, char c)
  */
 Buffer *bufSetF(Buffer *buf, const char *fmt, ...)
 {
-   va_list ap;
+    va_list ap;
 
-   va_start(ap, fmt);
+    va_start(ap, fmt);
 
-   bufSetV(buf, fmt, ap);
+    bufSetV(buf, fmt, ap);
 
-   va_end(ap);
+    va_end(ap);
 
-   return buf;
+    return buf;
 }
 
 /*
@@ -224,9 +224,9 @@ Buffer *bufSetF(Buffer *buf, const char *fmt, ...)
  */
 Buffer *bufSetV(Buffer *buf, const char *fmt, va_list ap)
 {
-   bufClear(buf);
+    bufClear(buf);
 
-   return bufAddV(buf, fmt, ap);
+    return bufAddV(buf, fmt, ap);
 }
 
 /*
@@ -266,9 +266,9 @@ int bufLen(const Buffer *buf)
  */
 Buffer *bufCat(Buffer *base, const Buffer *addition)
 {
-   bufAdd(base, bufGet(addition), bufLen(addition));
+    bufAdd(base, bufGet(addition), bufLen(addition));
 
-   return base;
+    return base;
 }
 
 /*
@@ -417,69 +417,69 @@ static int errors = 0;
 
 int main(int argc, char *argv[])
 {
-   Buffer buf1 = { };
-   Buffer buf2 = { };
-   Buffer *buf3;
+    Buffer buf1 = { };
+    Buffer buf2 = { };
+    Buffer *buf3;
 
-   bufClear(&buf1);
+    bufClear(&buf1);
 
-   bufAdd(&buf1, "ABCDEF", 3);
+    bufAdd(&buf1, "ABCDEF", 3);
 
-   make_sure_that(bufLen(&buf1) == 3);
-   make_sure_that(strcmp(bufGet(&buf1), "ABC") == 0);
+    make_sure_that(bufLen(&buf1) == 3);
+    make_sure_that(strcmp(bufGet(&buf1), "ABC") == 0);
 
-   bufAddC(&buf1, 'D');
+    bufAddC(&buf1, 'D');
 
-   make_sure_that(bufLen(&buf1) == 4);
-   make_sure_that(strcmp(bufGet(&buf1), "ABCD") == 0);
+    make_sure_that(bufLen(&buf1) == 4);
+    make_sure_that(strcmp(bufGet(&buf1), "ABCD") == 0);
 
-   bufAddF(&buf1, "%d", 1234);
+    bufAddF(&buf1, "%d", 1234);
 
-   make_sure_that(bufLen(&buf1) == 8);
-   make_sure_that(strcmp(bufGet(&buf1), "ABCD1234") == 0);
+    make_sure_that(bufLen(&buf1) == 8);
+    make_sure_that(strcmp(bufGet(&buf1), "ABCD1234") == 0);
 
-   bufSet(&buf1, "ABCDEF", 3);
+    bufSet(&buf1, "ABCDEF", 3);
 
-   make_sure_that(bufLen(&buf1) == 3);
-   make_sure_that(strcmp(bufGet(&buf1), "ABC") == 0);
+    make_sure_that(bufLen(&buf1) == 3);
+    make_sure_that(strcmp(bufGet(&buf1), "ABC") == 0);
 
-   bufSetC(&buf1, 'D');
+    bufSetC(&buf1, 'D');
 
-   make_sure_that(bufLen(&buf1) == 1);
-   make_sure_that(strcmp(bufGet(&buf1), "D") == 0);
+    make_sure_that(bufLen(&buf1) == 1);
+    make_sure_that(strcmp(bufGet(&buf1), "D") == 0);
 
-   bufSetF(&buf1, "%d", 1234);
+    bufSetF(&buf1, "%d", 1234);
 
-   make_sure_that(bufLen(&buf1) == 4);
-   make_sure_that(strcmp(bufGet(&buf1), "1234") == 0);
+    make_sure_that(bufLen(&buf1) == 4);
+    make_sure_that(strcmp(bufGet(&buf1), "1234") == 0);
 
-   bufClear(&buf1);
+    bufClear(&buf1);
 
-   make_sure_that(bufLen(&buf1) == 0);
-   make_sure_that(strcmp(bufGet(&buf1), "") == 0);
+    make_sure_that(bufLen(&buf1) == 0);
+    make_sure_that(strcmp(bufGet(&buf1), "") == 0);
 
-   bufSet(&buf1, "ABC", 3);
-   bufSet(&buf2, "DEF", 3);
+    bufSet(&buf1, "ABC", 3);
+    bufSet(&buf2, "DEF", 3);
 
-   buf3 = bufCat(&buf1, &buf2);
+    buf3 = bufCat(&buf1, &buf2);
 
-   make_sure_that(&buf1 == buf3);
+    make_sure_that(&buf1 == buf3);
 
-   make_sure_that(bufLen(&buf1) == 6);
-   make_sure_that(strcmp(bufGet(&buf1), "ABCDEF") == 0);
+    make_sure_that(bufLen(&buf1) == 6);
+    make_sure_that(strcmp(bufGet(&buf1), "ABCDEF") == 0);
 
-   make_sure_that(bufLen(&buf2) == 3);
-   make_sure_that(strcmp(bufGet(&buf2), "DEF") == 0);
+    make_sure_that(bufLen(&buf2) == 3);
+    make_sure_that(strcmp(bufGet(&buf2), "DEF") == 0);
 
-   bufSetF(&buf1, "ABCDEF");
+    bufSetF(&buf1, "ABCDEF");
 
-   make_sure_that(strcmp(bufGet(bufTrim(&buf1, 0, 0)), "ABCDEF") == 0);
-   make_sure_that(strcmp(bufGet(bufTrim(&buf1, 1, 0)), "BCDEF") == 0);
-   make_sure_that(strcmp(bufGet(bufTrim(&buf1, 0, 1)), "BCDE") == 0);
-   make_sure_that(strcmp(bufGet(bufTrim(&buf1, 1, 1)), "CD") == 0);
-   make_sure_that(strcmp(bufGet(bufTrim(&buf1, 3, 3)), "") == 0);
+    make_sure_that(strcmp(bufGet(bufTrim(&buf1, 0, 0)), "ABCDEF") == 0);
+    make_sure_that(strcmp(bufGet(bufTrim(&buf1, 1, 0)), "BCDEF") == 0);
+    make_sure_that(strcmp(bufGet(bufTrim(&buf1, 0, 1)), "BCDE") == 0);
+    make_sure_that(strcmp(bufGet(bufTrim(&buf1, 1, 1)), "CD") == 0);
+    make_sure_that(strcmp(bufGet(bufTrim(&buf1, 3, 3)), "") == 0);
 
-   bufPack(&buf1,
+    bufPack(&buf1,
            PACK_INT8,   0x01,
            PACK_INT16,  0x0123,
            PACK_INT32,  0x01234567,
@@ -488,56 +488,93 @@ int main(int argc, char *argv[])
            PACK_DOUBLE, 0.0,
            PACK_STRING, "Hoi1",
            PACK_DATA,   "Hoi2", 4,
+           PACK_RAW,    "Hoi3", 4,
            END);
 
-   make_sure_that(bufLen(&buf1) == 43);
-   make_sure_that(memcmp(bufGet(&buf1),
-       "\x01"
-       "\x01\x23"
-       "\x01\x23\x45\x67"
-       "\x01\x23\x45\x67\x89\xAB\xCD\xEF"
-       "\x00\x00\x00\x00"
-       "\x00\x00\x00\x00\x00\x00\x00\x00"
-       "\x00\x00\x00\x04Hoi1"
-       "\x00\x00\x00\x04Hoi2", 43) == 0);
+    make_sure_that(bufLen(&buf1) == 47);
+    make_sure_that(memcmp(bufGet(&buf1),
+        "\x01"
+        "\x01\x23"
+        "\x01\x23\x45\x67"
+        "\x01\x23\x45\x67\x89\xAB\xCD\xEF"
+        "\x00\x00\x00\x00"
+        "\x00\x00\x00\x00\x00\x00\x00\x00"
+        "\x00\x00\x00\x04Hoi1"
+        "\x00\x00\x00\x04Hoi2"
+        "Hoi3", 47) == 0);
 
-   {
-       const char *name[] = { "Mills", "Berry", "Buck", "Stipe" };
+    {
+        uint8_t u8;
+        uint16_t u16;
+        uint32_t u32;
+        uint64_t u64;
+        float f32;
+        double f64;
+        char *string, *data, raw[4];
+        int data_size;
 
-       bufClear(&buf1);
+        bufUnpack(&buf1,
+                PACK_INT8,   &u8,
+                PACK_INT16,  &u16,
+                PACK_INT32,  &u32,
+                PACK_INT64,  &u64,
+                PACK_FLOAT,  &f32,
+                PACK_DOUBLE, &f64,
+                PACK_STRING, &string,
+                PACK_DATA,   &data, &data_size,
+                PACK_RAW,    &raw, 4,
+                END);
 
-       bufList(&buf1, ", ", " and ", TRUE, TRUE, "%s", name[0]);
+        make_sure_that(u8  == 0x01);
+        make_sure_that(u16 == 0x0123);
+        make_sure_that(u32 == 0x01234567);
+        make_sure_that(u64 == 0x0123456789ABCDEF);
+        make_sure_that(f32 == 0.0);
+        make_sure_that(f64 == 0.0);
+        make_sure_that(memcmp(string, "Hoi1", 5) == 0);
+        make_sure_that(memcmp(data, "Hoi2", 4) == 0);
+        make_sure_that(data_size == 4);
+        make_sure_that(memcmp(raw, "Hoi3", 4) == 0);
 
-       make_sure_that(strcmp(bufGet(&buf1), "Mills") == 0);
+    }
 
-       bufClear(&buf1);
+    {
+        const char *name[] = { "Mills", "Berry", "Buck", "Stipe" };
 
-       bufList(&buf1, ", ", " and ", TRUE, FALSE, "%s", name[0]);
-       bufList(&buf1, ", ", " and ", FALSE, TRUE, "%s", name[1]);
+        bufClear(&buf1);
 
-       make_sure_that(strcmp(bufGet(&buf1), "Mills and Berry") == 0);
+        bufList(&buf1, ", ", " and ", TRUE, TRUE, "%s", name[0]);
 
-       bufClear(&buf1);
+        make_sure_that(strcmp(bufGet(&buf1), "Mills") == 0);
 
-       bufList(&buf1, ", ", " and ", TRUE,  FALSE, "%s", name[0]);
-       bufList(&buf1, ", ", " and ", FALSE, FALSE, "%s", name[1]);
-       bufList(&buf1, ", ", " and ", FALSE, TRUE,  "%s", name[2]);
+        bufClear(&buf1);
 
-       make_sure_that(strcmp(bufGet(&buf1), "Mills, Berry and Buck") == 0);
+        bufList(&buf1, ", ", " and ", TRUE, FALSE, "%s", name[0]);
+        bufList(&buf1, ", ", " and ", FALSE, TRUE, "%s", name[1]);
 
-       bufClear(&buf1);
+        make_sure_that(strcmp(bufGet(&buf1), "Mills and Berry") == 0);
 
-       bufList(&buf1, ", ", " and ", TRUE,  FALSE, "%s", name[0]);
-       bufList(&buf1, ", ", " and ", FALSE, FALSE, "%s", name[1]);
-       bufList(&buf1, ", ", " and ", FALSE, FALSE, "%s", name[2]);
-       bufList(&buf1, ", ", " and ", FALSE, TRUE,  "%s", name[3]);
+        bufClear(&buf1);
 
-       make_sure_that(strcmp(bufGet(&buf1), "Mills, Berry, Buck and Stipe") == 0);
-   }
+        bufList(&buf1, ", ", " and ", TRUE,  FALSE, "%s", name[0]);
+        bufList(&buf1, ", ", " and ", FALSE, FALSE, "%s", name[1]);
+        bufList(&buf1, ", ", " and ", FALSE, TRUE,  "%s", name[2]);
 
-   bufReset(&buf1);
-   bufReset(&buf2);
+        make_sure_that(strcmp(bufGet(&buf1), "Mills, Berry and Buck") == 0);
 
-   return errors;
+        bufClear(&buf1);
+
+        bufList(&buf1, ", ", " and ", TRUE,  FALSE, "%s", name[0]);
+        bufList(&buf1, ", ", " and ", FALSE, FALSE, "%s", name[1]);
+        bufList(&buf1, ", ", " and ", FALSE, FALSE, "%s", name[2]);
+        bufList(&buf1, ", ", " and ", FALSE, TRUE,  "%s", name[3]);
+
+        make_sure_that(strcmp(bufGet(&buf1), "Mills, Berry, Buck and Stipe") == 0);
+    }
+
+    bufReset(&buf1);
+    bufReset(&buf2);
+
+    return errors;
 }
 #endif
