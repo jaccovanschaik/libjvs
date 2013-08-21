@@ -2,7 +2,7 @@
  * mx.c: Message Exchange.
  *
  * Copyright:	(c) 2013 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:	$Id: mx.c 175 2013-08-20 14:50:27Z jacco $
+ * Version:	$Id: mx.c 176 2013-08-20 17:18:28Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -242,7 +242,12 @@ static int mx_get_events(MX *mx, List *queue)
     if ((timer = listHead(&mx->timers)) != NULL) {
         double delta_t = timer->t - nowd();
 
+P       dbgPrint(stderr, "Have %d timers, first with event_type %d in %g seconds\n",
+                listLength(&mx->timers), timer->event_type, delta_t);
+
         if (delta_t <= 0) {
+P           dbgPrint(stderr, "delta_t < 0: queueing a timer event and returning 1\n");
+
             mx_queue_timer(queue, timer->event_type);
 
             return 1;
@@ -250,6 +255,8 @@ static int mx_get_events(MX *mx, List *queue)
         else {
             tv.tv_sec = delta_t;
             tv.tv_usec = 1000000 * (delta_t - tv.tv_sec);
+
+P           dbgPrint(stderr, "Setting a timeval: sec = %ld, usec = %ld\n", tv.tv_sec, tv.tv_usec);
 
             tvp = &tv;
         }
@@ -564,7 +571,7 @@ void mxOnTime(MX *mx, double t, void (*cb)(MX *mx, double t, void *udata), void 
 }
 
 /*
- * Tell <mx> to cancel the timeout at <t>, for which callback <cb> was installed.
+ * Tell <mx> to cancel the timer at <t>, for which callback <cb> was installed.
  */
 void mxDropTime(MX *mx, double t, void (*cb)(MX *mx, double t, void *udata))
 {
@@ -713,11 +720,17 @@ int mxAwait(MX *mx, int fd, MX_Type type, MX_Version *version, char **payload, M
 {
     mx_add_timer(mx, timeout, MX_ET_AWAIT, NULL, NULL);
 
+P   dbgPrint(stderr, "fd = %d, type = %d, timeout = %f\n", fd, type, timeout);
+
     while (1) {
         MX_Event *evt;
 
         while (listIsEmpty(&mx->waiting)) {
-            int r = mx_get_events(mx, &mx->waiting);
+            int r;
+
+P           dbgPrint(stderr, "Calling mx_get_events\n");
+
+            r = mx_get_events(mx, &mx->waiting);
 
 P           dbgPrint(stderr, "mx_get_events returned %d\n", r);
 
@@ -726,21 +739,36 @@ P           dbgPrint(stderr, "mx_get_events returned %d\n", r);
 
         evt = listRemoveHead(&mx->waiting);
 
+P       dbgPrint(stderr, "First event has event_type = %d\n", evt->event_type);
+
         if (evt->event_type == MX_ET_MESSAGE && evt->u.msg.fd == fd && evt->u.msg.type == type) {
+            MX_Timer *timer = listRemoveHead(&mx->timers);
+
+            free(timer);
+
             *version = evt->u.msg.version;
             *payload = evt->u.msg.payload;
             *size    = evt->u.msg.size;
 
             free(evt);
 
+P           dbgPrint(stderr, "Returning waited-for message\n");
+
             return 0;
         }
         else if (evt->event_type == MX_ET_AWAIT) {
+            MX_Timer *timer = listRemoveHead(&mx->timers);
+
+            free(timer);
             free(evt);
+
+P           dbgPrint(stderr, "Timed out. Returning 1\n");
 
             return 1;
         }
         else {
+P           dbgPrint(stderr, "Appending event to \"pending\" list\n");
+
             listAppendTail(&mx->pending, evt);
         }
     }
@@ -942,7 +970,7 @@ void c_log(MX *mx, char *fmt, ...)
     vasprintf(&msg, fmt, ap);
     va_end(ap);
 
-    dbgPrint(stderr, "%s\n", msg);
+P   dbgPrint(stderr, "%s\n", msg);
 
     if (strcmp(current_test->expectation, msg) != 0) {
         dbgPrint(stderr, "Expected \"%s\"\n", current_test->expectation);
@@ -956,21 +984,23 @@ void c_log(MX *mx, char *fmt, ...)
     run_test(mx, ++current_test);
 }
 
-void c_handle_timeout(MX *mx, double t, void *udata)
+void c_handle_timer(MX *mx, double t, void *udata)
 {
-    c_log(mx, "Got timeout");
+    c_log(mx, "Timer was triggered");
 }
 
-void c_test_timeout(MX *mx)
+void c_test_timer(MX *mx)
 {
-    mxOnTime(mx, nowd() + 1, c_handle_timeout, NULL);
+P   dbgPrint(stderr, "Testing timer\n");
+
+    mxOnTime(mx, nowd() + 0.1, c_handle_timer, NULL);
 }
 
 void c_connect_to_server(MX *mx)
 {
     server_fd = mxConnect(mx, "localhost", 1234);
 
-P   dbgPrint(stderr, "server_fd = %d\n", server_fd);
+P   dbgPrint(stderr, "Connected to the test server: server_fd = %d\n", server_fd);
 
     if (server_fd >= 0) {
         c_log(mx, "Connected to test server");
@@ -1004,6 +1034,8 @@ void c_test_tcp_connection(MX *mx)
 {
     Buffer payload = { 0 };
 
+P   dbgPrint(stderr, "Testing incoming TCP connection using a Data socket\n");
+
     mxOnData(mx, listen_fd, c_accept_tcp_connection, NULL);
 
     bufPack(&payload,
@@ -1029,6 +1061,8 @@ void c_handle_tcp_traffic(MX *mx, int fd, void *udata)
 
 void c_test_tcp_traffic(MX *mx)
 {
+P   dbgPrint(stderr, "Testing incoming TCP traffic using a Data socket\n");
+
     mxOnData(mx, tcp_fd, c_handle_tcp_traffic, NULL);
 
     mxPack(mx, server_fd, REQ_TCP_SEND, 0, PACK_STRING, "ABCD", END);
@@ -1053,6 +1087,8 @@ void c_handle_udp_traffic(MX *mx, int fd, void *udata)
 
 void c_test_udp_traffic(MX *mx)
 {
+P   dbgPrint(stderr, "Testing incoming UDP traffic on Data socket\n");
+
     mxOnData(mx, udp_fd, c_handle_udp_traffic, NULL);
 
     mxPack(mx, server_fd, REQ_UDP_SEND, 0,
@@ -1070,6 +1106,8 @@ void c_test_await_reply(MX *mx)
 
     MX_Version version;
     MX_Size size;
+
+P   dbgPrint(stderr, "Testing mxAwait with a correct reply\n");
 
     mxPack(mx, server_fd, REQ_ECHO, 0,
             PACK_RAW,   "Ping!", 5,
@@ -1097,11 +1135,13 @@ void c_test_await_timeout(MX *mx)
     MX_Version version;
     MX_Size size;
 
+P   dbgPrint(stderr, "Testing mxAwait with a timeout\n");
+
     mxPack(mx, server_fd, REQ_NO_REPLY, 0,
             PACK_RAW,   "Ping!", 5,
             END);
 
-    r = mxAwait(mx, server_fd, REQ_NO_REPLY, &version, &payload, &size, nowd() + 1);
+    r = mxAwait(mx, server_fd, REQ_NO_REPLY, &version, &payload, &size, nowd() + 0.1);
 
     if (r == -1)
         c_log(mx, "mxAwait returned an error");
@@ -1122,6 +1162,8 @@ void c_test_await_2_replies(MX *mx)
 
     MX_Version version;
     MX_Size size;
+
+P   dbgPrint(stderr, "Testing multiple mxAwait calls\n");
 
     mxPack(mx, server_fd, REQ_ECHO, 0,
             PACK_RAW,   "Ping!", 5,
@@ -1145,7 +1187,7 @@ void client(void)
     MX *mx;
 
     Test test[] = {
-        { c_test_timeout,           "Got timeout" },
+        { c_test_timer,             "Timer was triggered" },
         { c_connect_to_server,      "Connected to test server" },
         { c_setup_tcp_port,         "Opened TCP listen port" },
         { c_test_tcp_connection,    "Accepted TCP connection" },
@@ -1173,7 +1215,6 @@ int main(int argc, char *argv[])
         server();
     }
     else {
-        sleep(1);       /* Allow the server some time to start up. */
         client();
         kill(pid, SIGTERM);
     }
