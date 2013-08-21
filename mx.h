@@ -5,13 +5,19 @@
  * mx.h: Message Exchange.
  *
  * Copyright:	(c) 2013 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:	$Id: mx.h 171 2013-08-16 14:01:39Z jacco $
+ * Version:	$Id: mx.h 172 2013-08-19 14:48:41Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
  */
 
+#include <stdint.h>
+
 typedef struct MX MX;
+
+typedef uint32_t MX_Size;
+typedef uint32_t MX_Type;
+typedef uint32_t MX_Version;
 
 /*
  * Create a Message Exchange.
@@ -27,19 +33,19 @@ MX *mxCreate(void);
 int mxListen(MX *mx, const char *host, int port);
 
 /*
- * Tell <mx> to call <cb> when a message of type <type> arrives. The file descriptor on which the
- * message was received is passed to <cb>, along with the type, version and payload contents and
- * size of the received message. Also passed to <cb> is the user data pointer <udata>. Only one
- * callback can be installed for each message type; subsequent calls will replace the installed
- * callback with <cb>.
+ * Tell <mx> to call <cb> when a message of message type <type> arrives. The file descriptor on
+ * which the message was received is passed to <cb>, along with the message type, version and
+ * payload contents and size of the received message. Also passed to <cb> is the user data pointer
+ * <udata>. Only one callback can be installed for each message type; subsequent calls will replace
+ * the installed callback with <cb>.
  */
-void mxOnMessage(MX *mx, int type, void (*cb)(MX *mx, int fd, int type, int version, char *payload,
-                   int size, void *udata), void *udata);
+void mxOnMessage(MX *mx, MX_Type type, void (*cb)(MX *mx, int fd, MX_Type type, MX_Version version,
+                   char *payload, MX_Size size, void *udata), void *udata);
 
 /*
- * Tell <mx> to stop listening for messages with type <type>.
+ * Tell <mx> to stop listening for messages with message type <type>.
  */
-void mxDropMessage(MX *mx, int type);
+void mxDropMessage(MX *mx, MX_Type type);
 
 /*
  * Tell <mx> to call <cb> if data comes in on file descriptor <fd>. The file descriptor where the
@@ -77,25 +83,27 @@ int mxConnect(MX *mx, const char *host, int port);
 int mxDisconnect(MX *mx, int fd);
 
 /*
- * Send a message with type <type>, version <version> and payload <payload> with size <size> via
- * <mx> to <fd>. The message is added to an outgoing buffer in <mx>, and will be sent as soon as the
- * flow of control returns to <mx>'s main loop.
+ * Send a message with message type <type>, version <version> and payload <payload> with size
+ * <size> via <mx> to <fd>. The message is added to an outgoing buffer in <mx>, and will be sent as
+ * soon as the flow of control returns to <mx>'s main loop.
  */
-int mxSend(MX *mx, int fd, int type, int version, const char *payload, int size);
+int mxSend(MX *mx, int fd, MX_Type type, MX_Version version, const char *payload, MX_Size size);
 
 /*
- * Send a message with type <type> and version <version> via <mx> to <fd>. The message payload is
- * packed using the PACK_* syntax described in utils.h. The message is added to an outgoing buffer
- * in <mx>, and will be sent as soon as the flow of control returns to <mx>'s main loop.
+ * Send a message with message type <type> and version <version> via <mx> to <fd>. The message
+ * payload is packed using the PACK_* syntax described in utils.h. The message is added to an
+ * outgoing buffer in <mx>, and will be sent as soon as the flow of control returns to <mx>'s main
+ * loop.
  */
-int mxPack(MX *mx, int fd, int type, int version, ...);
+int mxPack(MX *mx, int fd, MX_Type type, MX_Version version, ...);
 
 /*
- * Send a message with type <type> and version <version> via <mx> to <fd>. The message payload is
- * packed using the PACK_* syntax described in utils.h. The message is added to an outgoing buffer
- * in <mx>, and will be sent as soon as the flow of control returns to <mx>'s main loop.
+ * Send a message with message type <type> and version <version> via <mx> to <fd>. The message
+ * payload is packed using the PACK_* syntax described in utils.h. The message is added to an
+ * outgoing buffer in <mx>, and will be sent as soon as the flow of control returns to <mx>'s main
+ * loop.
  */
-int mxVaPack(MX *mx, int fd, int type, int version, va_list ap);
+int mxVaPack(MX *mx, int fd, MX_Type type, MX_Version version, va_list ap);
 
 /*
  * Call <cb> when a new connection is accepted by <mx>. The file descriptor of the new connection is
@@ -117,22 +125,29 @@ void mxOnDisconnect(MX *mx, void (*cb)(MX *mx, int fd, void *udata), void *udata
  */
 void mxOnError(MX *mx, void (*cb)(MX *mx, int fd, int error, void *udata), void *udata);
 
+int mx_process_select(MX *mx, int r, int nfds, fd_set *rfds, fd_set *wfds, int await_fd, MX_Type
+                        await_type);
+
 /*
- * Tell <mx> to wait until a message of type <type> arrives on file descriptor <fd>. The version of
- * the received message is passed to <cb>, along with its payload and payload size. Messages,
- * timeouts and other received data that arrives while waiting for this message will be queued up
- * and delivered as soon as the flow-of-control returns to <mx>'s main loop.
+ * Tell <mx> to wait until a message of message type <type> arrives on file descriptor <fd>. The
+ * version of the received message is returned through <version>, its payload through <payload> and
+ * the payload size though <size>. Messages, timers and other received data that arrive while
+ * waiting for this message will be eventsd up and delivered as soon as the flow-of-control returns
+ * to <mx>'s main loop. This function will wait until the time given in <timeout> (a UTC timestamp
+ * containing the number of seconds since 1970-01-01/00:00:00 UTC) for the message to arrive. It
+ * returns 0 if the message did arrive on time, 1 if it didn't and -1 if any other (network) error
+ * occurred.
  */
 int mxAwait(MX *mx, int fd, int type, int *version, char **payload, int *size, double timeout);
 
 /*
  * Start <mx>'s main loop. This function won't return until all sockets and other file descriptors
- * have been closed and there are no more pending timeouts.
+ * have been closed and there are no more pending timers.
  */
 int mxRun(MX *mx);
 
 /*
- * Close down <mx>. This will close all sockets and other file descriptors and cancel all timeouts,
+ * Close down <mx>. This will close all sockets and other file descriptors and cancel all timers,
  * causing mxRun() to return.
  */
 void mxClose(MX *mx);

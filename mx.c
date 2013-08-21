@@ -2,7 +2,7 @@
  * mx.c: Message Exchange.
  *
  * Copyright:	(c) 2013 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:	$Id: mx.c 171 2013-08-16 14:01:39Z jacco $
+ * Version:	$Id: mx.c 172 2013-08-19 14:48:41Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -12,6 +12,7 @@
 #include <stdarg.h>
 #include <string.h>
 #include <unistd.h>
+#include <errno.h>
 
 #include "buffer.h"
 #include "utils.h"
@@ -21,7 +22,7 @@
 #include "mx.h"
 
 typedef struct {
-    void (*cb)(MX *mx, int fd, int msg_type, int version, char *payload, int size, void *udata);
+    void (*cb)(MX *mx, int fd, MX_Type type, MX_Version version, char *payload, MX_Size size, void *udata);
     void *udata;
 } MX_Subscription;
 
@@ -31,11 +32,13 @@ typedef enum {
     MX_ET_LISTEN,
     MX_ET_MESSAGE,
     MX_ET_TIMER,
-    MX_ET_AWAIT
+    MX_ET_AWAIT,
+    MX_ET_ERROR,
+    MX_ET_EOF
 } MX_EventType;
 
 typedef struct {
-    MX_EventType event_type;
+    MX_EventType event_type;    /* MX_ET_DATA, MX_ET_LISTEN or MX_ET_MESSAGE */
     Buffer incoming, outgoing;
     void (*cb)(MX *mx, int fd, void *udata);
     void *udata;
@@ -43,21 +46,50 @@ typedef struct {
 
 typedef struct {
     ListNode _node;
-    MX_EventType event_type;
+    MX_EventType event_type;    /* MX_ET_TIMER or MX_ET_AWAIT */
     double t;
     void *udata;
     void (*cb)(MX *mx, double t, void *udata);
 } MX_Timer;
 
 typedef struct {
-    ListNode _node;
-    MX_EventType event_type;
     int fd;
-    int msg_type;
-    int version;
-    int size;
+} MX_DataEvent;
+
+typedef struct {
+    int fd;
+    MX_Type type;
+    MX_Version version;
+    MX_Size size;
     char *payload;
+} MX_MessageEvent;
+
+typedef struct {
     double t;
+} MX_TimerEvent;
+
+typedef struct {
+    int fd;
+    const char *whence;
+    int error;
+} MX_ErrorEvent;
+
+typedef struct {
+    int fd;
+    const char *whence;
+} MX_EOFEvent;
+
+typedef struct {
+    ListNode _node;
+    MX_EventType event_type;    /* MX_ET_DATA, MX_ET_LISTEN or MX_ET_MESSAGE */
+    const void *udata;
+    union {
+        MX_DataEvent data;
+        MX_MessageEvent message;
+        MX_TimerEvent timer;
+        MX_ErrorEvent error;
+        MX_EOFEvent eof;
+    } u;
 } MX_Event;
 
 struct MX {
@@ -147,22 +179,22 @@ int mxListen(MX *mx, const char *host, int port)
 }
 
 /*
- * Tell <mx> to call <cb> when a message of message type <msg_type> arrives. The file descriptor on
+ * Tell <mx> to call <cb> when a message of message type <type> arrives. The file descriptor on
  * which the message was received is passed to <cb>, along with the message type, version and
  * payload contents and size of the received message. Also passed to <cb> is the user data pointer
  * <udata>. Only one callback can be installed for each message type; subsequent calls will replace
  * the installed callback with <cb>.
  */
-void mxOnMessage(MX *mx, int msg_type,
-        void (*cb)(MX *mx, int fd, int msg_type, int version, char *payload, int size, void *udata),
+void mxOnMessage(MX *mx, MX_Type type,
+        void (*cb)(MX *mx, int fd, MX_Type type, MX_Version version, char *payload, MX_Size size, void *udata),
         void *udata)
 {
-    MX_Subscription *sub = hashGet(&mx->subs, HASH_VALUE(msg_type));
+    MX_Subscription *sub = hashGet(&mx->subs, HASH_VALUE(type));
 
     if (sub == NULL) {
         sub = calloc(1, sizeof(MX_Subscription));
 
-        hashAdd(&mx->subs, sub, HASH_VALUE(msg_type));
+        hashAdd(&mx->subs, sub, HASH_VALUE(type));
     }
 
     sub->cb = cb;
@@ -170,14 +202,14 @@ void mxOnMessage(MX *mx, int msg_type,
 }
 
 /*
- * Tell <mx> to stop listening for messages with message type <msg_type>.
+ * Tell <mx> to stop listening for messages with message type <type>.
  */
-void mxDropMessage(MX *mx, int msg_type)
+void mxDropMessage(MX *mx, MX_Type type)
 {
-    MX_Subscription *sub = hashGet(&mx->subs, HASH_VALUE(msg_type));
+    MX_Subscription *sub = hashGet(&mx->subs, HASH_VALUE(type));
 
     if (sub != NULL) {
-        hashDel(&mx->subs, HASH_VALUE(msg_type));
+        hashDel(&mx->subs, HASH_VALUE(type));
         free(sub);
     }
 }
@@ -293,16 +325,16 @@ int mxDisconnect(MX *mx, int fd)
 }
 
 /*
- * Send a message with message type <msg_type>, version <version> and payload <payload> with size
+ * Send a message with message type <type>, version <version> and payload <payload> with size
  * <size> via <mx> to <fd>. The message is added to an outgoing buffer in <mx>, and will be sent as
  * soon as the flow of control returns to <mx>'s main loop.
  */
-int mxSend(MX *mx, int fd, int msg_type, int version, const char *payload, int size)
+int mxSend(MX *mx, int fd, MX_Type type, MX_Version version, const char *payload, MX_Size size)
 {
     if (!mx_has_fd(mx, fd)) return -1;
 
     bufPack(&mx->file[fd]->outgoing,
-            PACK_INT32, msg_type,
+            PACK_INT32, type,
             PACK_INT32, version,
             PACK_INT32, size,
             PACK_RAW,   payload, size,
@@ -312,35 +344,35 @@ int mxSend(MX *mx, int fd, int msg_type, int version, const char *payload, int s
 }
 
 /*
- * Send a message with message type <msg_type> and version <version> via <mx> to <fd>. The message
+ * Send a message with message type <type> and version <version> via <mx> to <fd>. The message
  * payload is packed using the PACK_* syntax described in utils.h. The message is added to an
  * outgoing buffer in <mx>, and will be sent as soon as the flow of control returns to <mx>'s main
  * loop.
  */
-int mxPack(MX *mx, int fd, int msg_type, int version, ...)
+int mxPack(MX *mx, int fd, MX_Type type, MX_Version version, ...)
 {
     int r;
     va_list ap;
 
     va_start(ap, version);
-    r = mxVaPack(mx, fd, msg_type, version, ap);
+    r = mxVaPack(mx, fd, type, version, ap);
     va_end(ap);
 
     return r;
 }
 
 /*
- * Send a message with message type <msg_type> and version <version> via <mx> to <fd>. The message
+ * Send a message with message type <type> and version <version> via <mx> to <fd>. The message
  * payload is packed using the PACK_* syntax described in utils.h. The message is added to an
  * outgoing buffer in <mx>, and will be sent as soon as the flow of control returns to <mx>'s main
  * loop.
  */
-int mxVaPack(MX *mx, int fd, int msg_type, int version, va_list ap)
+int mxVaPack(MX *mx, int fd, MX_Type type, MX_Version version, va_list ap)
 {
     char *str;
     size_t size = vastrpack(&str, ap);
 
-    int r = mxSend(mx, fd, msg_type, version, str, size);
+    int r = mxSend(mx, fd, type, version, str, size);
 
     free(str);
 
@@ -384,32 +416,176 @@ static int mx_prepare_select(MX *mx, int *nfds, fd_set *rfds, fd_set *wfds, stru
     return 0;
 }
 
-static int mx_process_select(MX *mx, int r, int nfds, fd_set *rfds, fd_set *wfds)
+static MX_Event *mx_create_event(List *queue, MX_EventType type, const void *udata)
 {
-    return 0;
+    MX_Event *evt = calloc(1, sizeof(MX_Event));
+
+    evt->event_type = type;
+    evt->udata = udata;
+
+    listAppendTail(queue, evt);
+
+    return evt;
 }
 
-static int mx_collect_events(MX *mx)
+static MX_Event *mx_queue_timer(List *queue, MX_EventType event_type, double t, const void *udata)
 {
-    int r;
+    MX_Event *evt = mx_create_event(queue, event_type, udata);
 
+    evt->u.timer.t = t;
+
+    return evt;
+}
+
+static MX_Event *mx_queue_error(List *queue,
+        int fd, const char *whence, int error, const void *udata)
+{
+    MX_Event *evt = mx_create_event(queue, MX_ET_ERROR, udata);
+
+    evt->u.error.fd = fd;
+    evt->u.error.error = error;
+    evt->u.error.whence = whence;
+
+    return evt;
+}
+
+static MX_Event *mx_queue_eof(List *queue, int fd, const char *whence, const void *udata)
+{
+    MX_Event *evt = mx_create_event(queue, MX_ET_EOF, udata);
+
+    evt->u.eof.fd = fd;
+    evt->u.eof.whence = whence;
+
+    return evt;
+}
+
+static MX_Event *mx_queue_data(List *queue, int fd, const void *udata)
+{
+    MX_Event *evt = mx_create_event(queue, MX_ET_DATA, udata);
+
+    evt->u.data.fd = fd;
+
+    return evt;
+}
+
+static MX_Event *mx_queue_message(List *queue,
+        int fd, MX_Type type, MX_Version version, MX_Size size, char *payload, const void *udata)
+{
+    MX_Event *evt = mx_create_event(queue, MX_ET_MESSAGE, udata);
+
+    evt->u.message.fd = fd;
+    evt->u.message.type = type;
+    evt->u.message.version = version;
+    evt->u.message.size = size;
+    evt->u.message.payload = payload;
+
+    return evt;
+}
+
+static int mx_get_events(MX *mx, List *queue)
+{
+    int r, nfds, count;
     fd_set rfds, wfds;
-    int nfds;
-    struct timeval tv, *tvp;
-
-    mx_prepare_select(mx, &nfds, &rfds, &wfds, &tvp);
-
-    tvp = &tv;
+    struct timeval *tvp;
 
     r = select(nfds, &rfds, &wfds, NULL, tvp);
 
-    mx_process_select(mx, r, nfds, &rfds, &wfds);
+    if (r < 0) {
+        mx_queue_error(queue, -1, "select", errno, mx->on_error_udata);
+
+        return listLength(queue);
+    }
+    else if (r == 0) {
+        MX_Timer *timer = listRemoveHead(&mx->timers);
+
+        mx_queue_timer(queue, timer->event_type, timer->t, timer->udata);
+
+        free(timer);
+    }
+    else {
+        int fd;
+
+        for (fd = 0; fd < nfds; fd++) {
+            MX_File *file = mx->file[fd];
+
+            if (FD_ISSET(fd, &wfds)) {
+                r = write(fd, bufGet(&file->outgoing), bufLen(&file->outgoing));
+
+                if (r < 0) {
+                    mx_queue_error(queue, fd, "write", errno, mx->on_error_udata);
+                    mxDropData(mx, fd);
+                }
+                else if (r == 0) {
+                    mx_queue_eof(queue, fd, "write", mx->on_disconnect_udata);
+                    mxDropData(mx, fd);
+                }
+                else {
+                    bufTrim(&file->outgoing, r, 0);
+                }
+            }
+
+            if (FD_ISSET(fd, &rfds)) {
+                if (file->event_type == MX_ET_LISTEN) {
+                    int new_fd = tcpAccept(fd);
+
+                    if (new_fd < 0) {
+                        mx_queue_error(queue, fd, "accept", errno, mx->on_error_udata);
+                    }
+                    else {
+                        mx_add_fd(mx, new_fd, MX_ET_MESSAGE);
+                    }
+                }
+                else if (file->event_type == MX_ET_DATA) {
+                    mx_queue_data(queue, fd, file->udata);
+                }
+                else if (file->event_type == MX_ET_MESSAGE) {
+                    char data[9000];
+
+                    int r = read(fd, data, sizeof(data));
+
+                    if (r < 0) {
+                        mx_queue_error(mx, fd, "read", errno, mx->on_error_udata);
+                        mxDropData(mx, fd);
+                    }
+                    else if (r == 0) {
+                        mx_queue_eof(mx, fd, "read", mx->on_disconnect_udata);
+                        mxDropData(mx, fd);
+                    }
+                    else {
+                        bufAdd(&file->incoming, data, r);
+
+                        while (bufLen(&file->incoming) >= 12) {
+                            MX_Type type;
+                            MX_Size size;
+                            MX_Version version;
+                            char *payload;
+
+                            bufUnpack(&file->incoming,
+                                    PACK_INT32, &type,
+                                    PACK_INT32, &version,
+                                    PACK_INT32, &size,
+                                    END);
+
+                            if (bufLen(&file->incoming) < 12 + size) break;
+
+                            payload = memdup(bufGet(&file->incoming) + 12, size);
+
+                            bufTrim(&file->incoming, 12 + size, 0);
+
+                            mx_queue_message(queue,
+                                    fd, type, version, size, payload, await_fd >= 0);
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     return 0;
 }
 
 /*
- * Tell <mx> to wait until a message of message type <msg_type> arrives on file descriptor <fd>. The
+ * Tell <mx> to wait until a message of message type <type> arrives on file descriptor <fd>. The
  * version of the received message is returned through <version>, its payload through <payload> and
  * the payload size though <size>. Messages, timers and other received data that arrive while
  * waiting for this message will be eventsd up and delivered as soon as the flow-of-control returns
@@ -418,50 +594,25 @@ static int mx_collect_events(MX *mx)
  * returns 0 if the message did arrive on time, 1 if it didn't and -1 if any other (network) error
  * occurred.
  */
-int mxAwait(MX *mx, int fd, int msg_type, int *version, char **payload, int *size, double timeout)
+int mxAwait(MX *mx, int fd, int type, int *version, char **payload, int *size, double timeout)
 {
-    MX_Event *last_evt = NULL;   /* Last event we looked at in the previous iteration. */
-    MX_Event *evt;               /* Event we're looking at now. */
-
-    MX_Timer *tm = mx_add_timer(mx, timeout, MX_ET_AWAIT, NULL, NULL);
-
     while (1) {
-        if (last_evt == NULL)
-            evt = listHead(&mx->events);
-        else
-            evt = listNext(last_evt);
+        int nfds, r;
+        fd_set rfds, wfds;
+        struct timeval *tvp;
 
-        if (evt == NULL) {
-            if (mx_collect_events(mx) <= 0) {
-                mx_drop_timer(mx, tm);
-                return -1;
-            }
-            else {
-                continue;
-            }
+        mx_prepare_select(mx, &nfds, &rfds, &wfds, &tvp);
+
+        r = select(nfds, &rfds, &wfds, NULL, tvp);
+
+        if ((r = mx_process_select(mx, r, nfds, &rfds, &wfds, fd, type)) != 0) {
+            return -1;
         }
-
-        last_evt = evt;
-
-        if (evt->event_type == MX_ET_AWAIT) {
-            listRemove(&mx->events, evt);
-
-            free(evt);
-
+        else if (r == -2) {
             return 1;
         }
-        else if (evt->event_type == MX_ET_MESSAGE && evt->msg_type == msg_type && evt->fd == fd) {
-            listRemove(&mx->events, evt);
-
-            *version = evt->version;
-            *payload = evt->payload;
-            *size    = evt->size;
-
-            free(evt);
-
-            mx_drop_timer(mx, tm);
-
-            return 0;
+        else {
+            return r;
         }
     }
 }
