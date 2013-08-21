@@ -25,8 +25,9 @@ static struct linger linger = { 1, 5 }; /* 5 second linger */
 
 static int one = 1;
 
-/* Create a socket */
-
+/*
+ * Create a socket
+ */
 static int tcp_socket(void)
 {
     int sd;                            /* socket descriptor */
@@ -49,8 +50,9 @@ static int tcp_socket(void)
     return sd;
 }
 
-/* Tell a socket to be a listener */
-
+/*
+ * Tell a socket to be a listener
+ */
 static int tcp_listen(int socket)
 {
     if (listen(socket, 5) == -1) {
@@ -61,12 +63,13 @@ static int tcp_listen(int socket)
     return 0;
 }
 
-/* Open a listen port on <host> and <port> and return the corresponding
+/*
+ * Open a listen port on <host> and <port> and return the corresponding
  * file descriptor. If <host> is NULL the socket will listen on all
  * interfaces. If <port> is equal to 0, the socket will be bound to a
  * random local port (use tcpLocalPort() on the returned fd to find out
- * which). */
-
+ * which).
+ */
 int tcpListen(const char *host, int port)
 {
     int lsd;
@@ -89,9 +92,10 @@ int tcpListen(const char *host, int port)
     return lsd;
 }
 
-/* Make a connection to <port> on <host> and return the corresponding
- * file descriptor. */
-
+/*
+ * Make a connection to <port> on <host> and return the corresponding
+ * file descriptor.
+ */
 int tcpConnect(const char *host, int port)
 {
     int fd = tcp_socket();
@@ -105,8 +109,9 @@ int tcpConnect(const char *host, int port)
     return fd;
 }
 
-/* Accept an incoming connection request on a listen socket */
-
+/*
+ * Accept an incoming connection request on a listen socket.
+ */
 int tcpAccept(int sd)
 {
     struct sockaddr_in peeraddr_in;    /* for peer socket address */
@@ -129,8 +134,9 @@ int tcpAccept(int sd)
     return csd;
 }
 
-/* Read from <fd> until <buf> contains exactly <len> bytes. */
-
+/*
+ * Read from <fd> until <buf> contains exactly <len> bytes.
+ */
 int tcpRead(int fd, void *buf, int len)
 {
     int res, n = 0;
@@ -148,8 +154,9 @@ int tcpRead(int fd, void *buf, int len)
     }
 }
 
-/* Write all of the <len> bytes in <buf> to <fd>. */
-
+/*
+ * Write all of the <len> bytes in <buf> to <fd>.
+ */
 int tcpWrite(int fd, const void *buf, int len)
 {
     int res, n = 0;

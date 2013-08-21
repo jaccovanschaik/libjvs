@@ -306,7 +306,7 @@ void _logSetLocation(const char *file, int line, const char *func)
     _log_func = func;
 }
 
-static void log_add_prefixes(Logger *logger)
+static void log_write_prefixes(Logger *logger)
 {
     struct tm tm = { 0 };
     struct timeval tv = { 0 };
@@ -387,7 +387,7 @@ void _logWrite(Logger *logger, const char *fmt, ...)
 
     bufClear(&logger->scratch);
 
-    log_add_prefixes(logger);
+    log_write_prefixes(logger);
 
     va_start(ap, fmt);
     bufAddV(&logger->scratch, fmt, ap);
