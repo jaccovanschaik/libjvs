@@ -39,16 +39,7 @@
 
 #include "cx.h"
 
-typedef enum {
-    CX_CT_NONE,
-    CX_CT_FILE,
-    CX_CT_LISTEN,
-    CX_CT_SOCKET,
-    CX_CT_COUNT
-} CX_ConnectionType;
-
 typedef struct {
-    CX_ConnectionType type;
     Buffer incoming, outgoing;
     void *on_file_data_udata;
     void (*on_file_data)(CX *cx, int fd, void *udata);
@@ -100,7 +91,7 @@ static void cx_double_to_timeval(double time, struct timeval *tv)
 /*
  * Add file descriptor <fd> to <cx>, representing a connection of type <type>.
  */
-static void cx_add_file(CX *cx, int fd, CX_ConnectionType type)
+static void cx_add_file(CX *cx, int fd)
 {
     int new_num_connections = fd + 1;
 
@@ -116,8 +107,6 @@ static void cx_add_file(CX *cx, int fd, CX_ConnectionType type)
     if (cx->connection[fd] == NULL) {
         cx->connection[fd] = calloc(1, sizeof(CX_Connection));
     }
-
-    cx->connection[fd]->type = type;
 }
 
 /*
@@ -262,7 +251,7 @@ int cxUdpConnect(CX *cx, const char *host, int port)
     int fd = udpConnect(host, port);
 
     if (fd >= 0) {
-        cxOnFile(cx, fd, cx_handle_socket_data, NULL);
+        cx_add_file(cx, fd);
     }
 
     return fd;
@@ -332,7 +321,7 @@ void cxOnSocket(CX *cx,
  */
 void cxOnFile(CX *cx, int fd, void (*on_file_data)(CX *cx, int fd, void *udata), void *udata)
 {
-    cx_add_file(cx, fd, CX_CT_FILE);
+    cx_add_file(cx, fd);
 
     cx->connection[fd]->on_file_data_udata = udata;
     cx->connection[fd]->on_file_data = on_file_data;
