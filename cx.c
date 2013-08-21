@@ -698,15 +698,23 @@ void server2(int report_fd, int tcp_port, int udp_port)
 /* ### Client callbacks ### */
 
 /*
- * Handle timeout (callback for cxOnTime in the client). Sets up connections to the servers, which
- * should be up and running by now.
+ * Handle timeout (callback for cxOnTime in the client). Sets up connections to server 1.
  */
-void handle_timeout(CX *cx, double t, void *udata)
+void handle_timeout_1(CX *cx, double t, void *udata)
 {
     int *fds = udata;
 
     fds[0] = cxTcpConnect(cx, "localhost", 10001);
     fds[1] = cxUdpConnect(cx, "localhost", 10002);
+}
+
+/*
+ * Handle timeout (callback for cxOnTime in the client). Sets up connections to server 2.
+ */
+void handle_timeout_2(CX *cx, double t, void *udata)
+{
+    int *fds = udata;
+
     fds[2] = cxTcpConnect(cx, "localhost", 10003);
     fds[3] = cxUdpConnect(cx, "localhost", 10004);
 }
@@ -807,7 +815,8 @@ int main(int argc, char *argv[])
     cxOnFile(cx, server1_pipe[0], handle_report, fds);
     cxOnFile(cx, server2_pipe[0], handle_report, fds);
 
-    cxOnTime(cx, nowd() + 0.1, handle_timeout, fds);
+    cxOnTime(cx, nowd() + 0.1, handle_timeout_1, fds);
+    cxOnTime(cx, nowd() + 0.2, handle_timeout_2, fds);
 
     cxOnDisconnect(cx, handle_report, fds);
 
