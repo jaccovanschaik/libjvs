@@ -5,7 +5,7 @@
  * mx.h: Message Exchange.
  *
  * Copyright:	(c) 2013 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:	$Id: mx.h 175 2013-08-20 14:50:27Z jacco $
+ * Version:	$Id: mx.h 178 2013-08-21 09:49:50Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -40,7 +40,7 @@ int mxListen(MX *mx, const char *host, int port);
  * the installed callback with <cb>.
  */
 void mxOnMessage(MX *mx, MX_Type type, void (*cb)(MX *mx, int fd, MX_Type type, MX_Version version,
-                   char *payload, MX_Size size, void *udata), void *udata);
+                   MX_Size size, char *payload, void *udata), void *udata);
 
 /*
  * Tell <mx> to stop listening for messages with message type <type>.
@@ -67,7 +67,7 @@ void mxDropData(MX *mx, int fd);
 void mxOnTime(MX *mx, double t, void (*cb)(MX *mx, double t, void *udata), void *udata);
 
 /*
- * Tell <mx> to cancel the timeout at <t>, for which callback <cb> was installed.
+ * Tell <mx> to cancel the timer at <t>, for which callback <cb> was installed.
  */
 void mxDropTime(MX *mx, double t, void (*cb)(MX *mx, double t, void *udata));
 

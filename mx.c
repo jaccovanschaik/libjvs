@@ -2,7 +2,7 @@
  * mx.c: Message Exchange.
  *
  * Copyright:	(c) 2013 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:	$Id: mx.c 176 2013-08-20 17:18:28Z jacco $
+ * Version:	$Id: mx.c 178 2013-08-21 09:49:50Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -23,42 +23,63 @@
 #include "udp.h"
 #include "mx.h"
 
-typedef struct {
-    void (*cb)(MX *mx, int fd, MX_Type type, MX_Version version, char *payload, MX_Size size, void *udata);
-    void *udata;
-} MX_Subscription;
-
+/*
+ * The various event types that we can handle.
+ */
 typedef enum {
     MX_ET_NONE,
-    MX_ET_DATA,
-    MX_ET_LISTEN,
-    MX_ET_MESSAGE,
-    MX_ET_TIMER,
-    MX_ET_AWAIT,
-    MX_ET_ERROR,
-    MX_ET_CONN,
-    MX_ET_DISC
+    MX_ET_DATA,                         /* Data on an mxOnFile file descriptor. */
+    MX_ET_LISTEN,                       /* mxListen connection request. */
+    MX_ET_MESSAGE,                      /* Incoming message on a messaging socket. */
+    MX_ET_TIMER,                        /* mxOnTime timer going off. */
+    MX_ET_AWAIT,                        /* mxAwait timeout. */
+    MX_ET_ERROR,                        /* Error while awaiting/reading messages. */
+    MX_ET_CONN,                         /* Connection created. */
+    MX_ET_DISC                          /* Connection broken. */
 } MX_EventType;
 
+/*
+ * A subscription on a message type.
+ */
 typedef struct {
-    MX_EventType event_type;    /* MX_ET_DATA, MX_ET_LISTEN or MX_ET_MESSAGE */
-    Buffer incoming, outgoing;
-    void (*cb)(MX *mx, int fd, void *udata);
-    void *udata;
+    void (*cb)(MX *mx, int fd,          /* Callback to call. */
+            MX_Type type, MX_Version version, MX_Size size, char *payload, void *udata);
+    void *udata;                        /* User data to return. */
+} MX_Subscription;
+
+/*
+ * An opened file descriptor.
+ */
+typedef struct {
+    MX_EventType event_type;            /* Event type we expect here. */
+    Buffer incoming, outgoing;          /* Incoming and outgoing data buffers. */
+    void (*cb)(MX *mx, int fd, void *udata);    /* Callback on incoming data. */
+    void *udata;                        /* User data to return in callback. */
 } MX_File;
 
+/*
+ * A pending timer.
+ */
 typedef struct {
     ListNode _node;
-    MX_EventType event_type;    /* MX_ET_TIMER or MX_ET_AWAIT */
-    double t;
-    void *udata;
-    void (*cb)(MX *mx, double t, void *udata);
+    MX_EventType event_type;            /* Event type we're waiting for. */
+    double t;                           /* Time at which to trigger. */
+    void (*cb)(MX *mx, double t, void *udata);  /* Callback to call. */
+    void *udata;                        /* User data to return. */
 } MX_Timer;
 
+/* The following contain specific data for the various events. */
+
+/*
+ * A data event (incoming data on a file descriptor given in an mxOnFile call).
+ */
 typedef struct {
-    int fd;
+    int fd;                             /* The file descriptor that has data. */
 } MX_DataEvent;
 
+/*
+ * A message event (incoming message on a connected messaging socket).
+ */
 typedef struct {
     int fd;
     MX_Type type;
@@ -67,25 +88,36 @@ typedef struct {
     char *payload;
 } MX_MessageEvent;
 
+/*
+ * An error event (error occurred while waiting for or reading a file descriptor).
+ */
 typedef struct {
-    int fd;
-    const char *whence;
-    int error;
+    int fd;                             /* File descriptor where the error occurred. */
+    const char *whence;                 /* Function that reported the error. */
+    int error;                          /* errno error code. */
 } MX_ErrorEvent;
 
+/*
+ * A connection event (new connection on an mxListen socket).
+ */
 typedef struct {
-    int fd;
+    int fd;                             /* Listen socket file descriptor. */
 } MX_ConnEvent;
 
+/*
+ * A disconnect event (connection broken/end-of-file).
+ */
 typedef struct {
-    int fd;
-    const char *whence;
+    int fd;                             /* File descriptor of broken connection. */
+    const char *whence;                 /* Function that reported the error. */
 } MX_DiscEvent;
 
+/*
+ * This is the event "superclass".
+ */
 typedef struct {
     ListNode _node;
-    MX_EventType event_type;    /* MX_ET_DATA, MX_ET_LISTEN or MX_ET_MESSAGE */
-    const void *udata;
+    MX_EventType event_type;            /* Type of the event. */
     union {
         MX_DataEvent data;
         MX_MessageEvent msg;
@@ -95,14 +127,23 @@ typedef struct {
     } u;
 } MX_Event;
 
+/*
+ * The MX struct.
+ */
 struct MX {
-    int num_files;
-    MX_File **file;
-    HashTable subs;
-    List timers;
+    int num_files;                      /* Number of entries in <file>. */
+    MX_File **file;                     /* MX_File data per file descriptor. */
+    HashTable subs;                     /* List of subscriptions. */
+    List timers;                        /* List of timers, ordered by time. */
 
-    List waiting, pending;
-    fd_set readable;
+    List pending;                       /* Arrived events waiting to be processed. */
+    List waiting;                       /* Events that arrived while in an mxAwait call. */
+
+    fd_set readable;                    /* File descriptors for which a data event was reported. */
+
+    /*
+     * Callbacks and user data pointers for mxOnConnect, mxOnDisconnect and mxOnError subscriptions.
+     */
 
     void (*on_connect_cb)(MX *mx, int fd, void *udata);
     void *on_connect_udata;
@@ -114,6 +155,9 @@ struct MX {
     void *on_error_udata;
 };
 
+/*
+ * Return TRUE if <fd> is known to <mx>, otherwise FALSE.
+ */
 static int mx_has_fd(const MX *mx, int fd)
 {
     if (fd >= mx->num_files)
@@ -124,6 +168,9 @@ static int mx_has_fd(const MX *mx, int fd)
         return TRUE;
 }
 
+/*
+ * Add file descriptor <fd>, on which we expect <event_type> events, to <mx>.
+ */
 static void mx_add_fd(MX *mx, int fd, MX_EventType event_type)
 {
     MX_File *mx_file = calloc(1, sizeof(MX_File));
@@ -145,6 +192,10 @@ static void mx_add_fd(MX *mx, int fd, MX_EventType event_type)
     mx_file->event_type = event_type;
 }
 
+/*
+ * Compare the two MX_Timers pointed to by <p1> and <p2> and return -1, 1 or 0 if <p1> is earlier
+ * than, later than or at the same time as <p2>.
+ */
 static int mx_compare_timers(const void *p1, const void *p2)
 {
     const MX_Timer *t1 = p1;
@@ -158,6 +209,9 @@ static int mx_compare_timers(const void *p1, const void *p2)
         return 0;
 }
 
+/*
+ * Create a new event of type <type> and add it to <queue>.
+ */
 static MX_Event *mx_create_event(List *queue, MX_EventType type)
 {
     MX_Event *evt = calloc(1, sizeof(MX_Event));
@@ -169,15 +223,10 @@ static MX_Event *mx_create_event(List *queue, MX_EventType type)
     return evt;
 }
 
-static MX_Event *mx_queue_timer(List *queue, MX_EventType event_type)
-{
-    MX_Event *evt = mx_create_event(queue, event_type);
-
-    return evt;
-}
-
-static MX_Event *mx_queue_error(List *queue,
-        int fd, char *whence, int error)
+/*
+ * Add an error event with the given parameters to <queue>.
+ */
+static MX_Event *mx_queue_error(List *queue, int fd, char *whence, int error)
 {
     MX_Event *evt = mx_create_event(queue, MX_ET_ERROR);
 
@@ -188,7 +237,10 @@ static MX_Event *mx_queue_error(List *queue,
     return evt;
 }
 
-static MX_Event *mx_queue_disc(List *queue, int fd, char *whence)
+/*
+ * Add a disconnect event with the given parameters to <queue>.
+ */
+static MX_Event *mx_queue_disconnect(List *queue, int fd, char *whence)
 {
     MX_Event *evt = mx_create_event(queue, MX_ET_DISC);
 
@@ -198,6 +250,9 @@ static MX_Event *mx_queue_disc(List *queue, int fd, char *whence)
     return evt;
 }
 
+/*
+ * Add a connect event with the given <fd> to <queue>.
+ */
 static MX_Event *mx_queue_connect(List *queue, int fd)
 {
     MX_Event *evt = mx_create_event(queue, MX_ET_CONN);
@@ -207,6 +262,9 @@ static MX_Event *mx_queue_connect(List *queue, int fd)
     return evt;
 }
 
+/*
+ * Add a data event on <fd> to <queue>.
+ */
 static MX_Event *mx_queue_data(List *queue, int fd)
 {
     MX_Event *evt = mx_create_event(queue, MX_ET_DATA);
@@ -216,6 +274,9 @@ static MX_Event *mx_queue_data(List *queue, int fd)
     return evt;
 }
 
+/*
+ * Add a message event with the given parameters to <queue>.
+ */
 static MX_Event *mx_queue_message(List *queue,
         int fd, MX_Type type, MX_Version version, MX_Size size, char *payload)
 {
@@ -232,12 +293,17 @@ P   dbgPrint(stderr, "fd = %d\n", fd);
     return evt;
 }
 
+/*
+ * Get new events for <mx> and store them in <queueu>.
+ */
 static int mx_get_events(MX *mx, List *queue)
 {
     int r, fd, nfds = 0;
     fd_set rfds, wfds;
     struct timeval tv, *tvp = NULL;
     MX_Timer *timer;
+
+    /* First check for pending timers and see if we need a timeout. */
 
     if ((timer = listHead(&mx->timers)) != NULL) {
         double delta_t = timer->t - nowd();
@@ -246,13 +312,17 @@ P       dbgPrint(stderr, "Have %d timers, first with event_type %d in %g seconds
                 listLength(&mx->timers), timer->event_type, delta_t);
 
         if (delta_t <= 0) {
+            /* The timeout is for *now*. No use calling select(), just queue an event and return. */
+
 P           dbgPrint(stderr, "delta_t < 0: queueing a timer event and returning 1\n");
 
-            mx_queue_timer(queue, timer->event_type);
+            mx_create_event(queue, timer->event_type);
 
             return 1;
         }
         else {
+            /* Timeout in the future. Calculate <tv> and let <tvp> point to it. */
+
             tv.tv_sec = delta_t;
             tv.tv_usec = 1000000 * (delta_t - tv.tv_sec);
 
@@ -262,6 +332,8 @@ P           dbgPrint(stderr, "Setting a timeval: sec = %ld, usec = %ld\n", tv.tv
         }
     }
 
+    /* Now see which file descriptors to check. First reset them all. */
+
     FD_ZERO(&rfds);
     FD_ZERO(&wfds);
 
@@ -269,110 +341,137 @@ P           dbgPrint(stderr, "Setting a timeval: sec = %ld, usec = %ld\n", tv.tv
         MX_File *file = mx->file[fd];
 
         if (file == NULL) {
-            continue;
+            continue;                   /* File not used. */
         }
 
 P       dbgPrint(stderr, "fd %d:\n", fd);
+
+        /* Always check if readable, only check if writable if we have something to write. */
 
         FD_SET(fd, &rfds);
         if (bufLen(&file->outgoing) > 0) FD_SET(fd, &wfds);
 
 P       dbgPrint(stderr, "r = %d, w = %d\n", FD_ISSET(fd, &rfds), FD_ISSET(fd, &wfds));
 
-        nfds = fd + 1;
+        nfds = fd + 1;                  /* Update number-of-file-descriptors. */
     }
+
+    /* If no file descriptors to check and no timeouts to wait for, return 0. */
 
     if (nfds == 0 && tvp == NULL) return 0;
 
 P   dbgPrint(stderr, "Calling select with nfds = %d\n", nfds);
+
+    /* Alrighty then. Let's see what's out there. */
 
     r = select(nfds, &rfds, &wfds, NULL, tvp);
 
 P   dbgPrint(stderr, "Select returned %d\n", r);
 
     if (r < 0) {
+        /* An error occurred. Queue it and return. */
+
         mx_queue_error(queue, -1, "select", errno);
+        return -1;
     }
-    else if (r == 0) {
-        mx_queue_timer(queue, timer->event_type);
+
+    if (r == 0) {
+        /* Timeout. Queue it and return. */
+
+        mx_create_event(queue, timer->event_type);
+
+        return 1;
     }
-    else {
-        int fd;
 
-        for (fd = 0; fd < nfds; fd++) {
-            MX_File *file = mx->file[fd];
+    /* Otherwise check all file descriptor. */
 
-            if (FD_ISSET(fd, &wfds)) {
-P               dbgPrint(stderr, "Writing %d bytes:\n", bufLen(&file->outgoing));
+    for (fd = 0; fd < nfds; fd++) {
+        MX_File *file = mx->file[fd];
 
-                r = write(fd, bufGet(&file->outgoing), bufLen(&file->outgoing));
+        if (file == NULL) continue;
 
-P               dbgPrint(stderr, "Return code = %d\n", r);
+        if (FD_ISSET(fd, &wfds)) {
+            /* File descriptor is writable. Send data. */
+
+P           dbgPrint(stderr, "Writing %d bytes:\n", bufLen(&file->outgoing));
+
+            r = write(fd, bufGet(&file->outgoing), bufLen(&file->outgoing));
+
+P           dbgPrint(stderr, "Return code = %d\n", r);
+
+            if (r < 0) {
+                mx_queue_error(queue, fd, "write", errno);
+                mxDropData(mx, fd);
+            }
+            else if (r == 0) {
+                mx_queue_disconnect(queue, fd, "write");
+                mxDropData(mx, fd);
+            }
+            else {
+                bufTrim(&file->outgoing, r, 0);
+            }
+        }
+
+        if (FD_ISSET(fd, &rfds)) {
+            /* File descriptor is readable. Get data. */
+
+            if (file->event_type == MX_ET_LISTEN) {
+                /* It's a listen socket. Accept new connection. */
+
+                int new_fd = tcpAccept(fd);
+
+                if (new_fd < 0) {
+                    mx_queue_error(queue, fd, "accept", errno);
+                }
+                else {
+                    mx_add_fd(mx, new_fd, MX_ET_MESSAGE);
+                    mx_queue_connect(queue, new_fd);
+                }
+            }
+            else if (file->event_type == MX_ET_DATA) {
+                /* It's a data socket opened by the user. Queue a data event. */
+
+                mx_queue_data(queue, fd);
+            }
+            else if (file->event_type == MX_ET_MESSAGE) {
+                /* It's a message socket opened by me. Get data and queue message event(s). */
+
+                char data[9000];        /* Maximum expected size (TCP jumbo packet). */
+
+                r = read(fd, data, sizeof(data));
 
                 if (r < 0) {
-                    mx_queue_error(queue, fd, "write", errno);
+                    mx_queue_error(queue, fd, "read", errno);
                     mxDropData(mx, fd);
                 }
                 else if (r == 0) {
-                    mx_queue_disc(queue, fd, "write");
+                    mx_queue_disconnect(queue, fd, "read");
                     mxDropData(mx, fd);
                 }
                 else {
-                    bufTrim(&file->outgoing, r, 0);
-                }
-            }
+                    /* We've got data! Decode and queue available messages. */
 
-            if (FD_ISSET(fd, &rfds)) {
-                if (file->event_type == MX_ET_LISTEN) {
-                    int new_fd = tcpAccept(fd);
+                    bufAdd(&file->incoming, data, r);
 
-                    if (new_fd < 0) {
-                        mx_queue_error(queue, fd, "accept", errno);
-                    }
-                    else {
-                        mx_add_fd(mx, new_fd, MX_ET_MESSAGE);
-                        mx_queue_connect(queue, new_fd);
-                    }
-                }
-                else if (file->event_type == MX_ET_DATA) {
-                    mx_queue_data(queue, fd);
-                }
-                else if (file->event_type == MX_ET_MESSAGE) {
-                    char data[9000];
+                    while (bufLen(&file->incoming) >= 12) {
+                        MX_Type type;
+                        MX_Size size;
+                        MX_Version version;
+                        char *payload;
 
-                    r = read(fd, data, sizeof(data));
+                        bufUnpack(&file->incoming,
+                                PACK_INT32, &type,
+                                PACK_INT32, &version,
+                                PACK_INT32, &size,
+                                END);
 
-                    if (r < 0) {
-                        mx_queue_error(queue, fd, "read", errno);
-                        mxDropData(mx, fd);
-                    }
-                    else if (r == 0) {
-                        mx_queue_disc(queue, fd, "read");
-                        mxDropData(mx, fd);
-                    }
-                    else {
-                        bufAdd(&file->incoming, data, r);
+                        if (bufLen(&file->incoming) < 12 + size) break;
 
-                        while (bufLen(&file->incoming) >= 12) {
-                            MX_Type type;
-                            MX_Size size;
-                            MX_Version version;
-                            char *payload;
+                        payload = memdup(bufGet(&file->incoming) + 12, size);
 
-                            bufUnpack(&file->incoming,
-                                    PACK_INT32, &type,
-                                    PACK_INT32, &version,
-                                    PACK_INT32, &size,
-                                    END);
+                        bufTrim(&file->incoming, 12 + size, 0);
 
-                            if (bufLen(&file->incoming) < 12 + size) break;
-
-                            payload = memdup(bufGet(&file->incoming) + 12, size);
-
-                            bufTrim(&file->incoming, 12 + size, 0);
-
-                            mx_queue_message(queue, fd, type, version, size, payload);
-                        }
+                        mx_queue_message(queue, fd, type, version, size, payload);
                     }
                 }
             }
@@ -382,6 +481,9 @@ P               dbgPrint(stderr, "Return code = %d\n", r);
     return 1;
 }
 
+/*
+ * Process a data event.
+ */
 static void mx_process_data_event(MX *mx, MX_Event *evt)
 {
     MX_File *file = mx->file[evt->u.data.fd];
@@ -393,19 +495,25 @@ static void mx_process_data_event(MX *mx, MX_Event *evt)
     free(evt);
 }
 
+/*
+ * Procss a message event.
+ */
 static void mx_process_message_event(MX *mx, MX_Event *evt)
 {
     MX_MessageEvent *msg = &evt->u.msg;
     MX_Subscription *sub = hashGet(&mx->subs, HASH_VALUE(msg->type));
 
     if (sub != NULL) {
-        sub->cb(mx, msg->fd, msg->type, msg->version, msg->payload, msg->size, sub->udata);
+        sub->cb(mx, msg->fd, msg->type, msg->version, msg->size, msg->payload, sub->udata);
     }
 
     free(msg->payload);
     free(evt);
 }
 
+/*
+ * Process a timer event.
+ */
 static void mx_process_timer_event(MX *mx, MX_Event *evt)
 {
     MX_Timer *timer = listRemoveHead(&mx->timers);
@@ -415,6 +523,9 @@ static void mx_process_timer_event(MX *mx, MX_Event *evt)
     free(timer);
 }
 
+/*
+ * Process an error event.
+ */
 static void mx_process_error_event(MX *mx, MX_Event *evt)
 {
     MX_ErrorEvent *err = &evt->u.err;
@@ -426,6 +537,9 @@ static void mx_process_error_event(MX *mx, MX_Event *evt)
     free(evt);
 }
 
+/*
+ * Process a connection event.
+ */
 static void mx_process_conn_event(MX *mx, MX_Event *evt)
 {
     MX_ConnEvent *conn = &evt->u.conn;
@@ -437,6 +551,9 @@ static void mx_process_conn_event(MX *mx, MX_Event *evt)
     free(evt);
 }
 
+/*
+ * Process a disconnect event.
+ */
 static void mx_process_disc_event(MX *mx, MX_Event *evt)
 {
     MX_DiscEvent *disc = &evt->u.disc;
@@ -479,7 +596,8 @@ int mxListen(MX *mx, const char *host, int port)
  * the installed callback with <cb>.
  */
 void mxOnMessage(MX *mx, MX_Type type,
-        void (*cb)(MX *mx, int fd, MX_Type type, MX_Version version, char *payload, MX_Size size, void *udata),
+        void (*cb)(MX *mx, int fd, MX_Type type, MX_Version version, MX_Size size,
+            char *payload, void *udata),
         void *udata)
 {
     MX_Subscription *sub = hashGet(&mx->subs, HASH_VALUE(type));
@@ -867,7 +985,7 @@ enum {
 };
 
 void s_handle_message(MX *mx, int fd,
-        MX_Type type, MX_Version version, char *payload, MX_Size size, void *udata)
+        MX_Type type, MX_Version version, MX_Size size, char *payload, void *udata)
 {
     static int tcp_fd, udp_fd;
 
