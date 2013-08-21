@@ -2,7 +2,7 @@
  * mx.c: Message Exchange.
  *
  * Copyright:	(c) 2013 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:	$Id: mx.c 174 2013-08-20 14:05:45Z jacco $
+ * Version:	$Id: mx.c 175 2013-08-20 14:50:27Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -709,7 +709,7 @@ void mxOnError(MX *mx, void (*cb)(MX *mx, int fd, const char *whence, int error,
  * returns 0 if the message did arrive on time, 1 if it didn't and -1 if any other (network) error
  * occurred.
  */
-int mxAwait(MX *mx, int fd, int type, int *version, char **payload, int *size, double timeout)
+int mxAwait(MX *mx, int fd, MX_Type type, MX_Version *version, char **payload, MX_Size *size, double timeout)
 {
     mx_add_timer(mx, timeout, MX_ET_AWAIT, NULL, NULL);
 
@@ -831,6 +831,7 @@ enum {
     REQ_NONE,
     REQ_QUIT,
     REQ_ECHO,
+    REQ_NO_REPLY,
     REQ_TCP_CONNECT,
     REQ_TCP_SEND,
     REQ_UDP_SEND,
@@ -840,8 +841,6 @@ enum {
 void s_handle_message(MX *mx, int fd,
         MX_Type type, MX_Version version, char *payload, MX_Size size, void *udata)
 {
-    Buffer reply = { 0 };
-
     static int tcp_fd, udp_fd;
 
     char *host;
@@ -849,24 +848,15 @@ void s_handle_message(MX *mx, int fd,
 
     char *string;
 
-D   dbgPrint(stderr, "type = %d, version = %d, size = %d\n", type, version, size);
+P   dbgPrint(stderr, "type = %d, version = %d, size = %d\n", type, version, size);
+P   hexdump(stderr, payload, size);
 
     switch(type) {
     case REQ_QUIT:
         mxClose(mx);
         break;
     case REQ_ECHO:
-        bufPack(&reply,
-                PACK_INT32, type,
-                PACK_INT32, version,
-                PACK_INT32, size,
-                PACK_RAW,   payload, size,
-                END);
-
-        mxSend(mx, fd, type, version, bufGet(&reply), bufLen(&reply));
-
-        bufReset(&reply);
-
+        mxSend(mx, fd, type, version, payload, size);
         break;
     case REQ_TCP_CONNECT:
         strunpack(payload, size,
@@ -898,8 +888,11 @@ P       dbgPrint(stderr, "Connecting to %s:%d\n", host, port);
         write(udp_fd, string, strlen(string));
 
         break;
+    case REQ_NO_REPLY:
+        /* Be vewwy vewwy quiet.. I'm hunting wabbits... */
+        break;
     default:
-D       dbgPrint(stderr, "Got unexpected request %d\n", type);
+        dbgPrint(stderr, "Got unexpected request %d\n", type);
         break;
     }
 }
@@ -949,11 +942,11 @@ void c_log(MX *mx, char *fmt, ...)
     vasprintf(&msg, fmt, ap);
     va_end(ap);
 
-D   dbgPrint(stderr, "%s\n", msg);
+    dbgPrint(stderr, "%s\n", msg);
 
     if (strcmp(current_test->expectation, msg) != 0) {
-D       dbgPrint(stderr, "Expected \"%s\"\n", current_test->expectation);
-D       dbgPrint(stderr, "Received \"%s\"\n", msg);
+        dbgPrint(stderr, "Expected \"%s\"\n", current_test->expectation);
+        dbgPrint(stderr, "Received \"%s\"\n", msg);
 
         errors++;
     }
@@ -1065,8 +1058,86 @@ void c_test_udp_traffic(MX *mx)
     mxPack(mx, server_fd, REQ_UDP_SEND, 0,
             PACK_STRING,    "localhost",
             PACK_INT16,     3456,
-            PACK_STRING,    "ABCD",
+            PACK_STRING,    "EFGH",
             END);
+}
+
+void c_test_await_reply(MX *mx)
+{
+    int r;
+
+    char *payload;
+
+    MX_Version version;
+    MX_Size size;
+
+    mxPack(mx, server_fd, REQ_ECHO, 0,
+            PACK_RAW,   "Ping!", 5,
+            END);
+
+    r = mxAwait(mx, server_fd, REQ_ECHO, &version, &payload, &size, nowd() + 1);
+
+    if (r == -1)
+        c_log(mx, "mxAwait returned an error");
+    else if (r == 1)
+        c_log(mx, "mxAwait timed out");
+    else if (size == 5 && strncmp(payload, "Ping!", size) == 0)
+        c_log(mx, "mxAwait returned reply");
+    else
+        c_log(mx, "Unexpected reply from mxAwait: version = %d, size = %d, payload = \"%*s\"",
+                version, size, size, payload);
+}
+
+void c_test_await_timeout(MX *mx)
+{
+    int r;
+
+    char *payload;
+
+    MX_Version version;
+    MX_Size size;
+
+    mxPack(mx, server_fd, REQ_NO_REPLY, 0,
+            PACK_RAW,   "Ping!", 5,
+            END);
+
+    r = mxAwait(mx, server_fd, REQ_NO_REPLY, &version, &payload, &size, nowd() + 1);
+
+    if (r == -1)
+        c_log(mx, "mxAwait returned an error");
+    else if (r == 1)
+        c_log(mx, "mxAwait timed out");
+    else if (size == 5 && strncmp(payload, "Ping!", size) == 0)
+        c_log(mx, "mxAwait returned reply");
+    else
+        c_log(mx, "Unexpected reply from mxAwait: version = %d, size = %d, payload = \"%*s\"",
+                version, size, size, payload);
+}
+
+void c_test_await_2_replies(MX *mx)
+{
+    int r1, r2;
+
+    char *payload;
+
+    MX_Version version;
+    MX_Size size;
+
+    mxPack(mx, server_fd, REQ_ECHO, 0,
+            PACK_RAW,   "Ping!", 5,
+            END);
+
+    mxPack(mx, server_fd, REQ_ECHO, 0,
+            PACK_RAW,   "Ping!", 5,
+            END);
+
+    r1 = mxAwait(mx, server_fd, REQ_ECHO, &version, &payload, &size, nowd() + 1);
+    r2 = mxAwait(mx, server_fd, REQ_ECHO, &version, &payload, &size, nowd() + 1);
+
+    if (r1 == 0 && r2 == 0)
+        c_log(mx, "mxAwait returned reply, twice");
+    else
+        c_log(mx, "Unexpected reply from mxAwait: r1 = %d, r2 = %d", r1, r2);
 }
 
 void client(void)
@@ -1081,6 +1152,9 @@ void client(void)
         { c_test_tcp_traffic,       "Received 4 bytes of TCP data: ABCD" },
         { c_open_udp_port,          "Opened UDP port" },
         { c_test_udp_traffic,       "Received 4 bytes of UDP data: EFGH" },
+        { c_test_await_reply,       "mxAwait returned reply" },
+        { c_test_await_timeout,     "mxAwait timed out" },
+        { c_test_await_2_replies,   "mxAwait returned reply, twice" },
         { NULL,  NULL }
     };
 

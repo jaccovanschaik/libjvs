@@ -5,7 +5,7 @@
  * mx.h: Message Exchange.
  *
  * Copyright:	(c) 2013 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:	$Id: mx.h 174 2013-08-20 14:05:45Z jacco $
+ * Version:	$Id: mx.h 175 2013-08-20 14:50:27Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -137,7 +137,8 @@ void mxOnError(MX *mx, void (*cb)(MX *mx, int fd, const char *whence, int error,
  * returns 0 if the message did arrive on time, 1 if it didn't and -1 if any other (network) error
  * occurred.
  */
-int mxAwait(MX *mx, int fd, int type, int *version, char **payload, int *size, double timeout);
+int mxAwait(MX *mx, int fd, MX_Type type, MX_Version *version, char **payload, MX_Size *size,
+              double timeout);
 
 /*
  * Start <mx>'s main loop. This function won't return until all sockets and other file descriptors
