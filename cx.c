@@ -32,6 +32,7 @@
 
 #include "buffer.h"
 #include "list.h"
+#include "net.h"
 #include "tcp.h"
 #include "udp.h"
 #include "defs.h"
@@ -218,9 +219,9 @@ int cxTcpListen(CX *cx, const char *host, int port)
  */
 int cxUdpListen(CX *cx, const char *host, int port)
 {
-    int fd = udpSocket(host, port);
+    int fd = udpSocket();
 
-    if (fd >= 0) {
+    if (fd >= 0 && netBind(fd, host, port) == 0) {
         cxOnFile(cx, fd, cx_handle_socket_data, NULL);
     }
 
@@ -249,9 +250,9 @@ int cxTcpConnect(CX *cx, const char *host, int port)
  */
 int cxUdpConnect(CX *cx, const char *host, int port)
 {
-    int fd = udpConnect(host, port);
+    int fd = udpSocket();
 
-    if (fd >= 0) {
+    if (fd >= 0 && netConnect(fd, host, port) == 0) {
         cx_add_file(cx, fd);
     }
 
@@ -657,7 +658,9 @@ void server1(int report_fd, int tcp_port, int udp_port)
     CX *cx = cxCreate();
 
     int tcp_fd = tcpListen("localhost", tcp_port);
-    int udp_fd = udpSocket("localhost", udp_port);
+    int udp_fd = udpSocket();
+
+    netBind(udp_fd, "localhost", udp_port);
 
     global_report_fd = report_fd;
 

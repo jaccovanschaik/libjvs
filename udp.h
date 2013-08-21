@@ -11,14 +11,15 @@
 #define UDP_H
 
 /*
- * Create a UDP socket and bind it to <host> and <port>.
+ * Create an unbound UDP socket.
  */
-int udpSocket(const char *host, int port);
+int udpSocket(void);
 
 /*
- * Create a UDP socket and "connect" it to <host> and <port> (which means that any send without an
- * address will go to that address by default).
+ * Send <data> with size <size> via <fd> to <host>, <port>. Note that this function does a hostname
+ * lookup for every call, which can be slow. If possible, use netConnect() to set a default address,
+ * after which you can simply write() to the socket without incurring this overhead.
  */
-int udpConnect(const char *host, int port);
+int udpSend(int fd, const char *host, int port, const char *data, size_t size);
 
 #endif

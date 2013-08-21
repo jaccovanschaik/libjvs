@@ -26,7 +26,10 @@ static struct linger linger = { 1, 5 }; /* 5 second linger */
 
 static int one = 1;
 
-static int udp_socket(void)
+/*
+ * Create an unbound UDP socket.
+ */
+int udpSocket(void)
 {
     int sd;                            /* socket descriptor */
 
@@ -49,37 +52,29 @@ static int udp_socket(void)
 }
 
 /*
- * Create a UDP socket and bind it to <host> and <port>.
+ * Send <data> with size <size> via <fd> to <host>, <port>. Note that this function does a hostname
+ * lookup for every call, which can be slow. If possible, use netConnect() to set a default
+ * destination address, after which you can simply write() to the socket without incurring this
+ * overhead.
  */
-int udpSocket(const char *host, int port)
+int udpSend(int fd, const char *host, int port, const char *data, size_t size)
 {
-    int sd;                            /* socket descriptor */
+    struct hostent *host_ptr;               /* pointer to host info for remote host */
 
-    sd = udp_socket();
+    struct sockaddr_in peeraddr_in = { };   /* for peer socket address */
 
-    if (netBind(sd, host, port) != 0) {
-        dbgError(stderr, "netBind failed");
+    peeraddr_in.sin_family = AF_INET;
+    peeraddr_in.sin_port = htons(port);
+
+    if ((host_ptr = gethostbyname(host)) == NULL) {
+        dbgError(stderr, "gethostbyname(%s) failed", host);
         return -1;
     }
 
-    return sd;
-}
+    peeraddr_in.sin_addr.s_addr =
+        ((struct in_addr *) (host_ptr->h_addr))->s_addr;
 
-/*
- * Create a UDP socket and "connect" it to <host> and <port> (which means that any send without an
- * address will go to that address by default).
- */
-int udpConnect(const char *host, int port)
-{
-    int fd = udp_socket();
-
-    if (netConnect(fd, host, port) != 0) {
-        dbgError(stderr, "netConnect failed");
-        close(fd);
-        return -1;
-    }
-
-    return fd;
+    return sendto(fd, data, size, 0, (struct sockaddr *) &peeraddr_in, sizeof(peeraddr_in));
 }
 
 #ifdef TEST
@@ -92,14 +87,23 @@ int main(int argc, char *argv[])
     int r;
     char buffer[16];
 
-    int recv_fd = udpSocket("localhost", 1234);
-    int send_fd = udpConnect("localhost", 1234);
+    int recv_fd = udpSocket();
+    int send_fd = udpSocket();
+
+    netBind(recv_fd, "localhost", 1234);
+    netConnect(send_fd, "localhost", 1234);
 
     write(send_fd, "Hoi!", 4);
     r = read(recv_fd, buffer, sizeof(buffer));
 
     make_sure_that(r == 4);
     make_sure_that(strncmp(buffer, "Hoi!", 4) == 0);
+
+    udpSend(send_fd, "localhost", 1234, "Hallo!", 6);
+    r = read(recv_fd, buffer, sizeof(buffer));
+
+    make_sure_that(r == 6);
+    make_sure_that(strncmp(buffer, "Hallo!", 6) == 0);
 
     return errors;
 }

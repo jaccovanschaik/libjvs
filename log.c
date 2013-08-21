@@ -14,6 +14,7 @@
 #include <time.h>
 #include <sys/time.h>
 
+#include "net.h"
 #include "udp.h"
 #include "tcp.h"
 #include "list.h"
@@ -159,7 +160,7 @@ int logToUDP(Logger *logger, const char *host, int port)
 {
     int fd;
 
-    if ((fd = udpConnect(host, port)) < 0)
+    if ((fd = udpSocket()) < 0 || netConnect(fd, host, port) != 0)
         return -1;
     else {
         LOG_Output *out = log_create_output(logger, LOG_OT_UDP);
