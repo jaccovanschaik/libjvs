@@ -64,6 +64,11 @@ void ihexdump(FILE *fp, int indent, const char *data, int size);
 void *memdup(const void *src, unsigned int size);
 
 /*
+ * Return the current UTC time (number of seconds since 1970-01-01/00:00:00 UTC) as a double.
+ */
+double nowd(void);
+
+/*
  * Pack data from <ap> into <str>, which has size <size>.
  *
  * The pack functions take type/value pairs (closed by END) to specify

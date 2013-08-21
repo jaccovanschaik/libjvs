@@ -36,6 +36,7 @@
 #include "udp.h"
 #include "defs.h"
 #include "debug.h"
+#include "utils.h"
 
 #include "cx.h"
 
@@ -292,18 +293,6 @@ void cxDropTime(CX *cx, double t, void (*on_time_handler)(CX *cx, double t, void
 }
 
 /*
- * Return the current UTC time (number of seconds since 1970-01-01/00:00:00 UTC) as a double.
- */
-double cxNow(void)
-{
-    struct timeval tv;
-
-    gettimeofday(&tv, NULL);
-
-    return tv.tv_sec + tv.tv_usec / 1000000.0;
-}
-
-/*
  * Call <handler> when new data on one of the connected sockets comes in.
  */
 void cxOnSocket(CX *cx,
@@ -451,7 +440,7 @@ int cxGetTimeout(CX *cx, struct timeval *tv)
         return 0;
     }
     else {
-        double dt = tm->t - cxNow();
+        double dt = tm->t - nowd();
 
         if (dt < 0) dt = 0;
 
@@ -816,7 +805,7 @@ int main(int argc, char *argv[])
     cxOnFile(cx, server1_pipe[0], handle_report, fds);
     cxOnFile(cx, server2_pipe[0], handle_report, fds);
 
-    cxOnTime(cx, cxNow() + 1, handle_timeout, fds);
+    cxOnTime(cx, nowd() + 1, handle_timeout, fds);
 
     cxOnDisconnect(cx, handle_report, fds);
 

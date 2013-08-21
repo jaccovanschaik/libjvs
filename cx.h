@@ -61,11 +61,6 @@ void cxOnTime(CX *cx, double t, void (*on_time)(CX *cx, double t, void *udata), 
 void cxDropTime(CX *cx, double t, void (*on_time)(CX *cx, double t, void *udata));
 
 /*
- * Return the current UTC time (number of seconds since 1970-01-01/00:00:00 UTC) as a double.
- */
-double cxNow(void);
-
-/*
  * Call <handler> when new data on one of the connected sockets comes in.
  */
 void cxOnSocket(CX *cx, void (*handler)(CX *cx, int fd, const char *data, size_t size, void

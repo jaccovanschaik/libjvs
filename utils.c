@@ -14,6 +14,7 @@
 #include <stdarg.h>
 #include <stdint.h>
 #include <ctype.h>
+#include <sys/time.h>
 
 #include "defs.h"
 #include "utils.h"
@@ -102,6 +103,18 @@ void *memdup(const void *src, unsigned int size)
     memcpy(dupe, src, size);
 
     return dupe;
+}
+
+/*
+ * Return the current UTC time (number of seconds since 1970-01-01/00:00:00 UTC) as a double.
+ */
+double nowd(void)
+{
+    struct timeval tv;
+
+    gettimeofday(&tv, NULL);
+
+    return tv.tv_sec + tv.tv_usec / 1000000.0;
 }
 
 /*
