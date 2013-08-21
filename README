@@ -78,6 +78,9 @@ list.c, list.h
 log.c, log.h
     Provides logging functions.
 
+mx.c, mx.h
+    Message Exchange.
+
 net.c, net.h
     Provides general networking utilities.
 
