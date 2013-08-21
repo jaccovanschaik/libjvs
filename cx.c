@@ -259,8 +259,8 @@ int cxUdpConnect(CX *cx, const char *host, int port)
 }
 
 /*
- * Set a handler to be called at time <t> (in seconds since 1970-01-01/00:00:00 UTC). <on_time_handler> will
- * be called with the given <cx>, <t> and <udata>.
+ * Set a handler to be called at time <t> (in seconds since 1970-01-01/00:00:00 UTC).
+ * <on_time_handler> will be called with the given <cx>, <t> and <udata>.
  */
 void cxOnTime(CX *cx, double t, void (*on_time_handler)(CX *cx, double t, void *udata), void *udata)
 {
@@ -288,6 +288,7 @@ void cxDropTime(CX *cx, double t, void (*on_time_handler)(CX *cx, double t, void
         if (tm->t == t && tm->on_time_handler == on_time_handler) {
             listRemove(&cx->timeouts, tm);
             free(tm);
+            break;
         }
     }
 }

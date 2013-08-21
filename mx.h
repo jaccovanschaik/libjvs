@@ -5,7 +5,7 @@
  * mx.h: Message Exchange.
  *
  * Copyright:	(c) 2013 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:	$Id: mx.h 170 2013-08-15 18:58:58Z jacco $
+ * Version:	$Id: mx.h 171 2013-08-16 14:01:39Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -135,11 +135,11 @@ int mxRun(MX *mx);
  * Close down <mx>. This will close all sockets and other file descriptors and cancel all timeouts,
  * causing mxRun() to return.
  */
-int mxClose(MX *mx);
+void mxClose(MX *mx);
 
 /*
  * Destroy <mx>. Only call this function when mxRun() has returned.
  */
-int mxDestroy(MX *mx);
+void mxDestroy(MX *mx);
 
 #endif
