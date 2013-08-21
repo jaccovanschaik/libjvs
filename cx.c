@@ -802,14 +802,12 @@ int main(int argc, char *argv[])
         server2(server2_pipe[1], 10003, 10004);
     }
 
-    sleep(1);
-
     cx = cxCreate();
 
     cxOnFile(cx, server1_pipe[0], handle_report, fds);
     cxOnFile(cx, server2_pipe[0], handle_report, fds);
 
-    cxOnTime(cx, nowd() + 1, handle_timeout, fds);
+    cxOnTime(cx, nowd() + 0.1, handle_timeout, fds);
 
     cxOnDisconnect(cx, handle_report, fds);
 
