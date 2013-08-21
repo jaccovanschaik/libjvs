@@ -2,10 +2,10 @@
 #define MX_H
 
 /*
- * mx.h: Description
+ * mx.h: Message Exchange.
  *
  * Copyright:	(c) 2013 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:	$Id: mx.h 167 2013-08-13 18:59:00Z jacco $
+ * Version:	$Id: mx.h 170 2013-08-15 18:58:58Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -14,150 +14,132 @@
 typedef struct MX MX;
 
 /*
- * Create and return a communications exchange.
+ * Create a Message Exchange.
  */
 MX *mxCreate(void);
 
 /*
- * Open a listen socket bound to <host> and <port> and return its file descriptor. If <host> is NULL
- * the socket will listen on all interfaces. If <port> is equal to 0, the socket will be bound to a
- * random local port (use tcpLocalPort() on the returned fd to find out which). Any connection
- * requests will be accepted automatically. Use mxOnConnect to be notified of new connections.
- * Incoming messages will be reported through the handler installed by mxOnMessage.
+ * Tell <mx> to listen on address <host> and <port> for new connection requests, and return the file
+ * descriptor for the new listening socket. If <host> is NULL, <mx> will listen on all interfaces.
+ * If <port> is 0, <mx> will select a random port to listen on. You can find out which port was
+ * picked by passing the returned file descriptor to netLocalPort().
  */
-int mxTcpListen(MX *mx, const char *host, int port);
+int mxListen(MX *mx, const char *host, int port);
 
 /*
- * Open a UDP socket bound to <host> and <port> and listen on it for data. Incoming messages will be
- * reported through the handler installed by mxOnMessage. The file descriptor for the created
- * socket is returned.
+ * Tell <mx> to call <cb> when a message of type <type> arrives. The file descriptor on which the
+ * message was received is passed to <cb>, along with the type, version and payload contents and
+ * size of the received message. Also passed to <cb> is the user data pointer <udata>. Only one
+ * callback can be installed for each message type; subsequent calls will replace the installed
+ * callback with <cb>.
  */
-int mxUdpListen(MX *mx, const char *host, int port);
+void mxOnMessage(MX *mx, int type, void (*cb)(MX *mx, int fd, int type, int version, char *payload,
+                   int size, void *udata), void *udata);
 
 /*
- * Make a TCP connection to <host> on <port>. Incoming messages will be reported through the handler
- * installed by mxOnMessage. The file descriptor for the created socket is returned.
- */
-int mxTcpConnect(MX *mx, const char *host, int port);
-
-/*
- * Make a UDP "connection" to <host> on <port>. Connection in this case means that data is sent to
- * the indicated address by default, without the need to specify an address on every send. The
- * file descriptor for the created socket is returned.
- */
-int mxUdpConnect(MX *mx, const char *host, int port);
-
-/*
- * Set a handler to be called at time <t> (in seconds since 1970-01-01/00:00:00 UTC). <on_time> will
- * be called with the given <mx>, <t> and <udata>.
- */
-void mxOnTime(MX *mx, double t, void (*on_time)(MX *mx, double t, void *udata), void *udata);
-
-/*
- * Drop timeout at time <t>. Both <t> and <on_time> must match the earlier call to mxOnTime.
- */
-void mxDropTime(MX *mx, double t, void (*on_time)(MX *mx, double t, void *udata));
-
-/*
- * Return the current UTC time (number of seconds since 1970-01-01/00:00:00 UTC) as a double.
- */
-double mxNow(void);
-
-/*
- * Call <handler> when new data on one of the connected sockets comes in. You can install one
- * handler per message type. Any subsequent call to mxOnMessage with the same <type> will replace
- * the existing handler.
- */
-void mxOnMessage(MX *mx, int type, void (*handler)(MX *mx, int fd, int type, int version, const
-                   char *payload, size_t size, void *udata), void *udata);
-
-/*
- * Drop an existing subscription to message type <type>.
+ * Tell <mx> to stop listening for messages with type <type>.
  */
 void mxDropMessage(MX *mx, int type);
 
 /*
- * Subscribe to input. When data is available on <fd>, <handler> will be called with the given
- * <mx>, <fd> and <udata>. Only one handler per file descriptor can be set, subsequent calls will
- * override earlier ones.
+ * Tell <mx> to call <cb> if data comes in on file descriptor <fd>. The file descriptor where the
+ * data was received is passed to <cb>, in addition to user data pointer <udata>. Only one
+ * callback can be installed for each message type; subsequent calls will replace the installed
+ * callback with <cb>.
  */
-void mxOnFile(MX *mx, int fd, void (*handler)(MX *mx, int fd, void *udata), void *udata);
+void mxOnData(MX *mx, int fd, void (*cb)(MX *mx, int fd, void *udata), void *udata);
 
 /*
- * Drop subscription to fd <fd>.
+ * Tell <mx> to stop listening for data on <fd>.
  */
-void mxDropFile(MX *mx, int fd);
+void mxDropData(MX *mx, int fd);
 
 /*
- * Call <handler> with <udata> when a new connection is made, reporting the new file descriptor
- * through <fd>.
+ * Tell <mx> to call <cb> at time <t> (a timestamp in seconds since 00:00:00 UTC on 1970-01-01). The
+ * <t> and <udata> that were given are passed back to <cb>.
  */
-void mxOnConnect(MX *mx, void (*handler)(MX *mx, int fd, void *udata), void *udata);
+void mxOnTime(MX *mx, double t, void (*cb)(MX *mx, double t, void *udata), void *udata);
 
 /*
- * Call <handler> with <udata> when the connection on <fd> is lost.
+ * Tell <mx> to cancel the timeout at <t>, for which callback <cb> was installed.
  */
-void mxOnDisconnect(MX *mx, void (*handler)(MX *mx, int fd, void *udata), void *udata);
+void mxDropTime(MX *mx, double t, void (*cb)(MX *mx, double t, void *udata));
 
 /*
- * Call <handler> when an error has occurred on <fd>. <error> is the associated errno.
+ * Tell <mx> to make a new connection to <host> on port <port>. The file descriptor of the new
+ * connection is returned.
  */
-void mxOnError(MX *mx, void (*handler)(MX *mx, int fd, int error, void *udata), void *udata);
+int mxConnect(MX *mx, const char *host, int port);
 
 /*
- * Add a message with type <type>, version <version> and payload <payload> with size <size> to the
- * output buffer of <fd>. The message will be sent when the flow-of-control returns to the main
- * loop.
+ * Tell <mx> to drop the connection on <fd>.
  */
-void mxSend(MX *mx, int fd, int type, int version, const char *payload, size_t size);
+int mxDisconnect(MX *mx, int fd);
 
 /*
- * Clear <rfds>, then fill it with the file descriptors that have been given to <mx> in a
- * mxOnFile call. Return the number of file descriptors that may be set. <rfds> can then be
- * passed to select().
+ * Send a message with type <type>, version <version> and payload <payload> with size <size> via
+ * <mx> to <fd>. The message is added to an outgoing buffer in <mx>, and will be sent as soon as the
+ * flow of control returns to <mx>'s main loop.
  */
-int mxGetReadFDs(MX *mx, fd_set *rfds);
+int mxSend(MX *mx, int fd, int type, int version, const char *payload, int size);
 
 /*
- * Clear <wfds>, then fill it with the file descriptors that have data queued for write. Return the
- * number of file descriptors that may be set. <wfds> can then be passed to select().
+ * Send a message with type <type> and version <version> via <mx> to <fd>. The message payload is
+ * packed using the PACK_* syntax described in utils.h. The message is added to an outgoing buffer
+ * in <mx>, and will be sent as soon as the flow of control returns to <mx>'s main loop.
  */
-int mxGetWriteFDs(MX *mx, fd_set *wfds);
+int mxPack(MX *mx, int fd, int type, int version, ...);
 
 /*
- * Return TRUE if <fd> is handled by <mx>.
+ * Send a message with type <type> and version <version> via <mx> to <fd>. The message payload is
+ * packed using the PACK_* syntax described in utils.h. The message is added to an outgoing buffer
+ * in <mx>, and will be sent as soon as the flow of control returns to <mx>'s main loop.
  */
-int mxOwnsFD(MX *mx, int fd);
+int mxVaPack(MX *mx, int fd, int type, int version, va_list ap);
 
 /*
- * Get the timeout to use for a call to select. If a timeout is required it is copied to <tv>, and 1
- * is returned. Otherwise 0 is returned, and the last parameter of select should be set to NULL.
- * <tv> is not changed in that case.
+ * Call <cb> when a new connection is accepted by <mx>. The file descriptor of the new connection is
+ * passed to <cb>, along with the user data pointer <udata>. This function is *not* called for
+ * connections made with mxConnect().
  */
-int mxGetTimeout(MX *mx, struct timeval *tv);
+void mxOnConnect(MX *mx, void (*cb)(MX *mx, int fd, void *udata), void *udata);
 
 /*
- * Process the results from a select() call. Returns 0 on success or -1 on error.
+ * Call <cb> when a connection is lost by <mx>. The file descriptor of the lost connection is
+ * passed to <cb>, along with the user data pointer <udata>. This function is *not* called for
+ * connections dropped using mxDisconnect().
  */
-int mxProcessSelect(MX *mx, int r, fd_set *rfds, fd_set *wfds);
+void mxOnDisconnect(MX *mx, void (*cb)(MX *mx, int fd, void *udata), void *udata);
 
 /*
- * Run the communications exchange. This function will return when there are no more timeouts to
- * wait for and no file descriptors to listen on (which can be forced by calling mxClose()). The
- * return value in this case will be 0. If any error occurred it will be -1.
+ * Tell <mx> to call <cb> when an error occurs on the connection using file descriptor <fd>. The
+ * error code is passed to <cb>, along with the user data pointer <udata>.
+ */
+void mxOnError(MX *mx, void (*cb)(MX *mx, int fd, int error, void *udata), void *udata);
+
+/*
+ * Tell <mx> to wait until a message of type <type> arrives on file descriptor <fd>. The version of
+ * the received message is passed to <cb>, along with its payload and payload size. Messages,
+ * timeouts and other received data that arrives while waiting for this message will be queued up
+ * and delivered as soon as the flow-of-control returns to <mx>'s main loop.
+ */
+int mxAwait(MX *mx, int fd, int type, int *version, char **payload, int *size, double timeout);
+
+/*
+ * Start <mx>'s main loop. This function won't return until all sockets and other file descriptors
+ * have been closed and there are no more pending timeouts.
  */
 int mxRun(MX *mx);
 
 /*
- * Close down Communications Exchange <mx>. This forcibly stops <mx> from listening on any file
- * descriptor and removes all pending timeouts, which causes mxRun() to return.
+ * Close down <mx>. This will close all sockets and other file descriptors and cancel all timeouts,
+ * causing mxRun() to return.
  */
-void mxClose(MX *mx);
+int mxClose(MX *mx);
 
 /*
- * Free the memory occupied by <mx>. Call this outside of the mx loop, i.e. after mxRun() returns.
- * You can force mxRun() to return by calling mxClose().
+ * Destroy <mx>. Only call this function when mxRun() has returned.
  */
-void mxFree(MX *mx);
+int mxDestroy(MX *mx);
 
 #endif
