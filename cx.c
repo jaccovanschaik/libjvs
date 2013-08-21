@@ -41,28 +41,28 @@
 
 typedef struct {
     Buffer incoming, outgoing;
-    void *on_file_data_udata;
-    void (*on_file_data)(CX *cx, int fd, void *udata);
+    void *on_file_udata;
+    void (*on_file_handler)(CX *cx, int fd, void *udata);
 } CX_Connection;
 
 typedef struct {
     ListNode _node;
     double t;
     void *on_time_udata;
-    void (*on_time)(CX *cx, double t, void *udata);
+    void (*on_time_handler)(CX *cx, double t, void *udata);
 } CX_Timeout;
 
 struct CX {
     int num_connections;
     CX_Connection **connection;
-    void *on_socket_data_udata;
-    void (*on_socket_data)(CX *cx, int fd, const char *data, size_t size, void *udata);
+    void *on_socket_udata;
+    void (*on_socket_handler)(CX *cx, int fd, const char *data, size_t size, void *udata);
     void *on_error_udata;
-    void (*on_error)(CX *cx, int fd, int error, void *udata);
+    void (*on_error_handler)(CX *cx, int fd, int error, void *udata);
     void *on_connect_udata;
-    void (*on_connect)(CX *cx, int fd, void *udata);
+    void (*on_connect_handler)(CX *cx, int fd, void *udata);
     void *on_disconnect_udata;
-    void (*on_disconnect)(CX *cx, int fd, void *udata);
+    void (*on_disconnect_handler)(CX *cx, int fd, void *udata);
     List timeouts;
 };
 
@@ -119,24 +119,24 @@ static void cx_handle_socket_data(CX *cx, int fd, void *udata)
     int r = read(fd, data, sizeof(data));
 
     if (r < 0) {
-        if (cx->on_error != NULL) {
-            cx->on_error(cx, fd, errno, cx->on_error_udata);
+        if (cx->on_error_handler != NULL) {
+            cx->on_error_handler(cx, fd, errno, cx->on_error_udata);
         }
 
         close(fd);
         cxDropFile(cx, fd);
     }
     else if (r == 0) {
-        if (cx->on_disconnect != NULL) {
-            cx->on_disconnect(cx, fd, cx->on_disconnect_udata);
+        if (cx->on_disconnect_handler != NULL) {
+            cx->on_disconnect_handler(cx, fd, cx->on_disconnect_udata);
         }
 
         close(fd);
         cxDropFile(cx, fd);
     }
     else {
-        if (cx->on_socket_data != NULL) {
-            cx->on_socket_data(cx, fd, data, r, cx->on_socket_data_udata);
+        if (cx->on_socket_handler != NULL) {
+            cx->on_socket_handler(cx, fd, data, r, cx->on_socket_udata);
         }
     }
 }
@@ -156,8 +156,8 @@ static void cx_handle_writeable(CX *cx, int fd)
     r = write(fd, bufGet(&conn->outgoing), bufLen(&conn->outgoing));
 
     if (r < 0) {
-        if (cx->on_error != NULL) {
-            cx->on_error(cx, fd, errno, cx->on_error_udata);
+        if (cx->on_error_handler != NULL) {
+            cx->on_error_handler(cx, fd, errno, cx->on_error_udata);
         }
 
         close(fd);
@@ -179,8 +179,8 @@ static void cx_handle_connection_request(CX *cx, int fd, void *udata)
 
     cxOnFile(cx, fd, cx_handle_socket_data, NULL);
 
-    if (cx->on_connect != NULL) {
-        cx->on_connect(cx, fd, cx->on_connect_udata);
+    if (cx->on_connect_handler != NULL) {
+        cx->on_connect_handler(cx, fd, cx->on_connect_udata);
     }
 }
 
@@ -258,16 +258,16 @@ int cxUdpConnect(CX *cx, const char *host, int port)
 }
 
 /*
- * Set a handler to be called at time <t> (in seconds since 1970-01-01/00:00:00 UTC). <on_time> will
+ * Set a handler to be called at time <t> (in seconds since 1970-01-01/00:00:00 UTC). <on_time_handler> will
  * be called with the given <cx>, <t> and <udata>.
  */
-void cxOnTime(CX *cx, double t, void (*on_time)(CX *cx, double t, void *udata), void *udata)
+void cxOnTime(CX *cx, double t, void (*on_time_handler)(CX *cx, double t, void *udata), void *udata)
 {
     CX_Timeout *tm = calloc(1, sizeof(CX_Timeout));
 
     tm->t = t;
     tm->on_time_udata = udata;
-    tm->on_time = on_time;
+    tm->on_time_handler = on_time_handler;
 
     listAppendTail(&cx->timeouts, tm);
 
@@ -275,16 +275,16 @@ void cxOnTime(CX *cx, double t, void (*on_time)(CX *cx, double t, void *udata), 
 }
 
 /*
- * Drop timeout at time <t>. Both <t> and <on_time> must match the earlier call to cxOnTime.
+ * Drop timeout at time <t>. Both <t> and <on_time_handler> must match the earlier call to cxOnTime.
  */
-void cxDropTime(CX *cx, double t, void (*on_time)(CX *cx, double t, void *udata))
+void cxDropTime(CX *cx, double t, void (*on_time_handler)(CX *cx, double t, void *udata))
 {
     CX_Timeout *tm, *next;
 
     for (tm = listHead(&cx->timeouts); tm; tm = next) {
         next = listNext(tm);
 
-        if (tm->t == t && tm->on_time == on_time) {
+        if (tm->t == t && tm->on_time_handler == on_time_handler) {
             listRemove(&cx->timeouts, tm);
             free(tm);
         }
@@ -310,21 +310,21 @@ void cxOnSocket(CX *cx,
         void (*handler)(CX *cx, int fd, const char *data, size_t size, void *udata),
         void *udata)
 {
-    cx->on_socket_data = handler;
-    cx->on_socket_data_udata = udata;
+    cx->on_socket_handler = handler;
+    cx->on_socket_udata = udata;
 }
 
 /*
- * Subscribe to input. When data is available on <fd>, <on_file_data> will be called with the given
+ * Subscribe to input. When data is available on <fd>, <on_file_handler> will be called with the given
  * <cx>, <fd> and <udata>. Only one handler per file descriptor can be set, subsequent calls will
  * override earlier ones.
  */
-void cxOnFile(CX *cx, int fd, void (*on_file_data)(CX *cx, int fd, void *udata), void *udata)
+void cxOnFile(CX *cx, int fd, void (*on_file_handler)(CX *cx, int fd, void *udata), void *udata)
 {
     cx_add_file(cx, fd);
 
-    cx->connection[fd]->on_file_data_udata = udata;
-    cx->connection[fd]->on_file_data = on_file_data;
+    cx->connection[fd]->on_file_udata = udata;
+    cx->connection[fd]->on_file_handler = on_file_handler;
 }
 
 /*
@@ -355,7 +355,7 @@ void cxDropFile(CX *cx, int fd)
  */
 void cxOnConnect(CX *cx, void (*handler)(CX *cx, int fd, void *udata), void *udata)
 {
-    cx->on_connect = handler;
+    cx->on_connect_handler = handler;
     cx->on_connect_udata = udata;
 }
 
@@ -364,7 +364,7 @@ void cxOnConnect(CX *cx, void (*handler)(CX *cx, int fd, void *udata), void *uda
  */
 void cxOnDisconnect(CX *cx, void (*handler)(CX *cx, int fd, void *udata), void *udata)
 {
-    cx->on_disconnect = handler;
+    cx->on_disconnect_handler = handler;
     cx->on_disconnect_udata = udata;
 }
 
@@ -373,7 +373,7 @@ void cxOnDisconnect(CX *cx, void (*handler)(CX *cx, int fd, void *udata), void *
  */
 void cxOnError(CX *cx, void (*handler)(CX *cx, int fd, int error, void *udata), void *udata)
 {
-    cx->on_error = handler;
+    cx->on_error_handler = handler;
     cx->on_error_udata = udata;
 }
 
@@ -472,7 +472,7 @@ int cxProcessSelect(CX *cx, int r, fd_set *rfds, fd_set *wfds)
     else if (r == 0) {
         CX_Timeout *tm = listRemoveHead(&cx->timeouts);
 
-        tm->on_time(cx, tm->t, tm->on_time_udata);
+        tm->on_time_handler(cx, tm->t, tm->on_time_udata);
 
         free(tm);
     }
@@ -485,7 +485,7 @@ int cxProcessSelect(CX *cx, int r, fd_set *rfds, fd_set *wfds)
             if (conn == NULL) continue;
 
             if (FD_ISSET(fd, rfds)) {
-                conn->on_file_data(cx, fd, conn->on_file_data_udata);
+                conn->on_file_handler(cx, fd, conn->on_file_udata);
             }
 
             if (FD_ISSET(fd, wfds)) {
