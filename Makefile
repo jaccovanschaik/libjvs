@@ -18,7 +18,7 @@ CC = gcc
 LIBJVS = vector.o buffer.o hash.o list.o dp.o debug.o cx.o \
          utils.o bitmask.o net.o tcp.o udp.o log.o mx.o
 
-CFLAGS = -g -fPIC -Wall
+CFLAGS = -std=c99 -D_GNU_SOURCE -g -fPIC -Wall
 
 all: libjvs.a libjvs.so
 
