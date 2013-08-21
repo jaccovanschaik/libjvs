@@ -2,7 +2,7 @@
  * mx.c: Message Exchange.
  *
  * Copyright:	(c) 2013 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:	$Id: mx.c 178 2013-08-21 09:49:50Z jacco $
+ * Version:	$Id: mx.c 182 2013-08-21 14:15:25Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -282,8 +282,6 @@ static MX_Event *mx_queue_message(List *queue,
 {
     MX_Event *evt = mx_create_event(queue, MX_ET_MESSAGE);
 
-P   dbgPrint(stderr, "fd = %d\n", fd);
-
     evt->u.msg.fd = fd;
     evt->u.msg.type = type;
     evt->u.msg.version = version;
@@ -308,13 +306,8 @@ static int mx_get_events(MX *mx, List *queue)
     if ((timer = listHead(&mx->timers)) != NULL) {
         double delta_t = timer->t - nowd();
 
-P       dbgPrint(stderr, "Have %d timers, first with event_type %d in %g seconds\n",
-                listLength(&mx->timers), timer->event_type, delta_t);
-
         if (delta_t <= 0) {
             /* The timeout is for *now*. No use calling select(), just queue an event and return. */
-
-P           dbgPrint(stderr, "delta_t < 0: queueing a timer event and returning 1\n");
 
             mx_create_event(queue, timer->event_type);
 
@@ -325,8 +318,6 @@ P           dbgPrint(stderr, "delta_t < 0: queueing a timer event and returning 
 
             tv.tv_sec = delta_t;
             tv.tv_usec = 1000000 * (delta_t - tv.tv_sec);
-
-P           dbgPrint(stderr, "Setting a timeval: sec = %ld, usec = %ld\n", tv.tv_sec, tv.tv_usec);
 
             tvp = &tv;
         }
@@ -344,14 +335,10 @@ P           dbgPrint(stderr, "Setting a timeval: sec = %ld, usec = %ld\n", tv.tv
             continue;                   /* File not used. */
         }
 
-P       dbgPrint(stderr, "fd %d:\n", fd);
-
         /* Always check if readable, only check if writable if we have something to write. */
 
         FD_SET(fd, &rfds);
         if (bufLen(&file->outgoing) > 0) FD_SET(fd, &wfds);
-
-P       dbgPrint(stderr, "r = %d, w = %d\n", FD_ISSET(fd, &rfds), FD_ISSET(fd, &wfds));
 
         nfds = fd + 1;                  /* Update number-of-file-descriptors. */
     }
@@ -360,13 +347,9 @@ P       dbgPrint(stderr, "r = %d, w = %d\n", FD_ISSET(fd, &rfds), FD_ISSET(fd, &
 
     if (nfds == 0 && tvp == NULL) return 0;
 
-P   dbgPrint(stderr, "Calling select with nfds = %d\n", nfds);
-
     /* Alrighty then. Let's see what's out there. */
 
     r = select(nfds, &rfds, &wfds, NULL, tvp);
-
-P   dbgPrint(stderr, "Select returned %d\n", r);
 
     if (r < 0) {
         /* An error occurred. Queue it and return. */
@@ -393,11 +376,7 @@ P   dbgPrint(stderr, "Select returned %d\n", r);
         if (FD_ISSET(fd, &wfds)) {
             /* File descriptor is writable. Send data. */
 
-P           dbgPrint(stderr, "Writing %d bytes:\n", bufLen(&file->outgoing));
-
             r = write(fd, bufGet(&file->outgoing), bufLen(&file->outgoing));
-
-P           dbgPrint(stderr, "Return code = %d\n", r);
 
             if (r < 0) {
                 mx_queue_error(queue, fd, "write", errno);
@@ -740,11 +719,7 @@ void mxDisconnect(MX *mx, int fd)
  */
 int mxSend(MX *mx, int fd, MX_Type type, MX_Version version, const char *payload, MX_Size size)
 {
-P   dbgPrint(stderr, "fd = %d, size = %d\n", fd, size);
-
     if (!mx_has_fd(mx, fd)) return -1;
-
-P   dbgPrint(stderr, "Packing message\n");
 
     bufPack(&mx->file[fd]->outgoing,
             PACK_INT32, type,
@@ -836,9 +811,7 @@ void mxOnError(MX *mx, void (*cb)(MX *mx, int fd, const char *whence, int error,
  */
 int mxAwait(MX *mx, int fd, MX_Type type, MX_Version *version, char **payload, MX_Size *size, double timeout)
 {
-    mx_add_timer(mx, timeout, MX_ET_AWAIT, NULL, NULL);
-
-P   dbgPrint(stderr, "fd = %d, type = %d, timeout = %f\n", fd, type, timeout);
+    MX_Timer *timer = mx_add_timer(mx, timeout, MX_ET_AWAIT, NULL, NULL);
 
     while (1) {
         MX_Event *evt;
@@ -846,23 +819,19 @@ P   dbgPrint(stderr, "fd = %d, type = %d, timeout = %f\n", fd, type, timeout);
         while (listIsEmpty(&mx->waiting)) {
             int r;
 
-P           dbgPrint(stderr, "Calling mx_get_events\n");
-
             r = mx_get_events(mx, &mx->waiting);
 
-P           dbgPrint(stderr, "mx_get_events returned %d\n", r);
+            if (r < 0) {
+                mx_drop_timer(mx, timer);
 
-            if (r < 0) return r;
+                return r;
+            }
         }
 
         evt = listRemoveHead(&mx->waiting);
 
-P       dbgPrint(stderr, "First event has event_type = %d\n", evt->event_type);
-
         if (evt->event_type == MX_ET_MESSAGE && evt->u.msg.fd == fd && evt->u.msg.type == type) {
-            MX_Timer *timer = listRemoveHead(&mx->timers);
-
-            free(timer);
+            mx_drop_timer(mx, timer);
 
             *version = evt->u.msg.version;
             *payload = evt->u.msg.payload;
@@ -870,23 +839,16 @@ P       dbgPrint(stderr, "First event has event_type = %d\n", evt->event_type);
 
             free(evt);
 
-P           dbgPrint(stderr, "Returning waited-for message\n");
-
             return 0;
         }
         else if (evt->event_type == MX_ET_AWAIT) {
-            MX_Timer *timer = listRemoveHead(&mx->timers);
+            mx_drop_timer(mx, timer);
 
-            free(timer);
             free(evt);
-
-P           dbgPrint(stderr, "Timed out. Returning 1\n");
 
             return 1;
         }
         else {
-P           dbgPrint(stderr, "Appending event to \"pending\" list\n");
-
             listAppendTail(&mx->pending, evt);
         }
     }
@@ -907,8 +869,6 @@ int mxRun(MX *mx)
 
         while (listIsEmpty(&mx->pending)) {
             int r = mx_get_events(mx, &mx->pending);
-
-P           dbgPrint(stderr, "mx_get_events returned %d\n", r);
 
             if (r <= 0) return r;
         }
@@ -975,32 +935,27 @@ void mxDestroy(MX *mx)
 
 enum {
     REQ_NONE,
-    REQ_QUIT,
     REQ_ECHO,
     REQ_NO_REPLY,
     REQ_TCP_CONNECT,
     REQ_TCP_SEND,
     REQ_UDP_SEND,
+    REQ_MSG_CONNECT,
+    REQ_MSG_DISCONNECT,
     REQ_COUNT
 };
 
 void s_handle_message(MX *mx, int fd,
         MX_Type type, MX_Version version, MX_Size size, char *payload, void *udata)
 {
-    static int tcp_fd, udp_fd;
+    static int tcp_fd, udp_fd, msg_fd;
 
     char *host;
     uint16_t port;
 
     char *string;
 
-P   dbgPrint(stderr, "type = %d, version = %d, size = %d\n", type, version, size);
-P   hexdump(stderr, payload, size);
-
     switch(type) {
-    case REQ_QUIT:
-        mxClose(mx);
-        break;
     case REQ_ECHO:
         mxSend(mx, fd, type, version, payload, size);
         break;
@@ -1009,8 +964,6 @@ P   hexdump(stderr, payload, size);
                 PACK_STRING,    &host,
                 PACK_INT16,     &port,
                 END);
-
-P       dbgPrint(stderr, "Connecting to %s:%d\n", host, port);
 
         tcp_fd = tcpConnect(host, port);
 
@@ -1029,17 +982,26 @@ P       dbgPrint(stderr, "Connecting to %s:%d\n", host, port);
                 END);
 
         udp_fd = udpSocket();
-        netConnect(udp_fd, host, port);
-
-        write(udp_fd, string, strlen(string));
-
+        udpSend(udp_fd, host, port, string, strlen(string));
         break;
     case REQ_NO_REPLY:
-        /* Be vewwy vewwy quiet.. I'm hunting wabbits... */
+        /* Be vewwy vewwy quiet. I'm hunting wabbits... */
+        break;
+    case REQ_MSG_CONNECT:
+        strunpack(payload, size,
+                PACK_STRING,    &host,
+                PACK_INT16,     &port,
+                END);
+
+        msg_fd = mxConnect(mx, host, port);
+
+        break;
+    case REQ_MSG_DISCONNECT:
+        mxDisconnect(mx, msg_fd);
         break;
     default:
         dbgPrint(stderr, "Got unexpected request %d\n", type);
-        break;
+        exit(0);
     }
 }
 
@@ -1059,7 +1021,7 @@ void server(void)
 }
 
 int step = 0, errors = 0;
-int server_fd, listen_fd, tcp_fd, udp_fd;
+int server_fd, data_listen_fd, msg_listen_fd, tcp_fd, udp_fd;
 
 typedef struct {
     void (*function)(MX *mx);
@@ -1088,8 +1050,6 @@ void c_log(MX *mx, char *fmt, ...)
     vasprintf(&msg, fmt, ap);
     va_end(ap);
 
-P   dbgPrint(stderr, "%s\n", msg);
-
     if (strcmp(current_test->expectation, msg) != 0) {
         dbgPrint(stderr, "Expected \"%s\"\n", current_test->expectation);
         dbgPrint(stderr, "Received \"%s\"\n", msg);
@@ -1109,16 +1069,12 @@ void c_handle_timer(MX *mx, double t, void *udata)
 
 void c_test_timer(MX *mx)
 {
-P   dbgPrint(stderr, "Testing timer\n");
-
     mxOnTime(mx, nowd() + 0.1, c_handle_timer, NULL);
 }
 
 void c_connect_to_server(MX *mx)
 {
     server_fd = mxConnect(mx, "localhost", 1234);
-
-P   dbgPrint(stderr, "Connected to the test server: server_fd = %d\n", server_fd);
 
     if (server_fd >= 0) {
         c_log(mx, "Connected to test server");
@@ -1128,11 +1084,11 @@ P   dbgPrint(stderr, "Connected to the test server: server_fd = %d\n", server_fd
     }
 }
 
-void c_setup_tcp_port(MX *mx)
+void c_setup_tcp_listen_port(MX *mx)
 {
-    listen_fd = tcpListen(NULL, 2345);
+    data_listen_fd = tcpListen(NULL, 2345);
 
-    if (listen_fd >= 0)
+    if (data_listen_fd >= 0)
         c_log(mx, "Opened TCP listen port");
     else
         c_log(mx, "Couldn't open TCP listen port");
@@ -1150,22 +1106,12 @@ void c_accept_tcp_connection(MX *mx, int fd, void *udata)
 
 void c_test_tcp_connection(MX *mx)
 {
-    Buffer payload = { 0 };
+    mxOnData(mx, data_listen_fd, c_accept_tcp_connection, NULL);
 
-P   dbgPrint(stderr, "Testing incoming TCP connection using a Data socket\n");
-
-    mxOnData(mx, listen_fd, c_accept_tcp_connection, NULL);
-
-    bufPack(&payload,
+    mxPack(mx, server_fd, REQ_TCP_CONNECT, 0,
             PACK_STRING,    "localhost",
             PACK_INT16,     2345,
             END);
-
-P   dbgPrint(stderr, "Sending REQ_TCP_CONNECT to fd %d\n", server_fd);
-
-    mxSend(mx, server_fd, REQ_TCP_CONNECT, 0, bufGet(&payload), bufLen(&payload));
-
-    bufReset(&payload);
 }
 
 void c_handle_tcp_traffic(MX *mx, int fd, void *udata)
@@ -1179,8 +1125,6 @@ void c_handle_tcp_traffic(MX *mx, int fd, void *udata)
 
 void c_test_tcp_traffic(MX *mx)
 {
-P   dbgPrint(stderr, "Testing incoming TCP traffic using a Data socket\n");
-
     mxOnData(mx, tcp_fd, c_handle_tcp_traffic, NULL);
 
     mxPack(mx, server_fd, REQ_TCP_SEND, 0, PACK_STRING, "ABCD", END);
@@ -1205,8 +1149,6 @@ void c_handle_udp_traffic(MX *mx, int fd, void *udata)
 
 void c_test_udp_traffic(MX *mx)
 {
-P   dbgPrint(stderr, "Testing incoming UDP traffic on Data socket\n");
-
     mxOnData(mx, udp_fd, c_handle_udp_traffic, NULL);
 
     mxPack(mx, server_fd, REQ_UDP_SEND, 0,
@@ -1224,8 +1166,6 @@ void c_test_await_reply(MX *mx)
 
     MX_Version version;
     MX_Size size;
-
-P   dbgPrint(stderr, "Testing mxAwait with a correct reply\n");
 
     mxPack(mx, server_fd, REQ_ECHO, 0,
             PACK_RAW,   "Ping!", 5,
@@ -1253,8 +1193,6 @@ void c_test_await_timeout(MX *mx)
     MX_Version version;
     MX_Size size;
 
-P   dbgPrint(stderr, "Testing mxAwait with a timeout\n");
-
     mxPack(mx, server_fd, REQ_NO_REPLY, 0,
             PACK_RAW,   "Ping!", 5,
             END);
@@ -1281,8 +1219,6 @@ void c_test_await_2_replies(MX *mx)
     MX_Version version;
     MX_Size size;
 
-P   dbgPrint(stderr, "Testing multiple mxAwait calls\n");
-
     mxPack(mx, server_fd, REQ_ECHO, 0,
             PACK_RAW,   "Ping!", 5,
             END);
@@ -1300,6 +1236,43 @@ P   dbgPrint(stderr, "Testing multiple mxAwait calls\n");
         c_log(mx, "Unexpected reply from mxAwait: r1 = %d, r2 = %d", r1, r2);
 }
 
+void c_setup_msg_listen_port(MX *mx)
+{
+    msg_listen_fd = mxListen(mx, NULL, 5678);
+
+    if (msg_listen_fd >= 0)
+        c_log(mx, "Opened messaging listen port");
+    else
+        c_log(mx, "Couldn't open messaging listen port");
+}
+
+void c_handle_msg_connection_request(MX* mx, int fd, void *udata)
+{
+    c_log(mx, "Accepted message connection");
+}
+
+void c_test_msg_connection(MX *mx)
+{
+    mxOnConnect(mx, c_handle_msg_connection_request, NULL);
+
+    mxPack(mx, server_fd, REQ_MSG_CONNECT, 0,
+            PACK_STRING,    "localhost",
+            PACK_INT16,     5678,
+            END);
+}
+
+void c_handle_msg_disconnect(MX* mx, int fd, const char *whence, void *udata)
+{
+    c_log(mx, "Message connection lost in %s", whence);
+}
+
+void c_test_msg_disconnect(MX *mx)
+{
+    mxOnDisconnect(mx, c_handle_msg_disconnect, NULL);
+
+    mxPack(mx, server_fd, REQ_MSG_DISCONNECT, 0, END);
+}
+
 void client(void)
 {
     MX *mx;
@@ -1307,7 +1280,7 @@ void client(void)
     Test test[] = {
         { c_test_timer,             "Timer was triggered" },
         { c_connect_to_server,      "Connected to test server" },
-        { c_setup_tcp_port,         "Opened TCP listen port" },
+        { c_setup_tcp_listen_port,  "Opened TCP listen port" },
         { c_test_tcp_connection,    "Accepted TCP connection" },
         { c_test_tcp_traffic,       "Received 4 bytes of TCP data: ABCD" },
         { c_open_udp_port,          "Opened UDP port" },
@@ -1315,6 +1288,9 @@ void client(void)
         { c_test_await_reply,       "mxAwait returned reply" },
         { c_test_await_timeout,     "mxAwait timed out" },
         { c_test_await_2_replies,   "mxAwait returned reply, twice" },
+        { c_setup_msg_listen_port,  "Opened messaging listen port" },
+        { c_test_msg_connection,    "Accepted message connection" },
+        { c_test_msg_disconnect,    "Message connection lost in read" },
         { NULL,  NULL }
     };
 
