@@ -522,7 +522,7 @@ int main(int argc, char *argv[])
                 PACK_DOUBLE, &f64,
                 PACK_STRING, &string,
                 PACK_DATA,   &data, &data_size,
-                PACK_RAW,    &raw, 4,
+                PACK_RAW,    &raw, sizeof(raw),
                 END);
 
         make_sure_that(u8  == 0x01);
@@ -535,7 +535,6 @@ int main(int argc, char *argv[])
         make_sure_that(memcmp(data, "Hoi2", 4) == 0);
         make_sure_that(data_size == 4);
         make_sure_that(memcmp(raw, "Hoi3", 4) == 0);
-
     }
 
     {
