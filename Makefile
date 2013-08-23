@@ -29,7 +29,7 @@ libjvs.so: $(LIBJVS)
 	$(MAKE_SLIB) libjvs.so $(LIBJVS)
 
 clean:
-	rm -f *.o libjvs.a libjvs.so core vgcore.* libjvs.tgz test-* tests.mk
+	rm -f *.o libjvs.a libjvs.so core vgcore.* libjvs.tgz *.test
 
 libjvs.tgz: clean
 	tar cvf - `ls | grep -v libjvs.tgz` | gzip > libjvs.tgz
@@ -43,6 +43,9 @@ install: libjvs.a libjvs.so
 
 tags:
 	ctags -R .
+
+%.test: %.c
+	$(CC) $(CFLAGS) -DTEST -o $@ $< libjvs.a -lm
 
 test: do_tests.sh libjvs.a
 	./do_tests.sh

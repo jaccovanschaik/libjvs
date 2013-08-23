@@ -5,19 +5,18 @@
 # Author:	Jacco van Schaik (jacco.van.schaik@dnw.aero)
 # Copyright:	(c) 2013 DNW German-Dutch Windtunnels
 # Created:	2013-08-23
-# Version:	$Id: do_tests.sh 188 2013-08-23 06:50:59Z jacco $
+# Version:	$Id: do_tests.sh 192 2013-08-23 07:52:13Z jacco $
 
 errors=0
 
 for f in `grep -l '#ifdef TEST' *.c`; do
-    base=`basename "$f" .c`
-    exe="test-$base"
+    exe=`echo "$f" | sed 's/\.c/\.test/'`
 
-    if gcc -std=c99 -D_GNU_SOURCE -DTEST -g -Wall -o $exe $f libjvs.a -lm; then
-        ./$exe
-        errors=`expr $errors + $?`
+    if make --no-print-directory $exe && ./$exe; then
+        echo "$exe ok."
     else
-        errors=`expr $errors + 1`
+        errors=`expr $errors + $?`
+        echo "$exe failed."
     fi
 done
 
