@@ -2,7 +2,7 @@
  * mx.c: Message Exchange.
  *
  * Copyright:	(c) 2013 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:	$Id: mx.c 183 2013-08-21 14:39:22Z jacco $
+ * Version:	$Id: mx.c 198 2013-08-25 13:13:12Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -153,6 +153,8 @@ struct MX {
 
     void (*on_error_cb)(MX *mx, int fd, const char *whence, int error, void *udata);
     void *on_error_udata;
+
+    void *ext;
 };
 
 /*
@@ -299,7 +301,7 @@ static int mx_get_events(MX *mx, List *queue)
     int r, fd, nfds = 0;
     fd_set rfds, wfds;
     struct timeval tv, *tvp = NULL;
-    MX_Timer *timer;
+    const MX_Timer *timer;
 
     /* First check for pending timers and see if we need a timeout. */
 
@@ -329,7 +331,7 @@ static int mx_get_events(MX *mx, List *queue)
     FD_ZERO(&wfds);
 
     for (fd = 0; fd < mx->num_files; fd++) {
-        MX_File *file = mx->file[fd];
+        const MX_File *file = mx->file[fd];
 
         if (file == NULL) {
             continue;                   /* File not used. */
@@ -465,7 +467,7 @@ static int mx_get_events(MX *mx, List *queue)
  */
 static void mx_process_data_event(MX *mx, MX_Event *evt)
 {
-    MX_File *file = mx->file[evt->u.data.fd];
+    const MX_File *file = mx->file[evt->u.data.fd];
 
     if (file != NULL) {
         file->cb(mx, evt->u.data.fd, file->udata);
@@ -479,8 +481,8 @@ static void mx_process_data_event(MX *mx, MX_Event *evt)
  */
 static void mx_process_message_event(MX *mx, MX_Event *evt)
 {
-    MX_MessageEvent *msg = &evt->u.msg;
-    MX_Subscription *sub = hashGet(&mx->subs, HASH_VALUE(msg->type));
+    const MX_MessageEvent *msg = &evt->u.msg;
+    const MX_Subscription *sub = hashGet(&mx->subs, HASH_VALUE(msg->type));
 
     if (sub != NULL) {
         sub->cb(mx, msg->fd, msg->type, msg->version, msg->size, msg->payload, sub->udata);
@@ -507,7 +509,7 @@ static void mx_process_timer_event(MX *mx, MX_Event *evt)
  */
 static void mx_process_error_event(MX *mx, MX_Event *evt)
 {
-    MX_ErrorEvent *err = &evt->u.err;
+    const MX_ErrorEvent *err = &evt->u.err;
 
     if (mx->on_error_cb != NULL) {
         mx->on_error_cb(mx, err->fd, err->whence, err->error, mx->on_error_udata);
@@ -521,7 +523,7 @@ static void mx_process_error_event(MX *mx, MX_Event *evt)
  */
 static void mx_process_conn_event(MX *mx, MX_Event *evt)
 {
-    MX_ConnEvent *conn = &evt->u.conn;
+    const MX_ConnEvent *conn = &evt->u.conn;
 
     if (mx->on_connect_cb != NULL) {
         mx->on_connect_cb(mx, conn->fd, mx->on_connect_udata);
@@ -535,7 +537,7 @@ static void mx_process_conn_event(MX *mx, MX_Event *evt)
  */
 static void mx_process_disc_event(MX *mx, MX_Event *evt)
 {
-    MX_DiscEvent *disc = &evt->u.disc;
+    const MX_DiscEvent *disc = &evt->u.disc;
 
     if (mx->on_disconnect_cb != NULL) {
         mx->on_disconnect_cb(mx, disc->fd, disc->whence, mx->on_disconnect_udata);
@@ -550,6 +552,22 @@ static void mx_process_disc_event(MX *mx, MX_Event *evt)
 MX *mxCreate(void)
 {
     return calloc(1, sizeof(MX));
+}
+
+/*
+ * Add an extension pointed to by <ext> to <mx>.
+ */
+void mxExtend(MX *mx, void *ext)
+{
+    mx->ext = ext;
+}
+
+/*
+ * Get a previously defined extension from <mx>.
+ */
+void *mxExtension(const MX *mx)
+{
+    return mx->ext;
 }
 
 /*
@@ -575,8 +593,8 @@ int mxListen(MX *mx, const char *host, int port)
  * the installed callback with <cb>.
  */
 void mxOnMessage(MX *mx, MX_Type type,
-        void (*cb)(MX *mx, int fd, MX_Type type, MX_Version version, MX_Size size,
-            char *payload, void *udata),
+        void (*cb)(MX *mx, int fd, MX_Type type, MX_Version version,
+            MX_Size size, char *payload, void *udata),
         void *udata)
 {
     MX_Subscription *sub = hashGet(&mx->subs, HASH_VALUE(type));
@@ -717,7 +735,8 @@ void mxDisconnect(MX *mx, int fd)
  * <size> via <mx> to <fd>. The message is added to an outgoing buffer in <mx>, and will be sent as
  * soon as the flow of control returns to <mx>'s main loop.
  */
-int mxSend(MX *mx, int fd, MX_Type type, MX_Version version, const char *payload, MX_Size size)
+int mxSend(const MX *mx,
+        int fd, MX_Type type, MX_Version version, MX_Size size, const char *payload)
 {
     if (!mx_has_fd(mx, fd)) return -1;
 
@@ -737,7 +756,7 @@ int mxSend(MX *mx, int fd, MX_Type type, MX_Version version, const char *payload
  * outgoing buffer in <mx>, and will be sent as soon as the flow of control returns to <mx>'s main
  * loop.
  */
-int mxPack(MX *mx, int fd, MX_Type type, MX_Version version, ...)
+int mxPack(const MX *mx, int fd, MX_Type type, MX_Version version, ...)
 {
     int r;
     va_list ap;
@@ -755,12 +774,12 @@ int mxPack(MX *mx, int fd, MX_Type type, MX_Version version, ...)
  * outgoing buffer in <mx>, and will be sent as soon as the flow of control returns to <mx>'s main
  * loop.
  */
-int mxVaPack(MX *mx, int fd, MX_Type type, MX_Version version, va_list ap)
+int mxVaPack(const MX *mx, int fd, MX_Type type, MX_Version version, va_list ap)
 {
     char *str;
     size_t size = vastrpack(&str, ap);
 
-    int r = mxSend(mx, fd, type, version, str, size);
+    int r = mxSend(mx, fd, type, version, size, str);
 
     free(str);
 
@@ -809,7 +828,8 @@ void mxOnError(MX *mx, void (*cb)(MX *mx, int fd, const char *whence, int error,
  * returns 0 if the message did arrive on time, 1 if it didn't and -1 if any other (network) error
  * occurred.
  */
-int mxAwait(MX *mx, int fd, MX_Type type, MX_Version *version, char **payload, MX_Size *size, double timeout)
+int mxAwait(MX *mx, int fd, MX_Type type, MX_Version *version,
+        MX_Size *size, char **payload, double timeout)
 {
     MX_Timer *timer = mx_add_timer(mx, timeout, MX_ET_AWAIT, NULL, NULL);
 
@@ -957,7 +977,7 @@ void s_handle_message(MX *mx, int fd,
 
     switch(type) {
     case REQ_ECHO:
-        mxSend(mx, fd, type, version, payload, size);
+        mxSend(mx, fd, type, version, size, payload);
         break;
     case REQ_TCP_CONNECT:
         strunpack(payload, size,
@@ -1171,7 +1191,7 @@ void c_test_await_reply(MX *mx)
             PACK_RAW,   "Ping!", 5,
             END);
 
-    r = mxAwait(mx, server_fd, REQ_ECHO, &version, &payload, &size, nowd() + 1);
+    r = mxAwait(mx, server_fd, REQ_ECHO, &version, &size, &payload, nowd() + 1);
 
     if (r == -1)
         c_log(mx, "mxAwait returned an error");
@@ -1197,7 +1217,7 @@ void c_test_await_timeout(MX *mx)
             PACK_RAW,   "Ping!", 5,
             END);
 
-    r = mxAwait(mx, server_fd, REQ_NO_REPLY, &version, &payload, &size, nowd() + 0.1);
+    r = mxAwait(mx, server_fd, REQ_NO_REPLY, &version, &size, &payload, nowd() + 0.1);
 
     if (r == -1)
         c_log(mx, "mxAwait returned an error");
@@ -1227,8 +1247,8 @@ void c_test_await_2_replies(MX *mx)
             PACK_RAW,   "Ping!", 5,
             END);
 
-    r1 = mxAwait(mx, server_fd, REQ_ECHO, &version, &payload, &size, nowd() + 1);
-    r2 = mxAwait(mx, server_fd, REQ_ECHO, &version, &payload, &size, nowd() + 1);
+    r1 = mxAwait(mx, server_fd, REQ_ECHO, &version, &size, &payload, nowd() + 1);
+    r2 = mxAwait(mx, server_fd, REQ_ECHO, &version, &size, &payload, nowd() + 1);
 
     if (r1 == 0 && r2 == 0)
         c_log(mx, "mxAwait returned reply, twice");

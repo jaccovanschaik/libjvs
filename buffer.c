@@ -538,6 +538,20 @@ int main(int argc, char *argv[])
     }
 
     {
+        bufUnpack(&buf1,
+                PACK_INT8,   NULL,
+                PACK_INT16,  NULL,
+                PACK_INT32,  NULL,
+                PACK_INT64,  NULL,
+                PACK_FLOAT,  NULL,
+                PACK_DOUBLE, NULL,
+                PACK_STRING, NULL,
+                PACK_DATA,   NULL, NULL,
+                PACK_RAW,    NULL, 4,
+                END);
+    }
+
+    {
         const char *name[] = { "Mills", "Berry", "Buck", "Stipe" };
 
         bufClear(&buf1);

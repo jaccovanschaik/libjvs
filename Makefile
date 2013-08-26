@@ -34,12 +34,12 @@ clean:
 libjvs.tgz: clean
 	tar cvf - `ls | grep -v libjvs.tgz` | gzip > libjvs.tgz
 
-install: libjvs.a libjvs.so
+install: libjvs.a libjvs.so test
 	if [ ! -d $(INSTALL_LIB) ]; then mkdir -p $(INSTALL_LIB); fi
 	cp libjvs.a libjvs.so $(INSTALL_LIB)
-	if [ ! -d $(INSTALL_INC)/libjvs ]; then mkdir -p $(INSTALL_INC)/libjvs; fi
-	rm -f $(INSTALL_INC)/libjvs/*
-	cp *.h $(INSTALL_INC)/libjvs
+	if [ ! -d $(INSTALL_INC)/libjvs ]; then mkdir -p $(INSTALL_INC); fi
+	rm -rf $(INSTALL_INC)/*
+	cp *.h $(INSTALL_INC)
 
 tags:
 	ctags -R .

@@ -343,7 +343,7 @@ int vstrunpack(const char *str, int size, va_list ap)
         case PACK_INT8:
             {
                 uint8_t *u8 = va_arg(ap, uint8_t *);
-                if (size >= sizeof(uint8_t)) *u8 = *((uint8_t *) ptr);
+                if (u8 != NULL && size >= sizeof(uint8_t)) *u8 = *((uint8_t *) ptr);
                 ptr += sizeof(uint8_t);
                 size -= sizeof(uint8_t);
             }
@@ -351,7 +351,7 @@ int vstrunpack(const char *str, int size, va_list ap)
         case PACK_INT16:
             {
                 uint16_t *u16 = va_arg(ap, uint16_t *);
-                if (size >= sizeof(uint16_t)) *u16 = be16toh(*((uint16_t *) ptr));
+                if (u16 != NULL && size >= sizeof(uint16_t)) *u16 = be16toh(*((uint16_t *) ptr));
                 ptr += sizeof(uint16_t);
                 size -= sizeof(uint16_t);
             }
@@ -359,7 +359,7 @@ int vstrunpack(const char *str, int size, va_list ap)
         case PACK_INT32:
             {
                 uint32_t *u32 = va_arg(ap, uint32_t *);
-                if (size >= sizeof(uint32_t)) *u32 = be32toh(*((uint32_t *) ptr));
+                if (u32 != NULL && size >= sizeof(uint32_t)) *u32 = be32toh(*((uint32_t *) ptr));
                 ptr += sizeof(uint32_t);
                 size -= sizeof(uint32_t);
             }
@@ -367,7 +367,7 @@ int vstrunpack(const char *str, int size, va_list ap)
         case PACK_INT64:
             {
                 uint64_t *u64 = va_arg(ap, uint64_t *);
-                if (size >= sizeof(uint64_t)) *u64 = be64toh(*((uint64_t *) ptr));
+                if (u64 != NULL && size >= sizeof(uint64_t)) *u64 = be64toh(*((uint64_t *) ptr));
                 ptr += sizeof(uint64_t);
                 size -= sizeof(uint64_t);
             }
@@ -375,7 +375,7 @@ int vstrunpack(const char *str, int size, va_list ap)
         case PACK_FLOAT:
             {
                 float *f32 = va_arg(ap, float *);
-                if (size >= sizeof(float)) {
+                if (f32 != NULL && size >= sizeof(float)) {
                     uint32_t u32 = *((uint32_t *) ptr);
                     u32 = be32toh(u32);
                     *f32 = *((float *) &u32);
@@ -387,7 +387,7 @@ int vstrunpack(const char *str, int size, va_list ap)
         case PACK_DOUBLE:
             {
                 double *f64 = va_arg(ap, double *);
-                if (size >= sizeof(double)) {
+                if (f64 != NULL && size >= sizeof(double)) {
                     uint64_t u64 = *((uint64_t *) ptr);
                     u64 = be64toh(u64);
                     *f64 = *((double *) &u64);
@@ -405,7 +405,7 @@ int vstrunpack(const char *str, int size, va_list ap)
                 ptr += sizeof(uint32_t);
                 size -= sizeof(uint32_t);
 
-                if (size >= len) *strpp = strndup(ptr, len);
+                if (strpp != NULL && size >= len) *strpp = strndup(ptr, len);
                 ptr += len;
                 size -= len;
             }
@@ -413,22 +413,26 @@ int vstrunpack(const char *str, int size, va_list ap)
         case PACK_DATA:
             {
                 char **strpp = va_arg(ap, char **);
-                uint32_t *lenp = va_arg(ap, uint32_t *);
+                uint32_t len = 0, *lenp = va_arg(ap, uint32_t *);
 
-                *lenp = 0;
-
-                if (size >= sizeof(uint32_t)) *lenp = be32toh(*((uint32_t *) ptr));
+                if (size >= sizeof(uint32_t)) {
+                    len = be32toh(*((uint32_t *) ptr));
+                }
 
                 ptr += sizeof(uint32_t);
                 size -= sizeof(uint32_t);
 
-                if (size >= *lenp) {
-                    *strpp = malloc(*lenp);
-                    memcpy(*strpp, ptr, *lenp);
+                if (lenp != NULL) {
+                    *lenp = len;
                 }
 
-                ptr += *lenp;
-                size -= *lenp;
+                if (strpp != NULL && size >= len) {
+                    *strpp = malloc(len);
+                    memcpy(*strpp, ptr, len);
+                }
+
+                ptr += len;
+                size -= len;
             }
             break;
         case PACK_RAW:
@@ -436,7 +440,7 @@ int vstrunpack(const char *str, int size, va_list ap)
                 char *strp = va_arg(ap, char *);
                 int len = va_arg(ap, unsigned int);
 
-                if (size >= len) {
+                if (strp != NULL && size >= len) {
                     memcpy(strp, ptr, len);
                 }
 
@@ -561,6 +565,20 @@ int main(int argc, char *argv[])
     make_sure_that(len == 5);
     make_sure_that(memcmp(dp, "Hello", 5) == 0);
     make_sure_that(memcmp(raw_buf, "World", 5) == 0);
+    make_sure_that(r == 48);
+
+    r = strunpack(buffer, sizeof(buffer),
+            PACK_INT8,      NULL,
+            PACK_INT16,     NULL,
+            PACK_INT32,     NULL,
+            PACK_INT64,     NULL,
+            PACK_FLOAT,     NULL,
+            PACK_DOUBLE,    NULL,
+            PACK_STRING,    NULL,
+            PACK_DATA,      NULL, NULL,
+            PACK_RAW,       NULL, 5,
+            END);
+
     make_sure_that(r == 48);
 
     return errors;

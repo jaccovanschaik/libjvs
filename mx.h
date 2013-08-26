@@ -5,13 +5,16 @@
  * mx.h: Message Exchange.
  *
  * Copyright:	(c) 2013 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:	$Id: mx.h 178 2013-08-21 09:49:50Z jacco $
+ * Version:	$Id: mx.h 201 2013-08-26 07:38:22Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
  */
 
 #include <stdint.h>
+#include <stdarg.h>
+
+#include "utils.h"
 
 typedef struct MX MX;
 
@@ -23,6 +26,16 @@ typedef uint32_t MX_Version;
  * Create a Message Exchange.
  */
 MX *mxCreate(void);
+
+/*
+ * Add an extension pointed to by <ext> to <mx>.
+ */
+void mxExtend(MX *mx, void *ext);
+
+/*
+ * Get a previously defined extension from <mx>.
+ */
+void *mxExtension(const MX *mx);
 
 /*
  * Tell <mx> to listen on address <host> and <port> for new connection requests, and return the file
@@ -87,7 +100,8 @@ void mxDisconnect(MX *mx, int fd);
  * <size> via <mx> to <fd>. The message is added to an outgoing buffer in <mx>, and will be sent as
  * soon as the flow of control returns to <mx>'s main loop.
  */
-int mxSend(MX *mx, int fd, MX_Type type, MX_Version version, const char *payload, MX_Size size);
+int mxSend(const MX *mx, int fd, MX_Type type, MX_Version version, MX_Size size, const char
+             *payload);
 
 /*
  * Send a message with message type <type> and version <version> via <mx> to <fd>. The message
@@ -95,7 +109,7 @@ int mxSend(MX *mx, int fd, MX_Type type, MX_Version version, const char *payload
  * outgoing buffer in <mx>, and will be sent as soon as the flow of control returns to <mx>'s main
  * loop.
  */
-int mxPack(MX *mx, int fd, MX_Type type, MX_Version version, ...);
+int mxPack(const MX *mx, int fd, MX_Type type, MX_Version version, ...);
 
 /*
  * Send a message with message type <type> and version <version> via <mx> to <fd>. The message
@@ -103,7 +117,7 @@ int mxPack(MX *mx, int fd, MX_Type type, MX_Version version, ...);
  * outgoing buffer in <mx>, and will be sent as soon as the flow of control returns to <mx>'s main
  * loop.
  */
-int mxVaPack(MX *mx, int fd, MX_Type type, MX_Version version, va_list ap);
+int mxVaPack(const MX *mx, int fd, MX_Type type, MX_Version version, va_list ap);
 
 /*
  * Call <cb> when a new connection is accepted by <mx>. The file descriptor of the new connection is
@@ -137,7 +151,7 @@ void mxOnError(MX *mx, void (*cb)(MX *mx, int fd, const char *whence, int error,
  * returns 0 if the message did arrive on time, 1 if it didn't and -1 if any other (network) error
  * occurred.
  */
-int mxAwait(MX *mx, int fd, MX_Type type, MX_Version *version, char **payload, MX_Size *size,
+int mxAwait(MX *mx, int fd, MX_Type type, MX_Version *version, MX_Size *size, char **payload,
               double timeout);
 
 /*

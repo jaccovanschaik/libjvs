@@ -15,8 +15,9 @@ There are a few "ground rules" regarding use of the various structs and
 functions contained herein:
 
 * (Almost) all functions use a lower-case prefix to show which module
-  they come from, followed by the rest of the name in camel-case.
-  Functions internal to the module have the same prefix, but the rest of
+  they come from, followed by the rest of the name in camel-case
+  (e.g. bufCreate() in buffer.c, hashAdd() in hash.c). Static functions
+  (i.e. internal to the module) have the same prefix, but the rest of
   the name is underscore-separated lower case.
 * There are a few functions that are meant to be called through a macro
   instead of directly by the user. These have a leading underscore.
@@ -24,7 +25,7 @@ functions contained herein:
   referenced just by their name.
 * If the definition of a struct is given in the .h file, it can be
   automatically allocated on the stack, *provided* that it is zeroed
-  before use. Also be sure to clear their contents before the end of the
+  before use. Also be sure to ..Clear() the struct before the end of the
   scope, or you might end up with a memory leak.
 * Many modules contain test code. When compiled with a macro TEST
   defined they include a main() function that calls a number of (ideally
@@ -37,12 +38,16 @@ functions contained herein:
   arguments, in which case the end is usually marked using the END macro
   (defined in defs.h).
 * Some "standard" functions:
-  xCreate()     Create a new, empty <x>.
-  xInit()       Initialize an <x>. Usually equivalent to setting it to
-                all zeroes. Note: this does *not* clear its contents
-                because it could easily contain random data.
+  xCreate()     Create a new, initialized <x> and return a pointer to it.
+  xInit()       Initialize an <x>. May be necessary if you've allocated
+                an <x> on the stack and haven't set it to all zeroes, or
+                if you've allocated it using malloc(). Usually simply
+                sets the struct to all zeroes. Note: this does *not*
+                discard its contents, because it may have uninitialized
+                pointers that we don't want to free().
   xClear()      Clear out the contents of an <x>. After this you should
                 be able to free() the <x> without getting a memory leak.
+                The <x> must have been initialized.
   xDestroy()    Clear *and* free() an <x>.
 
 Overview
