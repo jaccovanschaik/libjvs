@@ -16,7 +16,7 @@ INSTALL_INC = /home/jacco/include/libjvs
 CC = gcc
 
 LIBJVS = vector.o buffer.o hash.o list.o dp.o debug.o cx.o \
-         utils.o bitmask.o net.o tcp.o udp.o log.o mx.o
+         utils.o bitmask.o net.o tcp.o udp.o log.o mx.o pa.o
 
 CFLAGS = -std=c99 -D_GNU_SOURCE -g -fPIC -Wall
 
