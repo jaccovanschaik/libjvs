@@ -2,7 +2,7 @@
  * mx.c: Message Exchange.
  *
  * Copyright:	(c) 2013 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:	$Id: mx.c 198 2013-08-25 13:13:12Z jacco $
+ * Version:	$Id: mx.c 207 2013-08-27 20:24:28Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -43,7 +43,7 @@ typedef enum {
  */
 typedef struct {
     void (*cb)(MX *mx, int fd,          /* Callback to call. */
-            MX_Type type, MX_Version version, MX_Size size, char *payload, void *udata);
+            MX_Type type, MX_Version version, MX_Size size, const char *payload, void *udata);
     void *udata;                        /* User data to return. */
 } MX_Subscription;
 
@@ -594,7 +594,7 @@ int mxListen(MX *mx, const char *host, int port)
  */
 void mxOnMessage(MX *mx, MX_Type type,
         void (*cb)(MX *mx, int fd, MX_Type type, MX_Version version,
-            MX_Size size, char *payload, void *udata),
+            MX_Size size, const char *payload, void *udata),
         void *udata)
 {
     MX_Subscription *sub = hashGet(&mx->subs, HASH_VALUE(type));
@@ -822,11 +822,12 @@ void mxOnError(MX *mx, void (*cb)(MX *mx, int fd, const char *whence, int error,
  * Tell <mx> to wait until a message of message type <type> arrives on file descriptor <fd>. The
  * version of the received message is returned through <version>, its payload through <payload> and
  * the payload size though <size>. Messages, timers and other received data that arrive while
- * waiting for this message will be eventsd up and delivered as soon as the flow-of-control returns
+ * waiting for this message will be queued up and delivered as soon as the flow-of-control returns
  * to <mx>'s main loop. This function will wait until the time given in <timeout> (a UTC timestamp
  * containing the number of seconds since 1970-01-01/00:00:00 UTC) for the message to arrive. It
  * returns 0 if the message did arrive on time, 1 if it didn't and -1 if any other (network) error
- * occurred.
+ * occurred. The payload that is returned through <payload> is dynamically allocated and it is up to
+ * the caller to free it when no longer needed.
  */
 int mxAwait(MX *mx, int fd, MX_Type type, MX_Version *version,
         MX_Size *size, char **payload, double timeout)
@@ -966,7 +967,7 @@ enum {
 };
 
 void s_handle_message(MX *mx, int fd,
-        MX_Type type, MX_Version version, MX_Size size, char *payload, void *udata)
+        MX_Type type, MX_Version version, MX_Size size, const char *payload, void *udata)
 {
     static int tcp_fd, udp_fd, msg_fd;
 
@@ -1193,15 +1194,20 @@ void c_test_await_reply(MX *mx)
 
     r = mxAwait(mx, server_fd, REQ_ECHO, &version, &size, &payload, nowd() + 1);
 
-    if (r == -1)
+    if (r == -1) {
         c_log(mx, "mxAwait returned an error");
-    else if (r == 1)
+    }
+    else if (r == 1) {
         c_log(mx, "mxAwait timed out");
-    else if (size == 5 && strncmp(payload, "Ping!", size) == 0)
+    }
+    else if (size == 5 && strncmp(payload, "Ping!", size) == 0) {
         c_log(mx, "mxAwait returned reply");
-    else
+        free(payload);
+    }
+    else {
         c_log(mx, "Unexpected reply from mxAwait: version = %d, size = %d, payload = \"%*s\"",
                 version, size, size, payload);
+    }
 }
 
 void c_test_await_timeout(MX *mx)
@@ -1219,22 +1225,28 @@ void c_test_await_timeout(MX *mx)
 
     r = mxAwait(mx, server_fd, REQ_NO_REPLY, &version, &size, &payload, nowd() + 0.1);
 
-    if (r == -1)
+    if (r == -1) {
         c_log(mx, "mxAwait returned an error");
-    else if (r == 1)
+    }
+    else if (r == 1) {
         c_log(mx, "mxAwait timed out");
-    else if (size == 5 && strncmp(payload, "Ping!", size) == 0)
+    }
+    else if (size == 5 && strncmp(payload, "Ping!", size) == 0) {
         c_log(mx, "mxAwait returned reply");
-    else
+        free(payload);
+    }
+    else {
         c_log(mx, "Unexpected reply from mxAwait: version = %d, size = %d, payload = \"%*s\"",
                 version, size, size, payload);
+    }
+
 }
 
 void c_test_await_2_replies(MX *mx)
 {
     int r1, r2;
 
-    char *payload;
+    char *payload1, *payload2;
 
     MX_Version version;
     MX_Size size;
@@ -1247,13 +1259,17 @@ void c_test_await_2_replies(MX *mx)
             PACK_RAW,   "Ping!", 5,
             END);
 
-    r1 = mxAwait(mx, server_fd, REQ_ECHO, &version, &size, &payload, nowd() + 1);
-    r2 = mxAwait(mx, server_fd, REQ_ECHO, &version, &size, &payload, nowd() + 1);
+    r1 = mxAwait(mx, server_fd, REQ_ECHO, &version, &size, &payload1, nowd() + 1);
+    r2 = mxAwait(mx, server_fd, REQ_ECHO, &version, &size, &payload2, nowd() + 1);
 
-    if (r1 == 0 && r2 == 0)
+    if (r1 == 0 && r2 == 0) {
         c_log(mx, "mxAwait returned reply, twice");
-    else
+        free(payload1);
+        free(payload2);
+    }
+    else {
         c_log(mx, "Unexpected reply from mxAwait: r1 = %d, r2 = %d", r1, r2);
+    }
 }
 
 void c_setup_msg_listen_port(MX *mx)
