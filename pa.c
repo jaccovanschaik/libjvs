@@ -2,7 +2,7 @@
  * pa.c: Handle arrays of pointers.
  *
  * Copyright:	(c) 2013 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:	$Id: pa.c 203 2013-08-27 19:27:22Z jacco $
+ * Version:	$Id: pa.c 205 2013-08-27 19:33:55Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -14,6 +14,9 @@
 
 #include "pa.h"
 
+/*
+ * Set the entry at <index> of pointer array <pa> to <ptr>.
+ */
 void paSet(PA *pa, int index, void *ptr)
 {
     if (ptr == NULL) {
@@ -32,6 +35,9 @@ void paSet(PA *pa, int index, void *ptr)
     pa->ptr[index] = ptr;
 }
 
+/*
+ * Get the entry at <index> from pointer array <pa>.
+ */
 void *paGet(PA *pa, int index)
 {
     if (index >= pa->num_ptrs) {
@@ -42,6 +48,9 @@ void *paGet(PA *pa, int index)
     }
 }
 
+/*
+ * Drop (i.e. set to NULL) the entry at <index> in pointer array <pa>.
+ */
 void paDrop(PA *pa, int index)
 {
     if (index >= pa->num_ptrs) return;
