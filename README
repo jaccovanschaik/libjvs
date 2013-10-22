@@ -62,14 +62,14 @@ buffer.c, buffer.h
 const.h
     Useful constants.
     
-cx.c, cx.h
-    Communications Exchange.
-
 debug.c, debug.h
     Functions to assist in debugging.
 
 defs.h
     Some useful definitions.
+
+dis.h, dis.h, dis-types.h
+    Network dispatcher.
 
 dp.c, dp.h
     Data parser.
@@ -83,11 +83,20 @@ list.c, list.h
 log.c, log.h
     Provides logging functions.
 
-mx.c, mx.h
-    Message Exchange.
+ml.c, ml.h
+    Multi-list
 
 net.c, net.h
     Provides general networking utilities.
+
+ns.c, ns.h, ns-types.h
+    Network Server.
+
+options.c, options.h
+    Option parser.
+
+pa.c, pa.h
+    Pointer arrays.
 
 tcp.c, tcp.h
     Provides TCP networking utilities.
