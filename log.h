@@ -1,5 +1,5 @@
-#ifndef LOG_H
-#define LOG_H
+#ifndef LIBJVS_LOG_H
+#define LIBJVS_LOG_H
 
 /*
  * log.h: Write log messages.

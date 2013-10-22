@@ -1,3 +1,6 @@
+#ifndef LIBJVS_DEBUG_H
+#define LIBJVS_DEBUG_H
+
 /*
  * Functions to assist debugging.
  *
@@ -6,9 +9,6 @@
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
  */
-
-#ifndef DEBUG_H
-#define DEBUG_H
 
 #include <stdio.h>
 #include <stdarg.h>

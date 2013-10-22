@@ -1,3 +1,6 @@
+#ifndef LIBJVS_TCP_H
+#define LIBJVS_TCP_H
+
 /*
  * Provides a simplified interface to TCP/IP networking.
  *
@@ -6,9 +9,6 @@
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
  */
-
-#ifndef TCP_H
-#define TCP_H
 
 /* Open a listen port on <host> and <port> and return the corresponding
  * file descriptor. If <host> is NULL the socket will listen on all

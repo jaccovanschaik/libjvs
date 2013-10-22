@@ -18,6 +18,7 @@
 
 #include "defs.h"
 #include "utils.h"
+#include "buffer.h"
 
 /*
  * Return the current stack depth.
@@ -62,6 +63,46 @@ int ifprintf(FILE *fp, int indent, const char *fmt, ...)
 #define HEXDUMP_BYTES_PER_LINE 16
 
 /*
+ * Dump <size> bytes from <data> into a new string buffer, using indent <indent>. The address of the
+ * string buffer is returned through <str>, its length is this function's return value. Afterwards,
+ * the caller is responsible for the string buffer and should free it when it is no longer needed.
+ */
+int ihexstr(char **str, int indent, const char *data, int size)
+{
+    Buffer *output = bufCreate();
+    int i, begin = 0, end;
+
+    while (begin < size) {
+        bufAddF(output, "%*s", 2 * indent, "");
+
+        end = MIN(begin + HEXDUMP_BYTES_PER_LINE, size);
+
+        bufAddF(output, "%06X  ", begin);
+
+        for (i = begin; i < end; i++) {
+            bufAddF(output, "%02hhX ", data[i]);
+        }
+
+        for (i = end; i < begin + HEXDUMP_BYTES_PER_LINE; i++) {
+            bufAdd(output, "   ", 3);
+        }
+
+        for (i = begin; i < end; i++) {
+            bufAddC(output, isprint(data[i]) ? data[i] : '.');
+        }
+
+        bufAddC(output, '\n');
+
+        begin = end;
+    }
+
+    size = bufLen(output);
+    *str = bufFinish(output);
+
+    return size;
+}
+
+/*
  * Dump <size> bytes from <data> as a hexdump to <fp>, with indent level <indent>.
  */
 void ihexdump(FILE *fp, int indent, const char *data, int size)
@@ -90,6 +131,27 @@ void ihexdump(FILE *fp, int indent, const char *data, int size)
 
         offset += HEXDUMP_BYTES_PER_LINE;
     }
+}
+
+/*
+ * Dump the file descriptors up to <nfds> in <fds> to <fp>, preceded by <intro> (if <intro> is not
+ * NULL).
+ */
+void dumpfds(FILE *fp, const char *intro, int nfds, fd_set *fds)
+{
+    int fd;
+
+    if (intro != NULL) {
+        fputs(intro, fp);
+    }
+
+    for (fd = 0; fd < nfds; fd++) {
+        if (FD_ISSET(fd, fds)) {
+            fprintf(fp, " %d", fd);
+        }
+    }
+
+    fputc('\n', fp);
 }
 
 /*
@@ -497,9 +559,9 @@ int main(int argc, char *argv[])
     char raw_buf[6] = { 0 };
     int len;
 
-    char buffer[64] = { };
+    char buffer[64] = { 0 };
 
-    char expected[] = {
+    unsigned char expected[] = {
         1,
         0, 2,
         0, 0, 0, 3,
@@ -580,6 +642,14 @@ int main(int argc, char *argv[])
             END);
 
     make_sure_that(r == 48);
+
+    r = ihexstr(&sp, 1, "0123456789ABCD\n\r", 16);
+
+    make_sure_that(r == 75);
+
+    make_sure_that(strncmp(sp,
+                "  000000  30 31 32 33 34 35 36 37 38 39 41 42 43 44 0A 0D 0123456789ABCD..\n",
+                r) == 0);
 
     return errors;
 }

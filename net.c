@@ -20,11 +20,16 @@
  */
 const char *netHost(uint32_t big_endian_ip)
 {
-    struct hostent *ent = gethostbyaddr((char *) &big_endian_ip, sizeof(big_endian_ip), AF_INET);
+    static char text_buffer[16];
+    struct hostent *ent;
 
-    if (ent == NULL) {
-        static char text_buffer[16];
+    if (big_endian_ip == 0) {
+        snprintf(text_buffer, sizeof(text_buffer), "0.0.0.0");
 
+        return text_buffer;
+    }
+    else if ((ent = gethostbyaddr((char *) &big_endian_ip, sizeof(big_endian_ip), AF_INET)) == NULL)
+    {
         snprintf(text_buffer, sizeof(text_buffer), "%d.%d.%d.%d",
                  (big_endian_ip & 0xFF000000) >> 24,
                  (big_endian_ip & 0x00FF0000) >> 16,
@@ -33,8 +38,9 @@ const char *netHost(uint32_t big_endian_ip)
 
         return text_buffer;
     }
-
-    return ent->h_name;
+    else {
+        return ent->h_name;
+    }
 }
 
 /*
@@ -95,7 +101,7 @@ int netConnect(int fd, const char *host, int port)
 {
     struct hostent *host_ptr;               /* pointer to host info for remote host */
 
-    struct sockaddr_in peeraddr_in = { };   /* for peer socket address */
+    struct sockaddr_in peeraddr_in = { 0 }; /* for peer socket address */
 
     peeraddr_in.sin_family = AF_INET;
     peeraddr_in.sin_port = htons(port);

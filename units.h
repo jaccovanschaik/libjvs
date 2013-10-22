@@ -1,3 +1,6 @@
+#ifndef LIBJVS_UNITS_H
+#define LIBJVS_UNITS_H
+
 /*
  * Useful unit conversions.
  *
@@ -6,9 +9,6 @@
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
  */
-
-#ifndef UNITS_H
-#define UNITS_H
 
 #include <math.h>		/* for M_PI */
 

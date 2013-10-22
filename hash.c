@@ -14,6 +14,7 @@
 #include <assert.h>
 
 #include "list.h"
+#include "debug.h"
 #include "utils.h"
 #include "hash.h"
 
@@ -127,14 +128,17 @@ void hashAdd(HashTable *tbl, const void *data, const void *key, int key_len)
    HashEntry *entry;
    HashKey hash_key;
 
-   assert(data != NULL);
-   assert(key  != NULL);
-   assert(key_len > 0);
+   dbgAssert(stderr, key != NULL, "Key pointer is NULL");
+   dbgAssert(stderr, key != NULL, "Key length <= 0");
 
    hash_key = hash(key, key_len);
 
-   if (find_entry_in_bucket(&tbl->bucket[hash_key], key, key_len) != NULL)
-      abort();    /* Entry *must not* exist. */
+   if (find_entry_in_bucket(&tbl->bucket[hash_key], key, key_len) != NULL) {
+      /* Entry *must not* exist. */
+      dbgPrint(stderr, "hashAdd for an existing key:\n");
+      hexdump(stderr, key, key_len);
+      abort();
+   }
 
    entry = calloc(1, sizeof(HashEntry));
 
@@ -157,16 +161,37 @@ void hashSet(HashTable *tbl, const void *data, const void *key, int key_len)
    HashEntry *entry;
    HashKey hash_key;
 
-   assert(data != NULL);
-   assert(key  != NULL);
-   assert(key_len > 0);
+   dbgAssert(stderr, key != NULL, "Key pointer is NULL");
+   dbgAssert(stderr, key != NULL, "Key length <= 0");
 
    hash_key = hash(key, key_len);
 
-   if (!(entry = find_entry_in_bucket(&tbl->bucket[hash_key], key, key_len)))
-      abort();    /* Entry *must* exist. */
+   if (!(entry = find_entry_in_bucket(&tbl->bucket[hash_key], key, key_len))) {
+      /* Entry *must* exist. */
+      dbgPrint(stderr, "hashSet for a non-existing key:\n");
+      hexdump(stderr, key, key_len);
+      abort();
+   }
 
    entry->data = data;
+}
+
+/*
+ * Return TRUE if <tbl> has an entry for <key> with length <key_len>, FALSE otherwise. <tbl> and
+ * <key> must not be NULL, <key_len> must be greater than 0.
+ */
+int hashIsSet(const HashTable *tbl, const void *key, int key_len)
+{
+   HashEntry *entry;
+   HashKey hash_key = hash(key, key_len);
+
+   dbgAssert(stderr, tbl != NULL, "Table pointer is NULL");
+   dbgAssert(stderr, key != NULL, "Key pointer is NULL");
+   dbgAssert(stderr, key != NULL, "Key length <= 0");
+
+   entry = find_entry_in_bucket(&tbl->bucket[hash_key], key, key_len);
+
+   return (entry != NULL);
 }
 
 /*
@@ -179,9 +204,9 @@ void *hashGet(const HashTable *tbl, const void *key, int key_len)
    HashEntry *entry;
    HashKey hash_key = hash(key, key_len);
 
-   assert(tbl != NULL);
-   assert(key != NULL);
-   assert(key_len > 0);
+   dbgAssert(stderr, tbl != NULL, "Table pointer is NULL");
+   dbgAssert(stderr, key != NULL, "Key pointer is NULL");
+   dbgAssert(stderr, key != NULL, "Key length <= 0");
 
    entry = find_entry_in_bucket(&tbl->bucket[hash_key], key, key_len);
 
@@ -198,9 +223,9 @@ void hashDel(HashTable *tbl, const void *key, int key_len)
    HashEntry *entry;
    HashKey hash_key = hash(key, key_len);
 
-   assert(tbl != NULL);
-   assert(key != NULL);
-   assert(key_len > 0);
+   dbgAssert(stderr, tbl != NULL, "Table pointer is NULL");
+   dbgAssert(stderr, key != NULL, "Key pointer is NULL");
+   dbgAssert(stderr, key != NULL, "Key length <= 0");
 
    entry = find_entry_in_bucket(&tbl->bucket[hash_key], key, key_len);
 
@@ -257,37 +282,41 @@ static HashEntry *hash_next_entry(HashTable *tbl, HashEntry *after)
 }
 
 /*
- * Return a pointer to the first entry in <tbl>, or NULL if <tbl> is empty.
+ * Get the first entry in <tbl> and return its data pointer through <ptr>. Returns 1 if an entry was
+ * found, otherwise 0 (in which case <*ptr> is not modified). Note that <*ptr> may be NULL if the
+ * found entry contains a NULL pointer.
  */
-const void *hashFirst(HashTable *tbl)
+int hashFirst(HashTable *tbl, void **ptr)
 {
     HashEntry *first = hash_next_entry(tbl, NULL);
 
     if (first == NULL)
-        return NULL;
+        return 0;
     else {
         tbl->next_entry = hash_next_entry(tbl, first);
-        return first->data;
+        *ptr = (void *) first->data;
+        return 1;
     }
 }
 
 /*
- * Return the next entry in <tbl>, or NULL if there are no more entries. Note that hashNext() and
- * hashFirst() above are not particularly quick. If you need to iterate over the entries in the hash
- * table, and do it quickly, it might be best to also put those entries in a linked list and use
- * that to iterate, rather than these functions. Also, these functions return entries in order of
- * their hash key, which may not be what you want.
+ * Get the next entry in <tbl> and return its data pointer through <ptr>. Returns 1 if an entry was
+ * found, otherwise 0 (in which case <*ptr> is not modified). Note that hashNext() and hashFirst()
+ * above are not particularly quick. If you need to iterate over the entries in the hash table, and
+ * do it quickly, it might be best to also put those entries in a linked list and use that to
+ * iterate, rather than these functions. Also, these functions almost certainly return entries in a
+ * different order than what they were added with.
  */
-const void *hashNext(HashTable *tbl)
+int hashNext(HashTable *tbl, void **ptr)
 {
     if (tbl->next_entry == NULL)
-        return NULL;
+        return 0;
     else {
-        const void *data = tbl->next_entry->data;
+        *ptr = (void *) tbl->next_entry->data;
 
         tbl->next_entry = hash_next_entry(tbl, tbl->next_entry);
 
-        return data;
+        return 1;
     }
 }
 
@@ -305,7 +334,8 @@ int main(int argc, char *argv[])
         char *s;
     };
 
-    const struct Data *item;
+    struct Data *item;
+    void *ptr;
 
     struct Data data[] = {
         { 0, "zero" },
@@ -334,6 +364,18 @@ int main(int argc, char *argv[])
     make_sure_that(hashGet(table, HASH_STRING("three")) == &data[3]);
     make_sure_that(hashGet(table, HASH_STRING("four"))  == &data[4]);
 
+    make_sure_that(hashIsSet(table, HASH_VALUE(data[0].i)));
+    make_sure_that(hashIsSet(table, HASH_VALUE(data[1].i)));
+    make_sure_that(hashIsSet(table, HASH_VALUE(data[2].i)));
+    make_sure_that(hashIsSet(table, HASH_VALUE(data[3].i)));
+    make_sure_that(hashIsSet(table, HASH_VALUE(data[4].i)));
+
+    make_sure_that(hashIsSet(table, HASH_STRING("zero")));
+    make_sure_that(hashIsSet(table, HASH_STRING("one")));
+    make_sure_that(hashIsSet(table, HASH_STRING("two")));
+    make_sure_that(hashIsSet(table, HASH_STRING("three")));
+    make_sure_that(hashIsSet(table, HASH_STRING("four")));
+
     for (i = 0; i < count; i++) {
         hashDel(table, HASH_VALUE(i));
     }
@@ -349,6 +391,18 @@ int main(int argc, char *argv[])
     make_sure_that(hashGet(table, HASH_STRING("two"))   == &data[2]);
     make_sure_that(hashGet(table, HASH_STRING("three")) == &data[3]);
     make_sure_that(hashGet(table, HASH_STRING("four"))  == &data[4]);
+
+    make_sure_that(hashIsSet(table, HASH_VALUE(data[0].i)) == FALSE);
+    make_sure_that(hashIsSet(table, HASH_VALUE(data[1].i)) == FALSE);
+    make_sure_that(hashIsSet(table, HASH_VALUE(data[2].i)) == FALSE);
+    make_sure_that(hashIsSet(table, HASH_VALUE(data[3].i)) == FALSE);
+    make_sure_that(hashIsSet(table, HASH_VALUE(data[4].i)) == FALSE);
+
+    make_sure_that(hashIsSet(table, HASH_STRING("zero")));
+    make_sure_that(hashIsSet(table, HASH_STRING("one")));
+    make_sure_that(hashIsSet(table, HASH_STRING("two")));
+    make_sure_that(hashIsSet(table, HASH_STRING("three")));
+    make_sure_that(hashIsSet(table, HASH_STRING("four")));
 
     for (i = 0; i < count; i++) {
         hashDel(table, HASH_STRING(data[i].s));
@@ -366,6 +420,18 @@ int main(int argc, char *argv[])
     make_sure_that(hashGet(table, HASH_STRING("three")) == NULL);
     make_sure_that(hashGet(table, HASH_STRING("four"))  == NULL);
 
+    make_sure_that(hashIsSet(table, HASH_VALUE(data[0].i)) == FALSE);
+    make_sure_that(hashIsSet(table, HASH_VALUE(data[1].i)) == FALSE);
+    make_sure_that(hashIsSet(table, HASH_VALUE(data[2].i)) == FALSE);
+    make_sure_that(hashIsSet(table, HASH_VALUE(data[3].i)) == FALSE);
+    make_sure_that(hashIsSet(table, HASH_VALUE(data[4].i)) == FALSE);
+
+    make_sure_that(hashIsSet(table, HASH_STRING("zero"))  == FALSE);
+    make_sure_that(hashIsSet(table, HASH_STRING("one"))   == FALSE);
+    make_sure_that(hashIsSet(table, HASH_STRING("two"))   == FALSE);
+    make_sure_that(hashIsSet(table, HASH_STRING("three")) == FALSE);
+    make_sure_that(hashIsSet(table, HASH_STRING("four"))  == FALSE);
+
     hashDeleteTable(table);
 
     table = hashCreateTable();
@@ -374,21 +440,25 @@ int main(int argc, char *argv[])
         hashAdd(table, data + i, HASH_VALUE(i));
     }
 
-    for (item = hashFirst(table); item != NULL; item = hashNext(table)) {
+    for (i = hashFirst(table, &ptr); i != 0; i = hashNext(table, &ptr)) {
+        item = ptr;
+
         hashDel(table, HASH_VALUE(item->i));
     }
 
-    make_sure_that(hashFirst(table) == NULL);
+    make_sure_that(hashFirst(table, &ptr) == 0);
 
     for (i = 0; i < count; i++) {
         hashAdd(table, data + i, HASH_STRING(data[i].s));
     }
 
-    for (item = hashFirst(table); item != NULL; item = hashNext(table)) {
+    for (i = hashFirst(table, &ptr); i != 0; i = hashNext(table, &ptr)) {
+        item = ptr;
+
         hashDel(table, HASH_STRING(item->s));
     }
 
-    make_sure_that(hashFirst(table) == NULL);
+    make_sure_that(hashFirst(table, &ptr) == 0);
 
     hashDeleteTable(table);
 

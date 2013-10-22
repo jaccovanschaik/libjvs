@@ -1,3 +1,6 @@
+#ifndef LIBJVS_LIST_H
+#define LIBJVS_LIST_H
+
 /*
  * liblist: A package for handling linked lists.
  *
@@ -6,9 +9,6 @@
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
  */
-
-#ifndef LIST_H
-#define LIST_H
 
 typedef struct ListNode ListNode;
 typedef struct List List;

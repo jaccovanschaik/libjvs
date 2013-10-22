@@ -1,5 +1,5 @@
-#ifndef NET_H
-#define NET_H
+#ifndef LIBJVS_NET_H
+#define LIBJVS_NET_H
 
 /*
  * net.h: General networking utility functions.

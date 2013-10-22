@@ -183,6 +183,14 @@ Buffer *bufAddF(Buffer *buf, const char *fmt, ...)
 }
 
 /*
+ * Append the null-terminated string <str> to <buf>.
+ */
+Buffer *bufAddS(Buffer *buf, const char *str)
+{
+    return bufAdd(buf, str, strlen(str));
+}
+
+/*
  * Replace <buf> with the <len> bytes starting at <data>.
  */
 Buffer *bufSet(Buffer *buf, const void *data, size_t len)
@@ -227,6 +235,14 @@ Buffer *bufSetV(Buffer *buf, const char *fmt, va_list ap)
     bufClear(buf);
 
     return bufAddV(buf, fmt, ap);
+}
+
+/*
+ * Set <buf> to the null-terminated string <str>.
+ */
+Buffer *bufSetS(Buffer *buf, const char *str)
+{
+    return bufSet(buf, str, strlen(str));
 }
 
 /*
@@ -417,8 +433,8 @@ static int errors = 0;
 
 int main(int argc, char *argv[])
 {
-    Buffer buf1 = { };
-    Buffer buf2 = { };
+    Buffer buf1 = { 0 };
+    Buffer buf2 = { 0 };
     Buffer *buf3;
 
     bufClear(&buf1);
@@ -438,6 +454,11 @@ int main(int argc, char *argv[])
     make_sure_that(bufLen(&buf1) == 8);
     make_sure_that(strcmp(bufGet(&buf1), "ABCD1234") == 0);
 
+    bufAddS(&buf1, "XYZ");
+
+    make_sure_that(bufLen(&buf1) == 11);
+    make_sure_that(strcmp(bufGet(&buf1), "ABCD1234XYZ") == 0);
+
     bufSet(&buf1, "ABCDEF", 3);
 
     make_sure_that(bufLen(&buf1) == 3);
@@ -452,6 +473,11 @@ int main(int argc, char *argv[])
 
     make_sure_that(bufLen(&buf1) == 4);
     make_sure_that(strcmp(bufGet(&buf1), "1234") == 0);
+
+    bufSetS(&buf1, "ABCDEF");
+
+    make_sure_that(bufLen(&buf1) == 6);
+    make_sure_that(strcmp(bufGet(&buf1), "ABCDEF") == 0);
 
     bufClear(&buf1);
 

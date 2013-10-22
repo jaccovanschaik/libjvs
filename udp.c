@@ -61,7 +61,7 @@ int udpSend(int fd, const char *host, int port, const char *data, size_t size)
 {
     struct hostent *host_ptr;               /* pointer to host info for remote host */
 
-    struct sockaddr_in peeraddr_in = { };   /* for peer socket address */
+    struct sockaddr_in peeraddr_in = { 0 }; /* for peer socket address */
 
     peeraddr_in.sin_family = AF_INET;
     peeraddr_in.sin_port = htons(port);

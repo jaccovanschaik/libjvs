@@ -1,5 +1,5 @@
-#ifndef DP_H
-#define DP_H
+#ifndef LIBJVS_DP_H
+#define LIBJVS_DP_H
 
 /* dp.c: Data parser
  *

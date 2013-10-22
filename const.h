@@ -1,3 +1,6 @@
+#ifndef LIBJVS_CONST_H
+#define LIBJVS_CONST_H
+
 /*
  * Some useful constants.
  *
@@ -6,9 +9,6 @@
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
  */
-
-#ifndef CONST_H
-#define CONST_H
 
 #define ONE_GEE	9.81    /* meters per second squared, obviously. */
 

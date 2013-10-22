@@ -1,5 +1,5 @@
-#ifndef BITMASK_H
-#define BITMASK_H
+#ifndef LIBJVS_BITMASK_H
+#define LIBJVS_BITMASK_H
 
 /*
  * bitmask.h: Handle bitmasks of unlimited size.

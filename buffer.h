@@ -1,3 +1,6 @@
+#ifndef LIBJVS_STRING_H
+#define LIBJVS_STRING_H
+
 /*
  * Provides growing byte buffers. Buffers can contain binary data, but are
  * always null-terminated for convenience's sake.
@@ -7,9 +10,6 @@
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
  */
-
-#ifndef JVS_STRING_H
-#define JVS_STRING_H
 
 #include <stdarg.h>
 
@@ -76,6 +76,11 @@ Buffer *bufAddV(Buffer *buf, const char *fmt, va_list ap);
 Buffer *bufAddF(Buffer *buf, const char *fmt, ...) __attribute__ ((format (printf, 2, 3)));
 
 /*
+ * Append the null-terminated string <str> to <buf>.
+ */
+Buffer *bufAddS(Buffer *buf, const char *str);
+
+/*
  * Replace <buf> with the <len> bytes starting at <data>.
  */
 Buffer *bufSet(Buffer *buf, const void *data, size_t len);
@@ -96,6 +101,11 @@ Buffer *bufSetF(Buffer *buf, const char *fmt, ...) __attribute__ ((format (print
  * subsequent parameters contained in <ap>.
  */
 Buffer *bufSetV(Buffer *buf, const char *fmt, va_list ap);
+
+/*
+ * Set <buf> to the null-terminated string <str>.
+ */
+Buffer *bufSetS(Buffer *buf, const char *str);
 
 /*
  * Get a pointer to the data from <buf>. Find the size of the buffer using

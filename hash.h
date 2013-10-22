@@ -1,3 +1,6 @@
+#ifndef LIBJVS_HASH_H
+#define LIBJVS_HASH_H
+
 /*
  * Provides hash tables. Entries are hashed using arbitrary-length keys.
  *
@@ -6,9 +9,6 @@
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
  */
-
-#ifndef HASH_H
-#define HASH_H
 
 #include "list.h"
 
@@ -74,6 +74,12 @@ void hashAdd(HashTable *tbl, const void *data, const void *key, int key_len);
 void hashSet(HashTable *tbl, const void *data, const void *key, int key_len);
 
 /*
+ * Return TRUE if <tbl> has an entry for <key> with length <key_len>, FALSE otherwise. <tbl> and
+ * <key> must not be NULL, <key_len> must be greater than 0.
+ */
+int hashIsSet(const HashTable *tbl, const void *key, int key_len);
+
+/*
  * Get the data associated with <key>, whose length is <key_len> from <tbl>. If
  * no such entry exists NULL is returned. <tbl> and <key> must not be NULL,
  * <key_len> must be greater than 0.
@@ -88,17 +94,20 @@ void *hashGet(const HashTable *tbl, const void *key, int key_len);
 void hashDel(HashTable *tbl, const void *key, int key_len);
 
 /*
- * Return a pointer to the first entry in <tbl>, or NULL if <tbl> is empty.
+ * Get the first entry in <tbl> and return its data pointer through <ptr>. Returns 1 if an entry was
+ * found, otherwise 0 (in which case <*ptr> is not modified). Note that <*ptr> may be NULL if the
+ * found entry contains a NULL pointer.
  */
-const void *hashFirst(HashTable *tbl);
+int hashFirst(HashTable *tbl, void **ptr);
 
 /*
- * Return the next entry in <tbl>, or NULL if there are no more entries. Note that hashNext() and
- * hashFirst() above are not particularly quick. If you need to iterate over the entries in the hash
- * table, and do it quickly, it might be best to also put those entries in a linked list and use
- * that to iterate, rather than these functions. Also, these functions return entries in order of
- * their hash key, which may not be what you want.
+ * Get the next entry in <tbl> and return its data pointer through <ptr>. Returns 1 if an entry was
+ * found, otherwise 0 (in which case <*ptr> is not modified). Note that hashNext() and hashFirst()
+ * above are not particularly quick. If you need to iterate over the entries in the hash table, and
+ * do it quickly, it might be best to also put those entries in a linked list and use that to
+ * iterate, rather than these functions. Also, these functions almost certainly return entries in a
+ * different order than what they were added with.
  */
-const void *hashNext(HashTable *tbl);
+int hashNext(HashTable *tbl, void **ptr);
 
 #endif

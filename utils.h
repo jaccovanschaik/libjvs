@@ -1,5 +1,5 @@
-#ifndef UTILS_H
-#define UTILS_H
+#ifndef LIBJVS_UTILS_H
+#define LIBJVS_UTILS_H
 
 /*
  * utils.h: Description
@@ -14,8 +14,10 @@
 
 #include <stdio.h>
 #include <stdarg.h>
+#include <sys/select.h>
 
-#define hexdump(f, s, n) ihexdump(f, 0, s, n)
+#define hexdump(fp, data, size) ihexdump(fp, 0, data, size)
+#define hexstr(spp, data, size) ihexstr(spp, 0, data, size)
 
 #define make_sure_that(expr) _make_sure_that(__FILE__, __LINE__, &errors, #expr, (expr))
 
@@ -53,9 +55,22 @@ int ifprintf(FILE *fp, int indent, const char *fmt, ...)
     __attribute__ ((format (printf, 3, 4)));
 
 /*
+ * Dump <size> bytes from <data> into a new string buffer, using indent <indent>. The address of the
+ * string buffer is returned through <str>, its length is this function's return value. Afterwards,
+ * the caller is responsible for the string buffer and should free it when it is no longer needed.
+ */
+int ihexstr(char **str, int indent, const char *data, int size);
+
+/*
  * Dump <size> bytes from <data> as a hexdump to <fp>.
  */
 void ihexdump(FILE *fp, int indent, const char *data, int size);
+
+/*
+ * Dump the file descriptors up to <nfds> in <fds> to <fp>, preceded by <intro> (if <intro> is not
+ * NULL).
+ */
+void dumpfds(FILE *fp, const char *intro, int nfds, fd_set *fds);
 
 /*
  * Duplicate <size> bytes starting at <src> and return a pointer to the

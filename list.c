@@ -356,7 +356,7 @@ typedef struct {
     if (test != exp) { \
         fprintf(stderr, \
                 "%s:%d: " #expr " returns %p, should be %p (%s).\n", \
-                __FILE__, __LINE__, test, exp, #exp); \
+                __FILE__, __LINE__, (void *) test, (void *) exp, #exp); \
         errors++; \
     } \
 }
