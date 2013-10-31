@@ -19,6 +19,7 @@
 
 #include "net.h"
 #include "tcp.h"
+#include "defs.h"
 #include "debug.h"
 
 static struct linger linger = { 1, 5 }; /* 5 second linger */
@@ -33,17 +34,17 @@ static int tcp_socket(void)
     int sd;                            /* socket descriptor */
 
     if ((sd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
-        dbgError(stderr, "unable to create socket");
+P       dbgError(stderr, "unable to create socket");
         return -1;
     }
 
     if (setsockopt(sd, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one)) != 0) {
-        dbgError(stderr, "setsockopt(REUSEADDR) failed");
+P       dbgError(stderr, "setsockopt(REUSEADDR) failed");
         return -1;
     }
 
     if (setsockopt(sd, SOL_SOCKET, SO_LINGER, &linger, sizeof(linger)) != 0) {
-        dbgError(stderr, "setsockopt(LINGER) failed");
+P       dbgError(stderr, "setsockopt(LINGER) failed");
         return -1;
     }
 
@@ -56,7 +57,7 @@ static int tcp_socket(void)
 static int tcp_listen(int socket)
 {
     if (listen(socket, 5) == -1) {
-        dbgError(stderr, "listen failed");
+P       dbgError(stderr, "listen failed");
         return -1;
     }
 
@@ -75,17 +76,17 @@ int tcpListen(const char *host, int port)
     int lsd;
 
     if ((lsd = tcp_socket()) == -1) {
-        dbgError(stderr, "tcp_socket failed");
+P       dbgError(stderr, "tcp_socket failed");
         return -1;
     }
 
     if (netBind(lsd, host, port) != 0) {
-        dbgError(stderr, "netBind failed");
+P       dbgError(stderr, "netBind failed");
         return -1;
     }
 
     if (tcp_listen(lsd) != 0) {
-        dbgError(stderr, "tcp_listen failed");
+P       dbgError(stderr, "tcp_listen failed");
         return -1;
     }
 
@@ -101,7 +102,7 @@ int tcpConnect(const char *host, int port)
     int fd = tcp_socket();
 
     if (netConnect(fd, host, port) != 0) {
-        dbgError(stderr, "netConnect failed");
+P       dbgError(stderr, "netConnect failed");
         close(fd);
         return -1;
     }
@@ -129,7 +130,7 @@ int tcpAccept(int sd)
     } while (csd == -1 && errno == EINTR);
 
     if (csd == -1)
-        dbgError(stderr, "accept failed");
+P       dbgError(stderr, "accept failed");
 
     return csd;
 }
@@ -146,7 +147,7 @@ int tcpRead(int fd, void *buf, int len)
     } while ((res > 0 || errno == EINTR) && (n += res) < len);
 
     if (res == -1) {
-        dbgError(stderr, "read failed");
+P       dbgError(stderr, "read failed");
         return -1;
     }
     else {
@@ -166,7 +167,7 @@ int tcpWrite(int fd, const void *buf, int len)
     } while ((res > 0 || errno == EINTR) && (n += res) < len);
 
     if (res == -1) {
-        dbgError(stderr, "write failed");
+P       dbgError(stderr, "write failed");
         return -1;
     }
     else {

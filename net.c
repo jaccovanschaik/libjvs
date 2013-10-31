@@ -53,7 +53,7 @@ int netPort(char *service)
     serv_ptr = getservbyname(service, "tcp");
 
     if (serv_ptr == NULL) {
-        dbgError(stderr, "getservbyname(%s) failed", service);
+P       dbgError(stderr, "getservbyname(%s) failed", service);
         return -1;
     }
 
@@ -78,7 +78,7 @@ int netBind(int socket, const char *host, int port)
         myaddr_in.sin_addr.s_addr = ((struct in_addr *) (host_ptr->h_addr))->s_addr;
     }
     else {
-        dbgError(stderr, "gethostbyname(%s) failed", host);
+P       dbgError(stderr, "gethostbyname(%s) failed", host);
         return -1;
     }
 
@@ -86,7 +86,7 @@ int netBind(int socket, const char *host, int port)
     myaddr_in.sin_family = AF_INET;
 
     if (bind(socket, (struct sockaddr *) &myaddr_in, sizeof(struct sockaddr_in)) != 0) {
-        dbgError(stderr, "bind failed");
+P       dbgError(stderr, "bind failed");
         return -1;
     }
 
@@ -107,7 +107,7 @@ int netConnect(int fd, const char *host, int port)
     peeraddr_in.sin_port = htons(port);
 
     if ((host_ptr = gethostbyname(host)) == NULL) {
-        dbgError(stderr, "gethostbyname(%s) failed", host);
+P       dbgError(stderr, "gethostbyname(%s) failed", host);
         return -1;
     }
 
@@ -115,7 +115,7 @@ int netConnect(int fd, const char *host, int port)
         ((struct in_addr *) (host_ptr->h_addr))->s_addr;
 
     if (connect(fd, (struct sockaddr *) &peeraddr_in, sizeof(peeraddr_in)) != 0) {
-        dbgError(stderr, "connect to %s:%d failed", host, port);
+P       dbgError(stderr, "connect to %s:%d failed", host, port);
         return -1;
     }
 
