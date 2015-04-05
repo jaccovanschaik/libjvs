@@ -2,7 +2,7 @@
  * Network Server.
  *
  * Copyright:	(c) 2013 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:	$Id: ns.c 237 2013-10-08 13:43:32Z jacco $
+ * Version:	$Id: ns.c 248 2013-11-15 10:51:40Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -126,16 +126,15 @@ NS *nsCreate(void)
  */
 int nsListen(NS *ns, const char *host, int port)
 {
-    if ((ns->listen_fd = tcpListen(host, port)) < 0) {
+    int listen_fd;
+
+    if ((listen_fd = tcpListen(host, port)) < 0) {
         return -1;
     }
 
-    ns->listen_port = netLocalPort(ns->listen_fd);
-    ns->listen_host = strdup(netLocalHost(ns->listen_fd));
+    disOnData(&ns->dis, listen_fd, ns_accept_connection, NULL);
 
-    disOnData(&ns->dis, ns->listen_fd, ns_accept_connection, NULL);
-
-    return ns->listen_fd;
+    return listen_fd;
 }
 
 /*
@@ -425,8 +424,6 @@ void nsClose(NS *ns)
 void nsClear(NS *ns)
 {
     disClear(&ns->dis);
-
-    free(ns->listen_host);
 
     memset(ns, 0, sizeof(NS));
 }
