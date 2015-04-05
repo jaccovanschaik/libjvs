@@ -2,7 +2,7 @@
 #define LIBJVS_UTILS_H
 
 /*
- * utils.h: Description
+ * utils.h: Various utility functions.
  *
  * Copyright:	(c) 2012 Jacco van Schaik (jacco@jaccovanschaik.net)
  *

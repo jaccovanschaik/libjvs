@@ -2,7 +2,7 @@
 #define LIBJVS_UDP_H
 
 /*
- * Provides a simplified interface to TCP/IP networking.
+ * Provides a simplified interface to UDP networking.
  *
  * Copyright:   (c) 2007 Jacco van Schaik (jacco@jaccovanschaik.net)
  *

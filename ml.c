@@ -1,8 +1,8 @@
 /* ml.c: A package for handling multiple linked lists. Differs from list in that items can be in
- * more than one list and also more than once in the same list.
+ * more than one list at the same time.
  *
  * Copyright:	(c) 2005 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:	$Id: ml.c 244 2013-10-15 08:24:39Z jacco $
+ * Version:	$Id: ml.c 265 2015-04-05 18:06:58Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.

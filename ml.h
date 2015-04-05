@@ -1,12 +1,11 @@
 #ifndef LIBJVS_ML_H
 #define LIBJVS_ML_H
 
-/*
- * liblist2: A package for handling linked lists. Differs from liblist in that
- * items can be in more than one list and also more than once in the same list.
+/* ml.c: A package for handling multiple linked lists. Differs from list in that items can be in
+ * more than one list at the same time.
  *
  * Copyright: (c) 2005 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:   $Id: ml.h 251 2013-12-06 09:57:45Z jacco $
+ * Version:   $Id: ml.h 265 2015-04-05 18:06:58Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.

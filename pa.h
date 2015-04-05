@@ -2,10 +2,10 @@
 #define LIBJVS_PA_H
 
 /*
- * pa.h: Description
+ * pa.h: Handle arrays of pointers.
  *
  * Copyright:	(c) 2013 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:	$Id: pa.h 217 2013-09-11 20:21:01Z jacco $
+ * Version:	$Id: pa.h 265 2015-04-05 18:06:58Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.

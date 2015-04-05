@@ -2,7 +2,7 @@
 #define LIBJVS_VECTOR_H
 
 /*
- * Header file for vector.c
+ * Calculations with vectors and matrices.
  *
  * Copyright:   (c) 2007 Jacco van Schaik (jacco@jaccovanschaik.net)
  *

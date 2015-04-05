@@ -1,5 +1,5 @@
 /*
- * utils.c: Description
+ * utils.c: Various utility functions.
  *
  * Copyright:   (c) 2012 Jacco van Schaik (jacco@jaccovanschaik.net)
  *

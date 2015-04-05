@@ -2,10 +2,10 @@
 #define NS_H
 
 /*
- * Network Server
+ * Network Server.
  *
  * Copyright:	(c) 2013 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:	$Id: ns.h 240 2013-10-14 19:10:57Z jacco $
+ * Version:	$Id: ns.h 265 2015-04-05 18:06:58Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
