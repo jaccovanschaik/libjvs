@@ -14,6 +14,7 @@
 #include <stdarg.h>
 #include <stdint.h>
 #include <ctype.h>
+#include <math.h>
 #include <sys/time.h>
 
 #include "defs.h"
@@ -168,6 +169,23 @@ void *memdup(const void *src, unsigned int size)
 }
 
 /*
+ * Convert the double timestamp <t> to a struct timeval in <tv>.
+ */
+void dtotv(double t, struct timeval *tv)
+{
+    tv->tv_sec  = t;
+    tv->tv_usec = 1000000 * fmod(t, 1.0);
+}
+
+/*
+ * Return the timestamp in <tv> as a double.
+ */
+double tvtod(const struct timeval *tv)
+{
+    return tv->tv_sec + tv->tv_usec / 1000000.0;
+}
+
+/*
  * Return the current UTC time (number of seconds since 1970-01-01/00:00:00 UTC) as a double.
  */
 double nowd(void)
@@ -176,7 +194,7 @@ double nowd(void)
 
     gettimeofday(&tv, NULL);
 
-    return tv.tv_sec + tv.tv_usec / 1000000.0;
+    return tvtod(&tv);
 }
 
 /*
@@ -559,6 +577,8 @@ int main(int argc, char *argv[])
     char raw_buf[6] = { 0 };
     int len;
 
+    struct timeval tv;
+
     char buffer[64] = { 0 };
 
     unsigned char expected[] = {
@@ -650,6 +670,24 @@ int main(int argc, char *argv[])
     make_sure_that(strncmp(sp,
                 "  000000  30 31 32 33 34 35 36 37 38 39 41 42 43 44 0A 0D 0123456789ABCD..\n",
                 r) == 0);
+
+    tv.tv_sec  = 0;
+    tv.tv_usec = 999999;
+
+    make_sure_that(tvtod(&tv) == 0.999999);
+
+    tv.tv_sec  = 1;
+    tv.tv_usec = 0;
+
+    make_sure_that(tvtod(&tv) == 1.0);
+
+    dtotv(0.999999, &tv);
+
+    make_sure_that(tv.tv_sec == 0 && tv.tv_usec == 999999);
+
+    dtotv(1.0, &tv);
+
+    make_sure_that(tv.tv_sec == 1 && tv.tv_usec == 0);
 
     return errors;
 }

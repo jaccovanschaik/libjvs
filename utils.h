@@ -47,12 +47,10 @@ int stackdepth(void);
 void findent(FILE *fp, int level);
 
 /*
- * Print output given by <fmt> and the following parameters, preceded by
- * <indent> levels of indent, to <fp>. Returns the number of characters
- * printed (just like fprintf).
+ * Indented fprintf. Print output given by <fmt> and the following parameters, preceded by <indent>
+ * levels of indent, to <fp>. Returns the number of characters printed (just like fprintf).
  */
-int ifprintf(FILE *fp, int indent, const char *fmt, ...)
-    __attribute__ ((format (printf, 3, 4)));
+int ifprintf(FILE *fp, int indent, const char *fmt, ...) __attribute__ ((format (printf, 3, 4)));
 
 /*
  * Dump <size> bytes from <data> into a new string buffer, using indent <indent>. The address of the
@@ -62,7 +60,7 @@ int ifprintf(FILE *fp, int indent, const char *fmt, ...)
 int ihexstr(char **str, int indent, const char *data, int size);
 
 /*
- * Dump <size> bytes from <data> as a hexdump to <fp>.
+ * Dump <size> bytes from <data> as a hexdump to <fp>, with indent level <indent>.
  */
 void ihexdump(FILE *fp, int indent, const char *data, int size);
 
@@ -79,6 +77,16 @@ void dumpfds(FILE *fp, const char *intro, int nfds, fd_set *fds);
 void *memdup(const void *src, unsigned int size);
 
 /*
+ * Convert the double timestamp <t> to a struct timeval in <tv>.
+ */
+void dtotv(double t, struct timeval *tv);
+
+/*
+ * Return the timestamp in <tv> as a double.
+ */
+double tvtod(const struct timeval *tv);
+
+/*
  * Return the current UTC time (number of seconds since 1970-01-01/00:00:00 UTC) as a double.
  */
 double nowd(void);
@@ -86,9 +94,8 @@ double nowd(void);
 /*
  * Pack data from <ap> into <str>, which has size <size>.
  *
- * The pack functions take type/value pairs (closed by END) to specify
- * what to pack into the string. The types, values and packed data are
- * as follows:
+ * The pack functions take type/value pairs (closed by END) to specify what to pack into the string.
+ * The types, values and packed data are as follows:
  *
  * type         value           packs
  * ----         -----           -----
@@ -104,11 +111,10 @@ double nowd(void);
  *
  * All ints (including the lengths) are packed with big-endian byte order.
  *
- * All pack functions return the number of bytes necessary to pack the
- * given data, which may be more than <size>. In that case they are
- * telling you that more bytes were needed than you gave them, and you
- * should call the function again with a bigger data buffer. It will,
- * however, never write more than <size> bytes into <str>.
+ * All pack functions return the number of bytes necessary to pack the given data, which may be more
+ * than <size>. In that case they are telling you that more bytes were needed than you gave them,
+ * and you should call the function again with a bigger data buffer. It will, however, never write
+ * more than <size> bytes into <str>.
  */
 int vstrpack(char *str, int size, va_list ap);
 
@@ -118,24 +124,23 @@ int vstrpack(char *str, int size, va_list ap);
 int strpack(char *str, int size, ...);
 
 /*
- * This function does the same as vstrpack, but it will allocate a
- * sufficiently sized data buffer for you and return it through <str>.
+ * This function does the same as vstrpack, but it will allocate a sufficiently sized data buffer
+ * for you and return it through <str>.
  */
 int vastrpack(char **str, va_list ap);
 
 /*
- * This function does the same as strpack, but it will allocate a
- * sufficiently sized data buffer for you and return it through <str>.
+ * This function does the same as strpack, but it will allocate a sufficiently sized data buffer for
+ * you and return it through <str>.
  */
 int astrpack(char **str, ...);
 
 /*
  * Unpack data from <str>, which has length <size>.
  *
- * The unpack functions take type/pointer pairs (closed by END) where
- * data is extracted from <str> and put into the addresses that the
- * pointers point to. The types, pointers and unpacked data are as
- * follows:
+ * The unpack functions take type/pointer pairs (closed by END) where data is extracted from <str>
+ * and put into the addresses that the pointers point to. The types, pointers and unpacked data are
+ * as follows:
  *
  * type         pointer         unpacks
  * ----         -------         -----
@@ -147,12 +152,11 @@ int astrpack(char **str, ...);
  * PACK_DOUBLE	double *	8 byte double
  * PACK_STRING	char **		4-byte length, followed by as many bytes.
  * PACK_DATA	char **, uint *	4-byte length, followed by as many bytes.
- * PACK_RAW	char **, uint	As many raw bytes as given.
+ * PACK_RAW	char *, uint	As many raw bytes as given.
  *
- * Note that PACK_STRING and PACK_DATA allocate space to put the data
- * in, and it is the caller's responsibility to free that space again.
- * PACK_STRING creates a null-terminated string. PACK_DATA requires an
- * additional int * where it writes the length of the allocated data.
+ * Note: PACK_STRING and PACK_DATA allocate space to put the data in, and it is the caller's
+ * responsibility to free that space again. PACK_STRING creates a null-terminated string. PACK_DATA
+ * requires an additional int * where it writes the length of the allocated data.
  *
  * This function returns the minimum number of bytes necessary to unpack the given fields, which may
  * be more than <size>. "Minimum" in this case means assuming all PACK_STRING and PACK_DATA fields
@@ -166,9 +170,9 @@ int vstrunpack(const char *str, int size, va_list ap);
 int strunpack(const char *str, int size, ...);
 
 /*
- * Test <val>. If it is FALSE, print that fact, along with the textual representation of <val> in
- * <str>, the file and line on which the error occurred in <file> and <line> to stderr, and increase
- * <error> by 1.
+ * Test <val>. If it is FALSE, print that fact, along with the textual representation of <val> which
+ * is in <str>, the file and line on which the error occurred in <file> and <line> to stderr, and
+ * increase <*errors> by 1. Called by the make_sure_that() macro, less useful on its own.
  */
 void _make_sure_that(const char *file, int line, int *errors, const char *str, int val);
 
