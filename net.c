@@ -46,11 +46,11 @@ const char *netHost(uint32_t big_endian_ip)
 /*
  * Get the port that corresponds to service <service>.
  */
-int netPort(char *service)
+int netPort(const char *service, const char *protocol)
 {
     struct servent *serv_ptr;          /* pointer to service information */
 
-    serv_ptr = getservbyname(service, "tcp");
+    serv_ptr = getservbyname(service, protocol);
 
     if (serv_ptr == NULL) {
 P       dbgError(stderr, "getservbyname(%s) failed", service);

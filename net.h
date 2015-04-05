@@ -21,7 +21,7 @@ const char *netHost(uint32_t big_endian_ip);
 /*
  * Get the port that corresponds to service <service>.
  */
-int netPort(char *service);
+int netPort(const char *service, const char *protocol);
 
 /*
  * Bind a socket to <port> and <host>. If <host> is NULL, the socket
