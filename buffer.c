@@ -278,6 +278,14 @@ int bufLen(const Buffer *buf)
 }
 
 /*
+ * Return TRUE if <buf> is empty, otherwise FALSE.
+ */
+int bufIsEmpty(const Buffer *buf)
+{
+    return buf->act_len == 0;
+}
+
+/*
  * Concatenate <addition> onto <base> and return <base>.
  */
 Buffer *bufCat(Buffer *base, const Buffer *addition)
@@ -439,9 +447,13 @@ int main(int argc, char *argv[])
 
     bufClear(&buf1);
 
+    make_sure_that(bufLen(&buf1) == 0);
+    make_sure_that(bufIsEmpty(&buf1));
+
     bufAdd(&buf1, "ABCDEF", 3);
 
     make_sure_that(bufLen(&buf1) == 3);
+    make_sure_that(!bufIsEmpty(&buf1));
     make_sure_that(strcmp(bufGet(&buf1), "ABC") == 0);
 
     bufAddC(&buf1, 'D');
