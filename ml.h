@@ -5,8 +5,8 @@
  * liblist2: A package for handling linked lists. Differs from liblist in that
  * items can be in more than one list and also more than once in the same list.
  *
- * Copyright: (c) 2005 Jacco van Schaik (jacco@frontier.nl)
- * Version:   $Id: ml.h 243 2013-10-15 07:02:12Z jacco $
+ * Copyright: (c) 2005 Jacco van Schaik (jacco@jaccovanschaik.net)
+ * Version:   $Id: ml.h 251 2013-12-06 09:57:45Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
