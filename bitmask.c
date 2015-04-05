@@ -18,8 +18,6 @@
 #include "utils.h"
 #include "defs.h"
 
-#define ONE_INDENT "    "
-
 /*
  * Check that <mask> is big enough for <bit> and, if necessary, resize it.
  */

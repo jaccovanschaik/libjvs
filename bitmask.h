@@ -10,6 +10,8 @@
  * http://www.opensource.org/licenses/mit-license.php for details.
  */
 
+#include "defs.h"
+
 #include <stdint.h>
 
 typedef struct {
