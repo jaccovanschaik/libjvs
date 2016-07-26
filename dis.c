@@ -2,7 +2,7 @@
  * dis.c: I/O Dispatcher.
  *
  * Copyright:	(c) 2013 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:	$Id: dis.c 238 2013-10-09 11:47:45Z jacco $
+ * Version:	$Id: dis.c 266 2016-02-05 13:59:52Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -203,8 +203,8 @@ P       fprintf(stderr, " %d", fd);
 
         if (bufLen(&file->outgoing) > 0) FD_SET(fd, wfds);
 
-        {
-P           fprintf(stderr, " (%s%s)",
+P       {
+            fprintf(stderr, " (%s%s)",
                     FD_ISSET(fd, rfds) ? "r" : "",
                     FD_ISSET(fd, wfds) ? "w" : "");
         }
@@ -222,9 +222,15 @@ P   for (timer = listHead(&dis->timers); timer; timer = listNext(timer)) {
         *tv = NULL;
     }
     else if ((delta_t = timer->t - nowd()) < 0) {
+#if 0
 P       dbgPrint(stderr, "First timer %f seconds ago, return -1\n", -delta_t);
 
         return -1;
+#endif
+        dis->tv.tv_sec = 0;
+        dis->tv.tv_usec = 0;
+
+        *tv = &dis->tv;
     }
     else {
 P       dbgPrint(stderr, "First timer in %f seconds.\n", delta_t);
@@ -261,10 +267,8 @@ void disHandleFiles(Dispatcher *dis, int nfds, fd_set *rfds, fd_set *wfds)
     int fd;
 
     for (fd = 0; fd < nfds; fd++) {
-        if (!disOwnsFd(dis, fd)) continue;
-
-        if (FD_ISSET(fd, wfds)) disHandleWritable(dis, fd);
-        if (FD_ISSET(fd, rfds)) disHandleReadable(dis, fd);
+        if (disOwnsFd(dis, fd) && FD_ISSET(fd, rfds)) disHandleReadable(dis, fd);
+        if (disOwnsFd(dis, fd) && FD_ISSET(fd, wfds)) disHandleWritable(dis, fd);
     }
 }
 
@@ -394,6 +398,7 @@ int disRun(Dispatcher *dis)
 
     do {
         r = disHandleEvents(dis);
+P       fprintf(stderr, "disHandleEvents returned %d\n", r);
     } while (r == 0);
 
     return r == 1 ? 0 : r;

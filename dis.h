@@ -5,7 +5,7 @@
  * dis.h: I/O Dispatcher.
  *
  * Copyright:	(c) 2013 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:	$Id: dis.h 238 2013-10-09 11:47:45Z jacco $
+ * Version:	$Id: dis.h 266 2016-02-05 13:59:52Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -61,9 +61,10 @@ void disPack(Dispatcher *dis, int fd, ...);
 void disVaPack(Dispatcher *dis, int fd, va_list ap);
 
 /*
- * Arrange for <cb> to be called at time <t>, which is the (double precision floating point) number
- * of seconds since 00:00:00 UTC on 1970-01-01 (aka. the UNIX epoch). <cb> will be called with the
- * given <dis>, <t> and <udata>. You can get the current time using nowd() from utils.c.
+ * Arrange for <cb> to be called at time <t>, which is the (double precision
+ * floating point) number of seconds since 00:00:00 UTC on 1970-01-01 (aka. the
+ * UNIX epoch). <cb> will be called with the given <dis>, <t> and <udata>. You
+ * can get the current time using nowd() from utils.c.
  */
 void disOnTime(Dispatcher *dis, double t, void (*cb)(Dispatcher *dis, double t, void *udata), const
                  void *udata);

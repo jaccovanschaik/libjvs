@@ -74,7 +74,7 @@ Buffer *bufAddV(Buffer *buf, const char *fmt, va_list ap);
 /*
  * Append a string to <buf>, formatted according to <fmt> and the subsequent parameters.
  */
-Buffer *bufAddF(Buffer *buf, const char *fmt, ...);
+Buffer *bufAddF(Buffer *buf, const char *fmt, ...) __attribute__ ((format (printf, 2, 3)));
 
 /*
  * Append the null-terminated string <str> to <buf>.
@@ -94,7 +94,7 @@ Buffer *bufSetC(Buffer *buf, char c);
 /*
  * Set <buf> to a string formatted according to <fmt> and the subsequent parameters.
  */
-Buffer *bufSetF(Buffer *buf, const char *fmt, ...);
+Buffer *bufSetF(Buffer *buf, const char *fmt, ...) __attribute__ ((format (printf, 2, 3)));
 
 /*
  * Replace <buf> with a string formatted according to <fmt> and the subsequent parameters contained
@@ -177,7 +177,7 @@ Buffer *bufUnpack(Buffer *buf, ...);
  * is_first to TRUE when passing in "Tom", set is_last to TRUE when passing in "Harry", set them
  * both to FALSE for "Dick". Returns the same pointer to <buf> that was passed in.
  */
-Buffer *bufList(Buffer *buf, const char *sep1, const char *sep2, int is_first, int is_last, const
-                  char *fmt, ...);
+Buffer *bufList(Buffer *buf, const char *sep1, const char *sep2, int is_first, int is_last,
+        const char *fmt, ...) __attribute__ ((format (printf, 6, 7)));
 
 #endif

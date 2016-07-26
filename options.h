@@ -5,7 +5,7 @@
  * options.h: Option parser.
  *
  * Copyright:	(c) 2013 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:	$Id: options.h 228 2013-09-14 19:51:05Z jacco $
+ * Version:	$Id: options.h 268 2016-03-07 13:41:28Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -46,7 +46,7 @@ int optIsSet(Options *options, const char *long_name);
  * Return the argument given for the option with <long_name>. Returns NULL if the option was not set
  * on the command line, or if it didn't have an argument.
  */
-char *optArg(Options *options, const char *long_name);
+const char *optArg(Options *options, const char *long_name, const char *fallback);
 
 /*
  * Clear out <options> without deleting <options> itself.

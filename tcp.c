@@ -144,7 +144,8 @@ int tcpRead(int fd, void *buf, int len)
 
     do {
         res = read(fd, (char *) buf + n, len - n);
-    } while ((res > 0 || errno == EINTR) && (n += res) < len);
+    } while ((res > 0 || errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK)
+             && (n += res) < len);
 
     if (res == -1) {
 P       dbgError(stderr, "read failed");

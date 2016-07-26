@@ -2,7 +2,7 @@
  * options.c: Option parser.
  *
  * Copyright:	(c) 2013 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:	$Id: options.c 241 2013-10-14 19:11:16Z jacco $
+ * Version:	$Id: options.c 268 2016-03-07 13:41:28Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -114,11 +114,11 @@ int optParse(Options *options, int argc, char *argv[])
         }
         else if (opt->argument == ARG_REQUIRED) {
             long_options[i].has_arg = required_argument;
-            bufAdd(&opt_string, ":", 1);
+            bufAddS(&opt_string, ":");
         }
         else if (opt->argument == ARG_OPTIONAL) {
             long_options[i].has_arg = optional_argument;
-            bufAdd(&opt_string, "::", 2);
+            bufAddS(&opt_string, "::");
         }
     }
 
@@ -154,9 +154,11 @@ int optIsSet(Options *options, const char *long_name)
  * Return the argument given for the option with <long_name>. Returns NULL if the option was not set
  * on the command line, or if it didn't have an argument.
  */
-char *optArg(Options *options, const char *long_name)
+const char *optArg(Options *options, const char *long_name, const char *fallback)
 {
-    return hashGet(&options->results, HASH_STRING(long_name));
+    const char *arg = hashGet(&options->results, HASH_STRING(long_name));
+
+    return arg ? arg : fallback;
 }
 
 /*
@@ -209,7 +211,7 @@ void test1(void)
     make_sure_that(r == 2);
     make_sure_that(strcmp(argv[r], "bla") == 0);
     make_sure_that(optIsSet(opts, "option-a"));
-    make_sure_that(optArg(opts, "option-a") == NULL);
+    make_sure_that(optArg(opts, "option-a", NULL) == NULL);
 
     optDestroy(opts);
 }
@@ -228,7 +230,7 @@ void test2(void)
     make_sure_that(r == 2);
     make_sure_that(strcmp(argv[r], "bla") == 0);
     make_sure_that(optIsSet(opts, "option-a"));
-    make_sure_that(optArg(opts, "option-a") == NULL);
+    make_sure_that(optArg(opts, "option-a", NULL) == NULL);
 
     optDestroy(opts);
 }
@@ -248,9 +250,9 @@ void test3(void)
     make_sure_that(r == 4);
     make_sure_that(strcmp(argv[r], "bla") == 0);
     make_sure_that(optIsSet(opts, "option-a"));
-    make_sure_that(optArg(opts, "option-a") == NULL);
+    make_sure_that(optArg(opts, "option-a", NULL) == NULL);
     make_sure_that(optIsSet(opts, "option-b"));
-    make_sure_that(strcmp(optArg(opts, "option-b"), "foo") == 0);
+    make_sure_that(strcmp(optArg(opts, "option-b", NULL), "foo") == 0);
 
     optDestroy(opts);
 }
@@ -270,9 +272,9 @@ void test4(void)
     make_sure_that(r == 4);
     make_sure_that(strcmp(argv[r], "bla") == 0);
     make_sure_that(optIsSet(opts, "option-a"));
-    make_sure_that(optArg(opts, "option-a") == NULL);
+    make_sure_that(optArg(opts, "option-a", NULL) == NULL);
     make_sure_that(optIsSet(opts, "option-b"));
-    make_sure_that(strcmp(optArg(opts, "option-b"), "foo") == 0);
+    make_sure_that(strcmp(optArg(opts, "option-b", NULL), "foo") == 0);
 
     optDestroy(opts);
 }
@@ -292,9 +294,9 @@ void test5(void)
     make_sure_that(r == 3);
     make_sure_that(strcmp(argv[r], "bla") == 0);
     make_sure_that(optIsSet(opts, "option-a"));
-    make_sure_that(optArg(opts, "option-a") == NULL);
+    make_sure_that(optArg(opts, "option-a", NULL) == NULL);
     make_sure_that(optIsSet(opts, "option-b"));
-    make_sure_that(strcmp(optArg(opts, "option-b"), "foo") == 0);
+    make_sure_that(strcmp(optArg(opts, "option-b", NULL), "foo") == 0);
 
     optDestroy(opts);
 }
@@ -367,6 +369,76 @@ void test9(void)
     optDestroy(opts);
 }
 
+void test10(void)
+{
+    Options *opts = optCreate();
+
+    char *argv[] = { "main", "bla", "--option-a=foo" };
+    int r, argc = sizeof(argv) / sizeof(argv[2]);
+
+    optAdd(opts, "option-a", 'a', ARG_OPTIONAL);
+
+    r = optParse(opts, argc, argv);
+
+    make_sure_that(r == 2);
+    make_sure_that(optArg(opts, "option-a", NULL) != NULL);
+    make_sure_that(strcmp(optArg(opts, "option-a", NULL), "foo") == 0);
+
+    optDestroy(opts);
+}
+
+void test11(void)
+{
+    Options *opts = optCreate();
+
+    char *argv[] = { "main", "bla", "--option-a" };
+    int r, argc = sizeof(argv) / sizeof(argv[2]);
+
+    optAdd(opts, "option-a", 'a', ARG_OPTIONAL);
+
+    r = optParse(opts, argc, argv);
+
+    make_sure_that(r == 2);
+    make_sure_that(optArg(opts, "option-a", NULL) == NULL);
+
+    optDestroy(opts);
+}
+
+void test12(void)
+{
+    Options *opts = optCreate();
+
+    char *argv[] = { "main", "bla", "-afoo" };
+    int r, argc = sizeof(argv) / sizeof(argv[2]);
+
+    optAdd(opts, "option-a", 'a', ARG_OPTIONAL);
+
+    r = optParse(opts, argc, argv);
+
+    make_sure_that(r == 2);
+    make_sure_that(optArg(opts, "option-a", NULL) != NULL);
+    make_sure_that(strcmp(optArg(opts, "option-a", NULL), "foo") == 0);
+
+    optDestroy(opts);
+}
+
+void test13(void)
+{
+    Options *opts = optCreate();
+
+    char *argv[] = { "main", "bla", "-a" };
+    int r, argc = sizeof(argv) / sizeof(argv[2]);
+
+    optAdd(opts, "option-a", 'a', ARG_OPTIONAL);
+
+    r = optParse(opts, argc, argv);
+
+    make_sure_that(r == 2);
+    make_sure_that(optArg(opts, "option-a", NULL) == NULL);
+
+    optDestroy(opts);
+}
+
 int main(int argc, char *argv[])
 {
     test1();
@@ -378,6 +450,10 @@ int main(int argc, char *argv[])
     test7();
     test8();
     test9();
+    test10();
+    test11();
+    test12();
+    test13();
 
     return errors;
 }
