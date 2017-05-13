@@ -3,11 +3,17 @@
 
 /* dp.c: Data parser
  *
+ * Part of libjvs.
+ *
  * Copyright:   (c) 2013 Jacco van Schaik (jacco@jaccovanschaik.net)
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
  */
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #include <stdio.h>
 
@@ -83,5 +89,9 @@ void dpFree(DP_Object *root);
  * Free the memory occupied by <stream>.
  */
 void dpClose(DP_Stream *stream);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

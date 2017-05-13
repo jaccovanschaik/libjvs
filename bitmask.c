@@ -1,6 +1,8 @@
 /*
  * bitmask.c: Handle bitmasks of unlimited size.
  *
+ * Part of libjvs.
+ *
  * Copyright:	(c) 2008 Jacco van Schaik (jacco@jaccovanschaik.net)
  *
  * This software is distributed under the terms of the MIT license. See

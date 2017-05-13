@@ -1,8 +1,10 @@
 /*
  * Network Server.
  *
+ * Part of libjvs.
+ *
  * Copyright:	(c) 2013 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:	$Id: ns.c 248 2013-11-15 10:51:40Z jacco $
+ * Version:	$Id: ns.c 277 2016-10-07 08:51:20Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.

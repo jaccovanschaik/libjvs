@@ -1,8 +1,10 @@
 /*
  * options.c: Option parser.
  *
+ * Part of libjvs.
+ *
  * Copyright:	(c) 2013 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:	$Id: options.c 268 2016-03-07 13:41:28Z jacco $
+ * Version:	$Id: options.c 279 2016-12-15 19:39:08Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -45,6 +47,23 @@ static Option *opt_find_short(Options *options, char short_name)
         Option *opt = paGet(&options->options, i);
 
         if (opt->short_name == short_name) return opt;
+    }
+
+    return NULL;
+}
+
+/*
+ * Find the option with long name <long_name> in options and return it, or return NULL if it
+ * couldn't be found.
+ */
+static Option *opt_find_long(Options *options, const char *long_name)
+{
+    int i;
+
+    for (i = 0; i < paCount(&options->options); i++) {
+        Option *opt = paGet(&options->options, i);
+
+        if (strcmp(opt->long_name, long_name) == 0) return opt;
     }
 
     return NULL;
@@ -126,14 +145,22 @@ int optParse(Options *options, int argc, char *argv[])
 
     while (1) {
         Option *opt;
+        int option_index = 0;
 
-        c = getopt_long(argc, argv, bufGet(&opt_string), long_options, NULL);
+        c = getopt_long(argc, argv, bufGet(&opt_string), long_options, &option_index);
 
-        if (c == -1 || c == '?') break;
+        if (c == -1 || c == '?') {
+            break;
+        }
+        else if (c == 0) {
+            opt = opt_find_long(options, long_options[option_index].name);
+            opt_add_result(options, argv[0], opt, optarg);
+        }
+        else {
+            opt = opt_find_short(options, c);
 
-        opt = opt_find_short(options, c);
-
-        opt_add_result(options, argv[0], opt, optarg);
+            opt_add_result(options, argv[0], opt, optarg);
+        }
     }
 
     bufReset(&opt_string);
@@ -439,6 +466,26 @@ void test13(void)
     optDestroy(opts);
 }
 
+void test14(void)
+{
+    Options *opts = optCreate();
+
+    char *argv[] = { "main", "bla", "--option-a", "--option-b" };
+    int r, argc = sizeof(argv) / sizeof(argv[2]);
+
+    optAdd(opts, "option-a", 0, ARG_NONE);
+    optAdd(opts, "option-b", 0, ARG_NONE);
+
+    r = optParse(opts, argc, argv);
+
+    make_sure_that(r == 3);
+    make_sure_that(strcmp(argv[r], "bla") == 0);
+    make_sure_that(optIsSet(opts, "option-a"));
+    make_sure_that(optIsSet(opts, "option-b"));
+
+    optDestroy(opts);
+}
+
 int main(int argc, char *argv[])
 {
     test1();
@@ -454,6 +501,7 @@ int main(int argc, char *argv[])
     test11();
     test12();
     test13();
+    test14();
 
     return errors;
 }

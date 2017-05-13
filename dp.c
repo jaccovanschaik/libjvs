@@ -1,6 +1,8 @@
 /*
  * dp.c: Data parser
  *
+ * Part of libjvs.
+ *
  * Copyright:	(c) 2013 Jacco van Schaik (jacco@jaccovanschaik.net)
  *
  * This software is distributed under the terms of the MIT license. See

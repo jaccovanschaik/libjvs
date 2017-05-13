@@ -4,6 +4,8 @@
 /*
  * utils.h: Various utility functions.
  *
+ * Part of libjvs.
+ *
  * Copyright:	(c) 2012 Jacco van Schaik (jacco@jaccovanschaik.net)
  *
  * This software is distributed under the terms of the MIT license. See
@@ -12,9 +14,18 @@
 
 #include "defs.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdio.h>
 #include <stdarg.h>
+
+#ifndef __WIN32
 #include <sys/select.h>
+#else
+#include <winsock.h>
+#endif
 
 #define hexdump(fp, data, size) ihexdump(fp, 0, data, size)
 #define hexstr(spp, data, size) ihexstr(spp, 0, data, size)
@@ -42,6 +53,11 @@ enum {
 int stackdepth(void);
 
 /*
+ * Set the indent string used by findent and ifprintf.
+ */
+void set_indent_string(const char *str);
+
+/*
  * Output <level> levels of indent to <fp>.
  */
 void findent(FILE *fp, int level);
@@ -50,7 +66,7 @@ void findent(FILE *fp, int level);
  * Indented fprintf. Print output given by <fmt> and the following parameters, preceded by <indent>
  * levels of indent, to <fp>. Returns the number of characters printed (just like fprintf).
  */
-int ifprintf(FILE *fp, int indent, const char *fmt, ...) __attribute__ ((format (printf, 3, 4)));
+int ifprintf(FILE *fp, int indent, const char *fmt, ...);
 
 /*
  * Dump <size> bytes from <data> into a new string buffer, using indent <indent>. The address of the
@@ -175,5 +191,9 @@ int strunpack(const char *str, int size, ...);
  * increase <*errors> by 1. Called by the make_sure_that() macro, less useful on its own.
  */
 void _make_sure_that(const char *file, int line, int *errors, const char *str, int val);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

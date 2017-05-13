@@ -1,8 +1,10 @@
 /*
  * pa.c: Handle arrays of pointers.
  *
+ * Part of libjvs.
+ *
  * Copyright:	(c) 2013 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:	$Id: pa.c 237 2013-10-08 13:43:32Z jacco $
+ * Version:	$Id: pa.c 283 2017-02-02 13:36:26Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -76,7 +78,7 @@ void paDrop(PointerArray *pa, int index)
 }
 
 /*
- * Return the number of entries currently in the pointer array.
+ * Return the number of allocated entries in the pointer array.
  */
 int paCount(PointerArray *pa)
 {

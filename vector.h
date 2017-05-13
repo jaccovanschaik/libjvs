@@ -4,11 +4,17 @@
 /*
  * Calculations with vectors and matrices.
  *
+ * Part of libjvs.
+ *
  * Copyright:   (c) 2007 Jacco van Schaik (jacco@jaccovanschaik.net)
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
  */
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #include <stdio.h>
 
@@ -97,5 +103,9 @@ double vDotP(Vector *v1, Vector *v2);
  * <v_out>. All three vectors must have 3 rows.
  */
 void vCrossP(Vector *v_out, Vector *v1, Vector *v2);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

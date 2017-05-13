@@ -1,6 +1,8 @@
 /*
  * Provides a simplified interface to TCP/IP networking.
  *
+ * Part of libjvs.
+ *
  * Copyright:   (c) 2007 Jacco van Schaik (jacco@jaccovanschaik.net)
  *
  * This software is distributed under the terms of the MIT license. See

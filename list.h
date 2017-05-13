@@ -4,11 +4,17 @@
 /*
  * liblist: A package for handling linked lists.
  *
+ * Part of libjvs.
+ *
  * Copyright: (c) 2004-2005 Jacco van Schaik (jacco@jaccovanschaik.net)
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
  */
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef struct ListNode ListNode;
 typedef struct List List;
@@ -86,5 +92,9 @@ List *f_listContaining(ListNode *node);
 
 /* Sort <list> using comparison function <cmp>. */
 void listSort(List *list, int(*cmp)(const void *, const void *));
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

@@ -1,8 +1,10 @@
 /*
  * dis.c: I/O Dispatcher.
  *
+ * Part of libjvs.
+ *
  * Copyright:	(c) 2013 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:	$Id: dis.c 266 2016-02-05 13:59:52Z jacco $
+ * Version:	$Id: dis.c 277 2016-10-07 08:51:20Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.

@@ -4,12 +4,18 @@
 /*
  * Network Server.
  *
+ * Part of libjvs.
+ *
  * Copyright:	(c) 2013 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:	$Id: ns.h 265 2015-04-05 18:06:58Z jacco $
+ * Version:	$Id: ns.h 280 2017-01-17 10:39:36Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
  */
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #include <sys/select.h>
 #include <stdarg.h>
@@ -205,5 +211,9 @@ void nsClear(NS *ns);
  * loop. Instead, call nsClose(), wait for nsRun() to return and then call nsDestroy().
  */
 void nsDestroy(NS *ns);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

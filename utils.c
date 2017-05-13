@@ -1,6 +1,8 @@
 /*
  * utils.c: Various utility functions.
  *
+ * Part of libjvs.
+ *
  * Copyright:   (c) 2012 Jacco van Schaik (jacco@jaccovanschaik.net)
  *
  * This software is distributed under the terms of the MIT license. See
@@ -21,6 +23,8 @@
 #include "utils.h"
 #include "buffer.h"
 
+static char *indent_string = NULL;
+
 /*
  * Return the current stack depth.
  */
@@ -32,14 +36,30 @@ int stackdepth(void)
 }
 
 /*
+ * Set the indent string used by findent and ifprintf.
+ */
+void set_indent_string(const char *str)
+{
+    if (indent_string == NULL) {
+        free(indent_string);
+    }
+
+    indent_string = strdup(str);
+}
+
+/*
  * Output <level> levels of indent to <fp>.
  */
 void findent(FILE *fp, int level)
 {
     int i;
 
+    if (indent_string == NULL) {
+        set_indent_string("    ");
+    }
+
     for (i = 0; i < level; i++) {
-        fputs("  ", fp);
+        fputs(indent_string, fp);
     }
 }
 

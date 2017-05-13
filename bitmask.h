@@ -4,6 +4,8 @@
 /*
  * bitmask.h: Handle bitmasks of unlimited size.
  *
+ * Part of libjvs.
+ *
  * Copyright:	(c) 2008 Jacco van Schaik (jacco@jaccovanschaik.net)
  *
  * This software is distributed under the terms of the MIT license. See
@@ -11,6 +13,10 @@
  */
 
 #include "defs.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #include <stdint.h>
 
@@ -65,5 +71,9 @@ void bmClear(Bitmask *mask);
  * Destroy the Bitmask at <mask>.
  */
 void bmDestroy(Bitmask *mask);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

@@ -5,11 +5,17 @@
  * Provides growing byte buffers. Buffers can contain binary data, but are
  * always null-terminated for convenience's sake.
  *
+ * Part of libjvs.
+ *
  * Copyright:	(c) 2007 Jacco van Schaik (jacco@jaccovanschaik.net)
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
  */
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #include <stdlib.h>
 #include <stdarg.h>
@@ -179,5 +185,9 @@ Buffer *bufUnpack(Buffer *buf, ...);
  */
 Buffer *bufList(Buffer *buf, const char *sep1, const char *sep2, int is_first, int is_last,
         const char *fmt, ...) __attribute__ ((format (printf, 6, 7)));
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

@@ -4,12 +4,18 @@
 /*
  * options.h: Option parser.
  *
+ * Part of libjvs.
+ *
  * Copyright:	(c) 2013 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:	$Id: options.h 268 2016-03-07 13:41:28Z jacco $
+ * Version:	$Id: options.h 280 2017-01-17 10:39:36Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
  */
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef struct Options Options;
 
@@ -57,5 +63,9 @@ void optClear(Options *options);
  * Delete <options>.
  */
 void optDestroy(Options *options);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

@@ -2,6 +2,8 @@
  * buffer.c: Provides growing byte buffers. Buffers always include a trailing null-byte to make it
  * easier to handle them as strings.
  *
+ * Part of libjvs.
+ *
  * Copyright:	(c) 2007 Jacco van Schaik (jacco@jaccovanschaik.net)
  *
  * This software is distributed under the terms of the MIT license. See
@@ -25,7 +27,7 @@
 /*
  * Increase the size of <buf> to allow for another <len> bytes.
  */
-static void buf_enlarge(Buffer *buf, size_t len)
+static void buf_increase(Buffer *buf, size_t len)
 {
     int new_len;
 
@@ -121,7 +123,7 @@ Buffer *bufAdd(Buffer *buf, const void *data, size_t len)
 {
     dbgAssert(stderr, len >= 0, "bufAdd called with length %zd", len);
 
-    buf_enlarge(buf, len);
+    buf_increase(buf, len);
 
     memcpy(buf->data + buf->act_len, data, len);
 
@@ -155,7 +157,7 @@ Buffer *bufAddV(Buffer *buf, const char *fmt, va_list ap)
     size = vsnprintf(NULL, 0, fmt, my_ap);
     va_end(my_ap);
 
-    buf_enlarge(buf, size + 1);
+    buf_increase(buf, size + 1);
 
     va_copy(my_ap, ap);
     vsnprintf(buf->data + buf->act_len, size + 1, fmt, my_ap);

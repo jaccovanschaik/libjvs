@@ -4,11 +4,17 @@
 /*
  * Functions to assist debugging.
  *
+ * Part of libjvs.
+ *
  * Copyright: (c) 2004 Jacco van Schaik (jacco@jaccovanschaik.net)
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
  */
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #include <stdio.h>
 #include <stdarg.h>
@@ -20,36 +26,39 @@ static char *__func__ = NULL;
 /* call the functions below using these macros. They set the current position in
  * the source code and then call the associated function. */
 
-#define dbgTrace  (_dbgSetPos(__FILE__, __LINE__, __func__), _dbgTrace)
-#define dbgAbort  (_dbgSetPos(__FILE__, __LINE__, __func__), _dbgAbort)
-#define dbgPrint  (_dbgSetPos(__FILE__, __LINE__, __func__), _dbgPrint)
-#define dbgAssert (_dbgSetPos(__FILE__, __LINE__, __func__), _dbgAssert)
-#define dbgError  (_dbgSetPos(__FILE__, __LINE__, __func__), _dbgError)
+#define dbgTrace(fp, ...)  _dbgTrace(fp,  __FILE__, __LINE__, __func__, __VA_ARGS__)
+#define dbgAbort(fp, ...)  _dbgAbort(fp,  __FILE__, __LINE__, __func__, __VA_ARGS__)
+#define dbgPrint(fp, ...)  _dbgPrint(fp,  __FILE__, __LINE__, __func__, __VA_ARGS__)
+#define dbgError(fp, ...)  _dbgError(fp,  __FILE__, __LINE__, __func__, __VA_ARGS__)
+#define dbgAssert(fp, cond, ...) _dbgAssert(fp, cond, __FILE__, __LINE__, __func__, __VA_ARGS__)
 
-/* Set the current position for subsequent error messages. */
-void _dbgSetPos(char *file, int line, const char *func);
 
 /*
  * Print the given debugging message, indented to the current stack depth/
  */
-void _dbgTrace(FILE *fp, const char *fmt, ...)
-        __attribute__ ((format (printf, 2, 3)));
+void _dbgTrace(FILE *fp, const char *file, int line, const char *func, const char *fmt, ...)
+    __attribute__((format (printf, 5, 6)));
 
 /* Call abort(), preceded with the given message. */
-void _dbgAbort(FILE *fp, const char *fmt, ...)
-        __attribute__ ((format (printf, 2, 3)));
+void _dbgAbort(FILE *fp, const char *file, int line, const char *func, const char *fmt, ...)
+    __attribute__((format (printf, 5, 6)));
 
 /* Print the given debugging message on <fp>. */
-void _dbgPrint(FILE *fp, const char *fmt, ...)
-        __attribute__ ((format (printf, 2, 3)));
+void _dbgPrint(FILE *fp, const char *file, int line, const char *func, const char *fmt, ...)
+    __attribute__((format (printf, 5, 6)));
 
 /* Check <cond> and, if false, print the given message and call abort(). */
-void _dbgAssert(FILE *fp, int cond, const char *fmt, ...)
-        __attribute__ ((format (printf, 3, 4)));
+void _dbgAssert(FILE *fp, int cond,
+        const char *file, int line, const char *func, const char *fmt, ...)
+    __attribute__((format (printf, 6, 7)));
 
 /* Print the given debugging message on <fp>, followed by the error
  * message associated with the current value of errno. */
-void _dbgError(FILE *fp, const char *fmt, ...)
-        __attribute__ ((format (printf, 2, 3)));
+void _dbgError(FILE *fp, const char *file, int line, const char *func, const char *fmt, ...)
+    __attribute__((format (printf, 5, 6)));
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

@@ -4,11 +4,17 @@
 /*
  * net.h: General networking utility functions.
  *
+ * Part of libjvs.
+ *
  * Copyright:   (c) 2007 Jacco van Schaik (jacco@jaccovanschaik.net)
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
 */
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #include <stdint.h>
 
@@ -54,5 +60,9 @@ const char *netLocalHost(int sd);
  * Get local port number.
  */
 int netLocalPort(int sd);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

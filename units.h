@@ -4,11 +4,17 @@
 /*
  * Useful unit conversions.
  *
+ * Part of libjvs.
+ *
  * Copyright:   (c) 2007 Jacco van Schaik (jacco@jaccovanschaik.net)
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
  */
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #include <math.h>		/* for M_PI */
 
@@ -52,5 +58,9 @@
 #define IN_FT_PER_MIN		* 60 / 0.3048
 #define IN_DEG_PER_MIN		* 60 * 180 / M_PI
 #define IN_MBAR			/ 100.0
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

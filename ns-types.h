@@ -4,8 +4,10 @@
 /*
  * Network Server.
  *
+ * Part of libjvs.
+ *
  * Copyright:	(c) 2013 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:	$Id: ns-types.h 249 2013-11-15 10:52:24Z jacco $
+ * Version:	$Id: ns-types.h 280 2017-01-17 10:39:36Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -16,6 +18,10 @@
 
 #include "dis.h"
 #include "dis-types.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef struct {
     Buffer incoming;
@@ -38,5 +44,9 @@ struct NS {
     void (*on_socket_cb)(NS *ns, int fd, const char *buffer, int size, void *udata);
     void *on_socket_udata;
 };
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

@@ -4,12 +4,18 @@
 /* ml.c: A package for handling multiple linked lists. Differs from list in that items can be in
  * more than one list at the same time.
  *
+ * Part of libjvs.
+ *
  * Copyright: (c) 2005 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:   $Id: ml.h 265 2015-04-05 18:06:58Z jacco $
+ * Version:   $Id: ml.h 280 2017-01-17 10:39:36Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
  */
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #include <stdio.h>
 
@@ -153,5 +159,9 @@ int mlIsEmpty(MList *list);
  * Return TRUE if <list> contains <node>.
  */
 int _mlContains(MList *list, MListNode *node);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

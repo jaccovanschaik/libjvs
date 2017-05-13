@@ -1,6 +1,8 @@
 /*
  * log.c: Write log messages.
  *
+ * Part of libjvs.
+ *
  * Copyright:	(c) 2013 Jacco van Schaik (jacco@jaccovanschaik.net)
  *
  * This software is distributed under the terms of the MIT license. See
@@ -355,7 +357,7 @@ void logWithLine(Logger *logger)
 {
     pthread_mutex_lock(&logger->access);
 
-    log_add_prefix(logger, LOG_PT_FUNC);
+    log_add_prefix(logger, LOG_PT_LINE);
 
     pthread_mutex_unlock(&logger->access);
 }

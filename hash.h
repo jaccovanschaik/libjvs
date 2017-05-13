@@ -4,6 +4,8 @@
 /*
  * Provides hash tables. Entries are hashed using arbitrary-length keys.
  *
+ * Part of libjvs.
+ *
  * Copyright:   (c) 2007 Jacco van Schaik (jacco@jaccovanschaik.net)
  *
  * This software is distributed under the terms of the MIT license. See
@@ -11,6 +13,10 @@
  */
 
 #include "list.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* The number of significant bits in a hash key and the resulting number of
  * buckets in the hash table. */
@@ -109,5 +115,9 @@ int hashFirst(HashTable *tbl, void **ptr);
  * different order than what they were added with.
  */
 int hashNext(HashTable *tbl, void **ptr);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

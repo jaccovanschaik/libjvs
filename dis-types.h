@@ -4,8 +4,10 @@
 /*
  * dis-types.h: Type definitions for DIS.
  *
+ * Part of libjvs.
+ *
  * Copyright:	(c) 2013 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:	$Id: dis-types.h 230 2013-09-30 18:29:53Z jacco $
+ * Version:	$Id: dis-types.h 280 2017-01-17 10:39:36Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -14,6 +16,10 @@
 #include "buffer.h"
 #include "list.h"
 #include "pa.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef struct {
     Buffer outgoing;
@@ -33,5 +39,9 @@ struct Dispatcher {
     List timers;
     struct timeval tv;
 };
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

@@ -4,12 +4,18 @@
 /*
  * pa.h: Handle arrays of pointers.
  *
+ * Part of libjvs.
+ *
  * Copyright:	(c) 2013 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:	$Id: pa.h 265 2015-04-05 18:06:58Z jacco $
+ * Version:	$Id: pa.h 283 2017-02-02 13:36:26Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
  */
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef struct {
     int num_ptrs;
@@ -32,7 +38,7 @@ void *paGet(PointerArray *pa, int index);
 void paDrop(PointerArray *pa, int index);
 
 /*
- * Return the number of entries currently in the pointer array.
+ * Return the number of allocated entries in the pointer array.
  */
 int paCount(PointerArray *pa);
 
@@ -45,5 +51,9 @@ void paClear(PointerArray *pa);
  * Destroy pointer array <pa>.
  */
 void paDestroy(PointerArray *pa);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

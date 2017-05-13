@@ -1,6 +1,8 @@
 /*
  * liblist: A package for handling linked lists.
  *
+ * Part of libjvs.
+ *
  * Copyright: (c) 2004-2005 Jacco van Schaik (jacco@jaccovanschaik.net)
  *
  * This software is distributed under the terms of the MIT license. See
@@ -13,8 +15,6 @@
 #include <string.h>
 
 #include "list.h"
-
-#define N(pointer) ((ListNode *) pointer)
 
 /*
  * Create a new, empty list.
@@ -46,21 +46,21 @@ void f_listInsertHead(List *list, ListNode *node)
     assert(list != NULL);
     assert(node != NULL);
 
-    assert(N(node)->next == NULL);
-    assert(N(node)->prev == NULL);
-    assert(N(node)->list == NULL);
+    assert(node->next == NULL);
+    assert(node->prev == NULL);
+    assert(node->list == NULL);
 
-    N(node)->prev = NULL;
-    N(node)->next = list->head;
+    node->prev = NULL;
+    node->next = list->head;
 
     if (list->head != NULL)
-	list->head->prev = N(node);
+	list->head->prev = node;
     else
-	list->tail = N(node);
+	list->tail = node;
 
-    list->head = N(node);
+    list->head = node;
 
-    N(node)->list = list;
+    node->list = list;
 
     list->length++;
 }
@@ -73,21 +73,21 @@ void f_listAppendTail(List *list, ListNode *node)
     assert(list != NULL);
     assert(node != NULL);
 
-    assert(N(node)->next == NULL);
-    assert(N(node)->prev == NULL);
-    assert(N(node)->list == NULL);
+    assert(node->next == NULL);
+    assert(node->prev == NULL);
+    assert(node->list == NULL);
 
-    N(node)->next = NULL;
-    N(node)->prev = list->tail;
+    node->next = NULL;
+    node->prev = list->tail;
 
     if (list->tail != NULL)
-	list->tail->next = N(node);
+	list->tail->next = node;
     else
-	list->head = N(node);
+	list->head = node;
 
-    list->tail = N(node);
+    list->tail = node;
 
-    N(node)->list = list;
+    node->list = list;
 
     list->length++;
 }
@@ -100,28 +100,28 @@ void f_listInsert(List *list, ListNode *node, ListNode *before)
     assert(list != NULL);
     assert(node != NULL);
 
-    assert(N(node)->next == NULL);
-    assert(N(node)->prev == NULL);
-    assert(N(node)->list == NULL);
+    assert(node->next == NULL);
+    assert(node->prev == NULL);
+    assert(node->list == NULL);
 
-    assert(before == NULL || N(before)->list == list);
+    assert(before == NULL || before->list == list);
 
     if (before == NULL) {
 	f_listAppendTail(list, node);
 	return;
     }
-    if (N(before)->prev == NULL) {
+    if (before->prev == NULL) {
 	f_listInsertHead(list, node);
 	return;
     }
 
-    N(node)->next = N(before);
-    N(node)->prev = N(before)->prev;
+    node->next = before;
+    node->prev = before->prev;
 
-    N(before)->prev->next = N(node);
-    N(before)->prev = N(node);
+    before->prev->next = node;
+    before->prev = node;
 
-    N(node)->list = list;
+    node->list = list;
 
     list->length++;
 }
@@ -134,28 +134,28 @@ void f_listAppend(List *list, ListNode *node, ListNode *after)
     assert(list != NULL);
     assert(node != NULL);
 
-    assert(N(node)->next == NULL);
-    assert(N(node)->prev == NULL);
-    assert(N(node)->list == NULL);
+    assert(node->next == NULL);
+    assert(node->prev == NULL);
+    assert(node->list == NULL);
 
-    assert(after == NULL || N(after)->list == list);
+    assert(after == NULL || after->list == list);
 
     if (after == NULL) {
 	f_listInsertHead(list, node);
 	return;
     }
-    if (N(after)->next == NULL) {
+    if (after->next == NULL) {
 	f_listAppendTail(list, node);
 	return;
     }
 
-    N(node)->prev = N(after);
-    N(node)->next = N(after)->next;
+    node->prev = after;
+    node->next = after->next;
 
-    N(after)->next->prev = N(node);
-    N(after)->next = N(node);
+    after->next->prev = node;
+    after->next = node;
 
-    N(node)->list = list;
+    node->list = list;
 
     list->length++;
 }
@@ -168,22 +168,22 @@ void f_listRemove(List *list, ListNode *node)
     assert(list != NULL);
     assert(node != NULL);
 
-    assert(N(node)->list == list);
+    assert(node->list == list);
 
-    if (N(node)->prev != NULL)
-	N(node)->prev->next = N(node)->next;
+    if (node->prev != NULL)
+	node->prev->next = node->next;
     else
-	list->head = N(node)->next;
+	list->head = node->next;
 
-    if (N(node)->next != NULL)
-	N(node)->next->prev = N(node)->prev;
+    if (node->next != NULL)
+	node->next->prev = node->prev;
     else
-	list->tail = N(node)->prev;
+	list->tail = node->prev;
 
-    N(node)->next = NULL;
-    N(node)->prev = NULL;
+    node->next = NULL;
+    node->prev = NULL;
 
-    N(node)->list = NULL;
+    node->list = NULL;
 
     list->length--;
 }
@@ -193,7 +193,7 @@ void f_listRemove(List *list, ListNode *node)
  */
 void *f_listPrev(const ListNode *node)
 {
-    return(N(node)->prev);
+    return(node->prev);
 }
 
 /*
@@ -201,7 +201,7 @@ void *f_listPrev(const ListNode *node)
  */
 void *f_listNext(const ListNode *node)
 {
-    return(N(node)->next);
+    return(node->next);
 }
 
 /*
