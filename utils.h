@@ -66,7 +66,7 @@ void findent(FILE *fp, int level);
  * Indented fprintf. Print output given by <fmt> and the following parameters, preceded by <indent>
  * levels of indent, to <fp>. Returns the number of characters printed (just like fprintf).
  */
-int ifprintf(FILE *fp, int indent, const char *fmt, ...);
+int ifprintf(FILE *fp, int indent, const char *fmt, ...) __attribute__ ((format (printf, 3, 4)));
 
 /*
  * Dump <size> bytes from <data> into a new string buffer, using indent <indent>. The address of the
