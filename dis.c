@@ -4,7 +4,7 @@
  * Part of libjvs.
  *
  * Copyright:	(c) 2013 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:	$Id: dis.c 277 2016-10-07 08:51:20Z jacco $
+ * Version:	$Id: dis.c 285 2017-12-09 12:55:27Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -50,7 +50,7 @@ void disOnData(Dispatcher *dis, int fd,
 
     dbgAssert(stderr, fd >= 0, "bad file descriptor: %d\n", fd);
 
-P   dbgPrint(stderr, "Adding file on fd %d\n", fd);
+    P dbgPrint(stderr, "Adding file on fd %d\n", fd);
 
     if ((file = paGet(&dis->files, fd)) == NULL) {
         file = calloc(1, sizeof(DIS_File));
@@ -69,7 +69,7 @@ void disDropData(Dispatcher *dis, int fd)
 {
     DIS_File *file = paGet(&dis->files, fd);
 
-P   dbgPrint(stderr, "Dropping fd %d\n", fd);
+    P dbgPrint(stderr, "Dropping fd %d\n", fd);
 
     dbgAssert(stderr, file != NULL, "unknown file descriptor: %d\n", fd);
 
@@ -192,31 +192,31 @@ int disPrepareSelect(Dispatcher *dis, int *nfds, fd_set *rfds, fd_set *wfds, str
     FD_ZERO(rfds);
     FD_ZERO(wfds);
 
-P   dbgPrint(stderr, "File descriptors:");
+    P dbgPrint(stderr, "File descriptors:");
 
     for (fd = 0; fd < *nfds; fd++) {
         DIS_File *file = paGet(&dis->files, fd);
 
         if (file == NULL) continue;
 
-P       fprintf(stderr, " %d", fd);
+        P fprintf(stderr, " %d", fd);
 
         FD_SET(fd, rfds);
 
         if (bufLen(&file->outgoing) > 0) FD_SET(fd, wfds);
 
-P       {
+        P {
             fprintf(stderr, " (%s%s)",
                     FD_ISSET(fd, rfds) ? "r" : "",
                     FD_ISSET(fd, wfds) ? "w" : "");
         }
     }
 
-P   fprintf(stderr, "\n");
+    P fprintf(stderr, "\n");
 
-P   dbgPrint(stderr, "%d pending timers:\n", listLength(&dis->timers));
+    P dbgPrint(stderr, "%d pending timers:\n", listLength(&dis->timers));
 
-P   for (timer = listHead(&dis->timers); timer; timer = listNext(timer)) {
+    P for (timer = listHead(&dis->timers); timer; timer = listNext(timer)) {
         fprintf(stderr, "\t%f seconds\n", timer->t - nowd());
     }
 
@@ -225,7 +225,7 @@ P   for (timer = listHead(&dis->timers); timer; timer = listNext(timer)) {
     }
     else if ((delta_t = timer->t - nowd()) < 0) {
 #if 0
-P       dbgPrint(stderr, "First timer %f seconds ago, return -1\n", -delta_t);
+        P dbgPrint(stderr, "First timer %f seconds ago, return -1\n", -delta_t);
 
         return -1;
 #endif
@@ -235,7 +235,7 @@ P       dbgPrint(stderr, "First timer %f seconds ago, return -1\n", -delta_t);
         *tv = &dis->tv;
     }
     else {
-P       dbgPrint(stderr, "First timer in %f seconds.\n", delta_t);
+        P dbgPrint(stderr, "First timer in %f seconds.\n", delta_t);
 
         dis->tv.tv_sec = (int) delta_t;
         dis->tv.tv_usec = 1000000 * fmod(delta_t, 1.0);
@@ -311,17 +311,17 @@ void disHandleWritable(Dispatcher *dis, int fd)
  */
 void disProcessSelect(Dispatcher *dis, int r, int nfds, fd_set *rfds, fd_set *wfds)
 {
-P   dbgPrint(stderr, "r = %d, nfds = %d.\n", r, nfds);
+    P dbgPrint(stderr, "r = %d, nfds = %d.\n", r, nfds);
 
-P   dumpfds(stderr, "\trfds:", nfds, rfds);
-P   dumpfds(stderr, "\twfds:", nfds, wfds);
+    P dumpfds(stderr, "\trfds:", nfds, rfds);
+    P dumpfds(stderr, "\twfds:", nfds, wfds);
 
     if (r == 0) {
-P       dbgPrint(stderr, "Timeout, calling disHandleTimer.\n");
+        P dbgPrint(stderr, "Timeout, calling disHandleTimer.\n");
         disHandleTimer(dis);
     }
     else if (r > 0) {
-P       dbgPrint(stderr, "Data available, calling disHandleFiles.\n");
+        P dbgPrint(stderr, "Data available, calling disHandleFiles.\n");
         disHandleFiles(dis, nfds, rfds, wfds);
     }
 }
@@ -337,11 +337,11 @@ int disHandleEvents(Dispatcher *dis)
     fd_set rfds, wfds;
     struct timeval *tv;
 
-P   dbgPrint(stderr, "Calling disPrepareSelect.\n");
+    P dbgPrint(stderr, "Calling disPrepareSelect.\n");
 
     r = disPrepareSelect(dis, &nfds, &rfds, &wfds, &tv);
 
-P   dbgPrint(stderr, "disPrepareSelect returned:\n\tr:    %d\n\tnfds: %d\n", r, nfds);
+    P dbgPrint(stderr, "disPrepareSelect returned:\n\tr:    %d\n\tnfds: %d\n", r, nfds);
 
     if (r < 0) {
         /* Fake a timeout. */
@@ -351,11 +351,11 @@ P   dbgPrint(stderr, "disPrepareSelect returned:\n\tr:    %d\n\tnfds: %d\n", r, 
         return 0;
     }
     else if (nfds > 0) {
-P       dumpfds(stderr, "\trfds:", nfds, &rfds);
-P       dumpfds(stderr, "\twfds:", nfds, &wfds);
+        P dumpfds(stderr, "\trfds:", nfds, &rfds);
+        P dumpfds(stderr, "\twfds:", nfds, &wfds);
     }
 
-P   {
+    P {
         if (tv == NULL) {
             fprintf(stderr, "\ttv:   NULL\n");
         }
@@ -365,25 +365,25 @@ P   {
     }
 
     if (nfds == 0 && tv == NULL) {
-P       dbgPrint(stderr, "No more files, no more timeouts: return 1.\n");
+        P dbgPrint(stderr, "No more files, no more timeouts: return 1.\n");
         return 1;
     }
 
-P   dbgPrint(stderr, "Calling select.\n");
+    P dbgPrint(stderr, "Calling select.\n");
 
     r = select(nfds, &rfds, &wfds, NULL, tv);
 
-P   dbgPrint(stderr, "select returned %d\n", r);
+    P dbgPrint(stderr, "select returned %d\n", r);
 
     if (r < 0) {
         return r;
     }
     else if (r > 0) {
-P       dumpfds(stderr, "\trfds:", nfds, &rfds);
-P       dumpfds(stderr, "\twfds:", nfds, &wfds);
+        P dumpfds(stderr, "\trfds:", nfds, &rfds);
+        P dumpfds(stderr, "\twfds:", nfds, &wfds);
     }
 
-P   dbgPrint(stderr, "Calling disProcessSelect.\n");
+    P dbgPrint(stderr, "Calling disProcessSelect.\n");
 
     disProcessSelect(dis, r, nfds, &rfds, &wfds);
 
@@ -400,7 +400,7 @@ int disRun(Dispatcher *dis)
 
     do {
         r = disHandleEvents(dis);
-P       fprintf(stderr, "disHandleEvents returned %d\n", r);
+        P fprintf(stderr, "disHandleEvents returned %d\n", r);
     } while (r == 0);
 
     return r == 1 ? 0 : r;

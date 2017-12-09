@@ -4,7 +4,7 @@
  * Part of libjvs.
  *
  * Copyright:	(c) 2013 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:	$Id: ns.c 277 2016-10-07 08:51:20Z jacco $
+ * Version:	$Id: ns.c 285 2017-12-09 12:55:27Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -33,42 +33,42 @@ static void ns_handle_data(Dispatcher *dis, int fd, void *udata)
 
     int n;
 
-P   dbgPrint(stderr, "Reading from fd %d...\n", fd);
+    P dbgPrint(stderr, "Reading from fd %d...\n", fd);
 
     n = read(fd, data, sizeof(data));
 
-P   dbgPrint(stderr, "read() returned %d.\n", n);
+    P dbgPrint(stderr, "read() returned %d.\n", n);
 
     if (n > 0) {
-P       dbgPrint(stderr, "Adding to incoming buffer.\n");
+        P dbgPrint(stderr, "Adding to incoming buffer.\n");
 
         bufAdd(&conn->incoming, data, n);
 
         if (ns->on_socket_cb != NULL) {
-P           dbgPrint(stderr, "Calling on_socket_cb.\n");
+            P dbgPrint(stderr, "Calling on_socket_cb.\n");
 
             ns->on_socket_cb(ns, fd,
                     bufGet(&conn->incoming), bufLen(&conn->incoming), ns->on_socket_udata);
         }
     }
     else if (n == 0) {
-P       dbgPrint(stderr, "End of file, disconnecting.\n");
+        P dbgPrint(stderr, "End of file, disconnecting.\n");
 
         nsDisconnect(ns, fd);
 
         if (ns->on_disconnect_cb != NULL) {
-P           dbgPrint(stderr, "Calling on_disconnect_cb.\n");
+            P dbgPrint(stderr, "Calling on_disconnect_cb.\n");
 
             ns->on_disconnect_cb(ns, fd, ns->on_disconnect_udata);
         }
     }
     else {
-P       dbgPrint(stderr, "Error, disconnecting.\n");
+        P dbgPrint(stderr, "Error, disconnecting.\n");
 
         nsDisconnect(ns, fd);
 
         if (ns->on_error_cb != NULL) {
-P           dbgPrint(stderr, "Calling on_error_cb.\n");
+            P dbgPrint(stderr, "Calling on_error_cb.\n");
 
             ns->on_error_cb(ns, fd, errno, ns->on_error_udata);
         }
@@ -81,7 +81,7 @@ static void ns_add_connection(NS *ns, int fd)
 
     paSet(&ns->connections, fd, conn);
 
-P   dbgPrint(stderr, "New connection on fd %d\n", fd);
+    P dbgPrint(stderr, "New connection on fd %d\n", fd);
 
     disOnData(&ns->dis, fd, ns_handle_data, NULL);
 }
@@ -201,7 +201,7 @@ void nsDisconnect(NS *ns, int fd)
 {
     NS_Connection *conn = paGet(&ns->connections, fd);
 
-P   dbgPrint(stderr, "Closing fd %d\n", fd);
+    P dbgPrint(stderr, "Closing fd %d\n", fd);
 
     close(fd);
 
@@ -229,7 +229,7 @@ void nsOnData(NS *ns, int fd, void (*cb)(NS *ns, int fd, void *udata), const voi
  */
 void nsDropData(NS *ns, int fd)
 {
-P   dbgPrint(stderr, "Calling disDropData for fd %d\n", fd);
+    P dbgPrint(stderr, "Calling disDropData for fd %d\n", fd);
 
     disDropData(&ns->dis, fd);
 }
@@ -451,8 +451,8 @@ void on_time(NS *ns, double t, void *udata)
     int port = *((int *) udata);
     static int fd, step = 0;
 
-P   dbgPrint(stderr, "port = %d\n", port);
-P   dbgPrint(stderr, "step = %d\n", step);
+    P dbgPrint(stderr, "port = %d\n", port);
+    P dbgPrint(stderr, "step = %d\n", step);
 
     switch(step) {
     case 0:
@@ -481,19 +481,19 @@ void tester(int port)
 
     r = nsRun(ns);
 
-P   dbgPrint(stderr, "nsRun returned %d\n", r);
+    P dbgPrint(stderr, "nsRun returned %d\n", r);
 
     nsDestroy(ns);
 }
 
 void on_connect(NS *ns, int fd, void *udata)
 {
-P   dbgPrint(stderr, "fd = %d\n", fd);
+    P dbgPrint(stderr, "fd = %d\n", fd);
 }
 
 void on_disconnect(NS *ns, int fd, void *udata)
 {
-P   dbgPrint(stderr, "fd = %d\n", fd);
+    P dbgPrint(stderr, "fd = %d\n", fd);
 
     nsClose(ns);
 }
@@ -512,7 +512,7 @@ void on_socket(NS *ns, int fd, const char *data, int size, void *udata)
 
     nsDiscard(ns, fd, n);
 
-P   dbgPrint(stderr, "fd = %d, str = \"%s\", n = %d\n", fd, str, n);
+    P dbgPrint(stderr, "fd = %d, str = \"%s\", n = %d\n", fd, str, n);
 }
 
 void testee(NS *ns)
@@ -525,7 +525,7 @@ void testee(NS *ns)
 
     r = nsRun(ns);
 
-P   dbgPrint(stderr, "nsRun returned %d\n", r);
+    P dbgPrint(stderr, "nsRun returned %d\n", r);
 
     nsDestroy(ns);
 }
@@ -537,8 +537,8 @@ int main(int argc, char *argv[])
     int listen_fd   = nsListen(ns, "localhost", 0);
     int listen_port = netLocalPort(listen_fd);
 
-P   fprintf(stderr, "listen_fd = %d\n", listen_fd);
-P   fprintf(stderr, "listen_port = %d\n", listen_port);
+    P fprintf(stderr, "listen_fd = %d\n", listen_fd);
+    P fprintf(stderr, "listen_port = %d\n", listen_port);
 
     if (fork() == 0) {
         /* Child. */
