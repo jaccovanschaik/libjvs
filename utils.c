@@ -570,6 +570,41 @@ int strunpack(const char *str, int size, ...)
 }
 
 /*
+ * Expand environment variables in <text> and return the result. Non-existing 
+ * variables are replaced with empty strings. Any dollar sign followed by 0 or 
+ * more letters, digits or underscores is assumed to be an environment variable 
+ * (which is probably more than your shell).
+ */
+char *env_expand(const char *text)
+{
+    const char *p;
+
+    Buffer *varname = bufCreate();
+    Buffer *result = bufCreate();
+
+    for (p = text; *p != '\0'; p++) {
+        if (*p == '$') {
+            bufClear(varname);
+            for (p = p+1; isalnum(*p) || *p == '_'; p++) {
+                bufAddC(varname, *p);
+            }
+            char *value = getenv(bufGet(varname));
+
+            if (value != NULL) {
+                bufAddS(result, value);
+            }
+        }
+        else {
+            bufAddC(result, *p);
+        }
+    }
+
+    bufDestroy(varname);
+
+    return bufFinish(result);
+}
+
+/*
  * Test <val>. If it is FALSE, print that fact, along with the textual representation of <val> which
  * is in <str>, the file and line on which the error occurred in <file> and <line> to stderr, and
  * increase <*errors> by 1. Called by the make_sure_that() macro, less useful on its own.
@@ -708,6 +743,14 @@ int main(int argc, char *argv[])
     dtotv(1.0, &tv);
 
     make_sure_that(tv.tv_sec == 1 && tv.tv_usec == 0);
+
+    setenv("TEST_String_1234", "test result", 1);
+
+    char *result = env_expand("Testing env_expand: $TEST_String_1234");
+
+    make_sure_that(strcmp(result, "Testing env_expand: test result") == 0);
+
+    free(result);
 
     return errors;
 }

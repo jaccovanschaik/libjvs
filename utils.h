@@ -47,6 +47,7 @@ enum {
     PACK_RAW
 };
 
+
 /*
  * Return the current stack depth.
  */
@@ -66,7 +67,7 @@ void findent(FILE *fp, int level);
  * Indented fprintf. Print output given by <fmt> and the following parameters, preceded by <indent>
  * levels of indent, to <fp>. Returns the number of characters printed (just like fprintf).
  */
-int ifprintf(FILE *fp, int indent, const char *fmt, ...) __attribute__ ((format (printf, 3, 4)));
+int ifprintf(FILE *fp, int indent, const char *fmt, ...);
 
 /*
  * Dump <size> bytes from <data> into a new string buffer, using indent <indent>. The address of the
@@ -184,6 +185,14 @@ int vstrunpack(const char *str, int size, va_list ap);
  * Unpack data from <str> (which has size <size>) into the pointers following "size".
  */
 int strunpack(const char *str, int size, ...);
+
+/*
+ * Expand environment variables in <text> and return the result. Non-existing 
+ * variables are replaced with empty strings. Any dollar sign followed by 0 or 
+ * more letters, digits or underscores is assumed to be an environment variable 
+ * (which is probably more than your shell).
+ */
+char *env_expand(const char *text);
 
 /*
  * Test <val>. If it is FALSE, print that fact, along with the textual representation of <val> which
