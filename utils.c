@@ -32,7 +32,7 @@ int stackdepth(void)
 {
     void *bt_buffer[100];
 
-    return backtrace(bt_buffer, sizeof(bt_buffer)) - 1;
+    return backtrace(bt_buffer, sizeof(bt_buffer) / sizeof(bt_buffer[0])) - 1;
 }
 
 /*
