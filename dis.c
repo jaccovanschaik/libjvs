@@ -4,7 +4,7 @@
  * Part of libjvs.
  *
  * Copyright:	(c) 2013 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:	$Id: dis.c 285 2017-12-09 12:55:27Z jacco $
+ * Version:	$Id: dis.c 290 2018-01-07 21:11:05Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -473,7 +473,10 @@ static void handle_fd0(Dispatcher *dis, int fd, void *udata)
 
 static void handle_timeout(Dispatcher *dis, double t, void *udata)
 {
-    write(fd[1], "Hoi!", 4);
+    if (write(fd[1], "Hoi!", 4) == -1) {
+        perror("write");
+        exit(1);
+    }
 }
 
 int main(int argc, char *argv[])
@@ -482,7 +485,10 @@ int main(int argc, char *argv[])
 
     Dispatcher *dis = disCreate();
 
-    pipe(fd);
+    if (pipe(fd) == -1) {
+        perror("pipe");
+        exit(1);
+    }
 
     disOnData(dis, fd[0], handle_fd0, NULL);
     disOnTime(dis, nowd() + 0.1, handle_timeout, NULL);

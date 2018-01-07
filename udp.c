@@ -95,7 +95,7 @@ int main(int argc, char *argv[])
     netBind(recv_fd, "localhost", 1234);
     netConnect(send_fd, "localhost", 1234);
 
-    write(send_fd, "Hoi!", 4);
+    r = write(send_fd, "Hoi!", 4);  /* Fixes warning about not using return code. */
     r = read(recv_fd, buffer, sizeof(buffer));
 
     make_sure_that(r == 4);

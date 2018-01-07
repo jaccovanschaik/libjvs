@@ -291,7 +291,8 @@ int vstrpack(char *str, int size, va_list ap)
         case PACK_FLOAT:
             {
                 float f32 = va_arg(ap, double);
-                uint32_t u32 = *((uint32_t *) &f32);
+                char *cp = ((char *) &f32);
+                uint32_t u32 = *((uint32_t *) cp);
 
                 u32 = htobe32(u32);
 
@@ -301,7 +302,8 @@ int vstrpack(char *str, int size, va_list ap)
         case PACK_DOUBLE:
             {
                 double f64 = va_arg(ap, double);
-                uint64_t u64 = *((uint64_t *) &f64);
+                char *cp = ((char *) &f64);
+                uint64_t u64 = *((uint64_t *) cp);
 
                 u64 = htobe64(u64);
 
@@ -478,7 +480,8 @@ int vstrunpack(const char *str, int size, va_list ap)
                 if (f32 != NULL && size >= sizeof(float)) {
                     uint32_t u32 = *((uint32_t *) ptr);
                     u32 = be32toh(u32);
-                    *f32 = *((float *) &u32);
+                    char *cp = (char *) &u32;
+                    *f32 = *((float *) cp);
                 }
                 ptr += sizeof(float);
                 size -= sizeof(float);
@@ -490,7 +493,8 @@ int vstrunpack(const char *str, int size, va_list ap)
                 if (f64 != NULL && size >= sizeof(double)) {
                     uint64_t u64 = *((uint64_t *) ptr);
                     u64 = be64toh(u64);
-                    *f64 = *((double *) &u64);
+                    char *cp = (char *) &u64;
+                    *f64 = *((double *) cp);
                 }
                 ptr += sizeof(double);
                 size -= sizeof(double);
