@@ -546,9 +546,9 @@ void dpFree(DP_Object *root)
         if (root->name != NULL)
             free(root->name);
 
-        if (root->type == DP_STRING && root->u.s != NULL)
+        if (root->type == DP_STRING)
             free(root->u.s);
-        else if (root->type == DP_CONTAINER && root->u.c != NULL)
+        else if (root->type == DP_CONTAINER)
             dpFree(root->u.c);
 
         free(root);

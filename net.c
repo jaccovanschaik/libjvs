@@ -11,6 +11,7 @@
 
 #include <netdb.h>
 #include <stdio.h>
+#include <stdint.h>
 
 #include "defs.h"
 #include "net.h"
@@ -48,7 +49,7 @@ const char *netHost(uint32_t big_endian_ip)
 /*
  * Get the port that corresponds to service <service>.
  */
-int netPort(const char *service, const char *protocol)
+uint16_t netPort(const char *service, const char *protocol)
 {
     struct servent *serv_ptr;          /* pointer to service information */
 
@@ -66,7 +67,7 @@ P       dbgError(stderr, "getservbyname(%s) failed", service);
  * Bind a socket to <port> and <host>. If <host> is NULL, the socket
  * will be bound to INADDR_ANY. If port is 0, it will be bound to a random port.
  */
-int netBind(int socket, const char *host, int port)
+int netBind(int socket, const char *host, uint16_t port)
 {
     struct sockaddr_in myaddr_in;      /* for local socket address */
     struct hostent *host_ptr;
@@ -99,7 +100,7 @@ P       dbgError(stderr, "bind failed");
  * Connect an existing socket <fd> to <host> and <port>. Returns 0 on success or -1 if an error
  * occurs.
  */
-int netConnect(int fd, const char *host, int port)
+int netConnect(int fd, const char *host, uint16_t port)
 {
     struct hostent *host_ptr;               /* pointer to host info for remote host */
 
@@ -141,7 +142,7 @@ const char *netPeerHost(int sd)
 /*
  * Get port number used by peer.
  */
-int netPeerPort(int sd)
+uint16_t netPeerPort(int sd)
 {
     struct sockaddr_in peeraddr;
 
@@ -169,7 +170,7 @@ const char *netLocalHost(int sd)
 /*
  * Get local port number.
  */
-int netLocalPort(int sd)
+uint16_t netLocalPort(int sd)
 {
     struct sockaddr_in peeraddr;
 

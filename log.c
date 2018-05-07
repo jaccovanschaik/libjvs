@@ -11,6 +11,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <syslog.h>
 #include <unistd.h>
 #include <time.h>
@@ -167,7 +168,7 @@ Logger *logCreate(void)
  * <port> on host <host>. If the host could not be found, -1 is returned and the
  * channel is not created.
  */
-int logToUDP(Logger *logger, const char *host, int port)
+int logToUDP(Logger *logger, const char *host, uint16_t port)
 {
     int fd;
 
@@ -190,7 +191,7 @@ int logToUDP(Logger *logger, const char *host, int port)
  * to port <port> on host <host>. If no connection could be opened, -1 is
  * returned and the channel is not created.
  */
-int logToTCP(Logger *logger, const char *host, int port)
+int logToTCP(Logger *logger, const char *host, uint16_t port)
 {
     int fd;
 

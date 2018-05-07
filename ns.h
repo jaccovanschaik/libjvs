@@ -7,7 +7,7 @@
  * Part of libjvs.
  *
  * Copyright:	(c) 2013 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:	$Id: ns.h 280 2017-01-17 10:39:36Z jacco $
+ * Version:	$Id: ns.h 291 2018-05-07 11:58:12Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -19,6 +19,8 @@ extern "C" {
 
 #include <sys/select.h>
 #include <stdarg.h>
+#include <stdint.h>
+#include <stdlib.h>
 
 typedef struct NS NS;
 
@@ -39,7 +41,7 @@ NS *nsCreate(void);
  * will be accepted automatically. Data coming in on the resulting socket will be reported via the
  * callback installed using nsOnSocket().
  */
-int nsListen(NS *ns, const char *host, int port);
+int nsListen(NS *ns, const char *host, uint16_t port);
 
 /*
  * Arrange for <cb> to be called when a new connection is accepted.
@@ -56,8 +58,8 @@ void nsOnDisconnect(NS *ns, void (*cb)(NS *ns, int fd, void *udata), void *udata
  * with the <ns>, <fd> and <udata> given here, and with a pointer to the collected data so far in
  * <buffer> with its size in <size>.
  */
-void nsOnSocket(NS *ns, void (*cb)(NS *ns, int fd, const char *buffer, int size, void *udata), void
-                  *udata);
+void nsOnSocket(NS *ns, void (*cb)(NS *ns, int fd, const char *buffer, int size, void *udata),
+        void *udata);
 
 /*
  * Arrange for <cb> to be called when a connection is lost. *Not* called on nsDisconnect().
@@ -65,11 +67,11 @@ void nsOnSocket(NS *ns, void (*cb)(NS *ns, int fd, const char *buffer, int size,
 void nsOnError(NS *ns, void (*cb)(NS *ns, int fd, int error, void *udata), void *udata);
 
 /*
- * Make a connection to the given <host> and <port>. Incoming data on this socket is reported using
- * the callback installed with nsOnSocket(). The new file descriptor is returned, or -1 if an error
- * occurred.
+ * Make a connection to the given <host> and <port>. Incoming data on this 
+ * socket is reported using the callback installed with nsOnSocket(). The new 
+ * file descriptor is returned, or -1 if an error occurred.
  */
-int nsConnect(NS *ns, const char *host, int port);
+int nsConnect(NS *ns, const char *host, uint16_t port);
 
 /*
  * Disconnect from a file descriptor that was returned earlier using nsConnect().
@@ -146,12 +148,13 @@ int nsFdCount(NS *ns);
 int nsOwnsFd(NS *ns, int fd);
 
 /*
- * Prepare a call to select() based on the files and timeouts set in <ns>. The necessary parameters
- * to select() are returned through <nfds>, <rfds>, <wfds> and <tv> (exception-fds should be set to
- * NULL). <*tv> is set to point to an appropriate timeout value, or NULL if no timeout is to be set.
- * This function will clear <rfds> and <wfds>, so if callers want to add their own file descriptors,
- * they should do so after calling this function. This function returns -1 if the first timeout
- * should already have occurred, otherwise 0.
+ * Prepare a call to select() based on the files and timeouts set in <ns>. The
+ * necessary parameters to select() are returned through <nfds>, <rfds>, <wfds>
+ * and <tv> (exception-fds should be set to NULL). <*tv> is set to point to an
+ * appropriate timeout value, or NULL if no timeout is to be set. This function
+ * will clear <rfds> and <wfds>, so if callers want to add their own file
+ * descriptors, they should do so after calling this function. This function
+ * returns -1 if the first timeout should already have occurred, otherwise 0.
  */
 int nsPrepareSelect(NS *ns, int *nfds, fd_set *rfds, fd_set *wfds, struct timeval **tv);
 

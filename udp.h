@@ -16,6 +16,8 @@
 extern "C" {
 #endif
 
+#include <stdint.h>
+
 /*
  * Create an unbound UDP socket.
  */
@@ -26,7 +28,7 @@ int udpSocket(void);
  * lookup for every call, which can be slow. If possible, use netConnect() to set a default address,
  * after which you can simply write() to the socket without incurring this overhead.
  */
-int udpSend(int fd, const char *host, int port, const char *data, size_t size);
+int udpSend(int fd, const char *host, uint16_t port, const char *data, size_t size);
 
 #ifdef __cplusplus
 }

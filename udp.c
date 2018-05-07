@@ -16,6 +16,7 @@
 #include <string.h>
 #include <fcntl.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <netdb.h>
 #include <errno.h>
 
@@ -59,7 +60,7 @@ int udpSocket(void)
  * destination address, after which you can simply write() to the socket without incurring this
  * overhead.
  */
-int udpSend(int fd, const char *host, int port, const char *data, size_t size)
+int udpSend(int fd, const char *host, uint16_t port, const char *data, size_t size)
 {
     struct hostent *host_ptr;               /* pointer to host info for remote host */
 
@@ -95,7 +96,7 @@ int main(int argc, char *argv[])
     netBind(recv_fd, "localhost", 1234);
     netConnect(send_fd, "localhost", 1234);
 
-    write(send_fd, "Hoi!", 4);
+    r = write(send_fd, "Hoi!", 4);  /* Fixes warning about not using return code. */
     r = read(recv_fd, buffer, sizeof(buffer));
 
     make_sure_that(r == 4);

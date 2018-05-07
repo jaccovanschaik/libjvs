@@ -32,7 +32,7 @@ int stackdepth(void)
 {
     void *bt_buffer[100];
 
-    return backtrace(bt_buffer, sizeof(bt_buffer)) - 1;
+    return backtrace(bt_buffer, sizeof(bt_buffer) / sizeof(bt_buffer[0])) - 1;
 }
 
 /*
@@ -291,7 +291,8 @@ int vstrpack(char *str, int size, va_list ap)
         case PACK_FLOAT:
             {
                 float f32 = va_arg(ap, double);
-                uint32_t u32 = *((uint32_t *) &f32);
+                char *cp = ((char *) &f32);
+                uint32_t u32 = *((uint32_t *) cp);
 
                 u32 = htobe32(u32);
 
@@ -301,7 +302,8 @@ int vstrpack(char *str, int size, va_list ap)
         case PACK_DOUBLE:
             {
                 double f64 = va_arg(ap, double);
-                uint64_t u64 = *((uint64_t *) &f64);
+                char *cp = ((char *) &f64);
+                uint64_t u64 = *((uint64_t *) cp);
 
                 u64 = htobe64(u64);
 
@@ -478,7 +480,8 @@ int vstrunpack(const char *str, int size, va_list ap)
                 if (f32 != NULL && size >= sizeof(float)) {
                     uint32_t u32 = *((uint32_t *) ptr);
                     u32 = be32toh(u32);
-                    *f32 = *((float *) &u32);
+                    char *cp = (char *) &u32;
+                    *f32 = *((float *) cp);
                 }
                 ptr += sizeof(float);
                 size -= sizeof(float);
@@ -490,7 +493,8 @@ int vstrunpack(const char *str, int size, va_list ap)
                 if (f64 != NULL && size >= sizeof(double)) {
                     uint64_t u64 = *((uint64_t *) ptr);
                     u64 = be64toh(u64);
-                    *f64 = *((double *) &u64);
+                    char *cp = (char *) &u64;
+                    *f64 = *((double *) cp);
                 }
                 ptr += sizeof(double);
                 size -= sizeof(double);
@@ -567,6 +571,41 @@ int strunpack(const char *str, int size, ...)
     va_end(ap);
 
     return r;
+}
+
+/*
+ * Expand environment variables in <text> and return the result. Non-existing 
+ * variables are replaced with empty strings. Any dollar sign followed by 0 or 
+ * more letters, digits or underscores is assumed to be an environment variable 
+ * (which is probably more than your shell).
+ */
+char *env_expand(const char *text)
+{
+    const char *p;
+
+    Buffer *varname = bufCreate();
+    Buffer *result = bufCreate();
+
+    for (p = text; *p != '\0'; p++) {
+        if (*p == '$') {
+            bufClear(varname);
+            for (p = p+1; isalnum(*p) || *p == '_'; p++) {
+                bufAddC(varname, *p);
+            }
+            char *value = getenv(bufGet(varname));
+
+            if (value != NULL) {
+                bufAddS(result, value);
+            }
+        }
+        else {
+            bufAddC(result, *p);
+        }
+    }
+
+    bufDestroy(varname);
+
+    return bufFinish(result);
 }
 
 /*
@@ -708,6 +747,14 @@ int main(int argc, char *argv[])
     dtotv(1.0, &tv);
 
     make_sure_that(tv.tv_sec == 1 && tv.tv_usec == 0);
+
+    setenv("TEST_String_1234", "test result", 1);
+
+    char *result = env_expand("Testing env_expand: $TEST_String_1234");
+
+    make_sure_that(strcmp(result, "Testing env_expand: test result") == 0);
+
+    free(result);
 
     return errors;
 }
