@@ -2,11 +2,11 @@
 #define GEO2D_H
 
 /*
- * geo2d.h: Description
+ * geo2d.c: 2D geometry
  *
  * Copyright: (c) 2018 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2018-11-04
- * Version:   $Id: geo2d.h 293 2018-11-04 20:21:33Z jacco $
+ * Version:   $Id: geo2d.h 297 2018-11-04 20:36:46Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
