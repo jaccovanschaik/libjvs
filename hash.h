@@ -13,6 +13,7 @@
  */
 
 #include "list.h"
+#include "pa.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -115,6 +116,16 @@ int hashFirst(HashTable *tbl, void **ptr);
  * different order than what they were added with.
  */
 int hashNext(HashTable *tbl, void **ptr);
+
+/*
+ * Return a pointer array containing the number of entries in each hash bucket.
+ */
+PointerArray *hashStats(HashTable *tbl);
+
+/*
+ * Free the result from the hashStats function.
+ */
+void hashFreeStats(PointerArray *stats);
 
 #ifdef __cplusplus
 }
