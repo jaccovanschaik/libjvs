@@ -4,7 +4,7 @@
  * Part of libjvs.
  *
  * Copyright:	(c) 2013 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:	$Id: ns.c 285 2017-12-09 12:55:27Z jacco $
+ * Version:	$Id: ns.c 291 2018-05-07 11:58:12Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -12,6 +12,7 @@
 
 #include <unistd.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <string.h>
 #include <errno.h>
 
@@ -126,7 +127,7 @@ NS *nsCreate(void)
  * will be accepted automatically. Data coming in on the resulting socket will be reported via the
  * callback installed using nsOnSocket().
  */
-int nsListen(NS *ns, const char *host, int port)
+int nsListen(NS *ns, const char *host, uint16_t port)
 {
     int listen_fd;
 
@@ -179,11 +180,11 @@ void nsOnError(NS *ns, void (*cb)(NS *ns, int fd, int error, void *udata), void 
 }
 
 /*
- * Make a connection to the given <host> and <port>. Incoming data on this socket is reported using
- * the callback installed with nsOnSocket(). The new file descriptor is returned, or -1 if an error
- * occurred.
+ * Make a connection to the given <host> and <port>. Incoming data on this 
+ * socket is reported using the callback installed with nsOnSocket(). The new 
+ * file descriptor is returned, or -1 if an error occurred.
  */
-int nsConnect(NS *ns, const char *host, int port)
+int nsConnect(NS *ns, const char *host, uint16_t port)
 {
     int fd = tcpConnect(host, port);
 
@@ -448,7 +449,7 @@ int errors = 0;
 
 void on_time(NS *ns, double t, void *udata)
 {
-    int port = *((int *) udata);
+    uint16_t port = *((uint16_t *) udata);
     static int fd, step = 0;
 
     P dbgPrint(stderr, "port = %d\n", port);
@@ -471,7 +472,7 @@ void on_time(NS *ns, double t, void *udata)
     nsOnTime(ns, t + 0.1, on_time, udata);
 }
 
-void tester(int port)
+void tester(uint16_t port)
 {
     int r;
 
@@ -535,7 +536,7 @@ int main(int argc, char *argv[])
     NS *ns = nsCreate();
 
     int listen_fd   = nsListen(ns, "localhost", 0);
-    int listen_port = netLocalPort(listen_fd);
+    uint16_t listen_port = netLocalPort(listen_fd);
 
     P fprintf(stderr, "listen_fd = %d\n", listen_fd);
     P fprintf(stderr, "listen_port = %d\n", listen_port);

@@ -18,6 +18,7 @@
 #include <stdio.h>
 #include <netdb.h>
 #include <errno.h>
+#include <stdint.h>
 
 #include "net.h"
 #include "tcp.h"
@@ -73,7 +74,7 @@ P       dbgError(stderr, "listen failed");
  * random local port (use tcpLocalPort() on the returned fd to find out
  * which).
  */
-int tcpListen(const char *host, int port)
+int tcpListen(const char *host, uint16_t port)
 {
     int lsd;
 
@@ -99,17 +100,41 @@ P       dbgError(stderr, "tcp_listen failed");
  * Make a connection to <port> on <host> and return the corresponding
  * file descriptor.
  */
-int tcpConnect(const char *host, int port)
+int tcpConnect(const char *host, uint16_t port)
 {
-    int fd = tcp_socket();
+    int ret;
 
-    if (netConnect(fd, host, port) != 0) {
-P       dbgError(stderr, "netConnect failed");
-        close(fd);
-        return -1;
+    char port_as_text[6];
+    struct addrinfo *info;
+
+    struct addrinfo hints = {
+        .ai_family = AF_INET,
+        .ai_socktype = SOCK_STREAM
+    };
+
+    snprintf(port_as_text, sizeof(port_as_text), "%hu", port);
+
+    if ((ret = getaddrinfo(host, port_as_text, &hints, &info)) != 0) {
+        dbgError(stderr, "netConnect failed (%s)", gai_strerror(ret));
+
+        ret = -1;
+    }
+    else if ((ret = tcp_socket()) < 0) {
+        dbgError(stderr, "tcp_socket failed");
+
+        ret = -1;
+    }
+    else if (connect(ret, info->ai_addr, info->ai_addrlen) != 0) {
+        dbgError(stderr, "connect failed");
+
+        close(ret);
+
+        ret = -1;
     }
 
-    return fd;
+    freeaddrinfo(info);
+
+    return ret;
 }
 
 /*
@@ -177,3 +202,52 @@ P       dbgError(stderr, "write failed");
         return n;
     }
 }
+
+#ifdef TEST
+#include "net.h"
+
+static int errors = 0;
+
+int main(int argc, char *argv[])
+{
+    int r;
+
+    char incoming[32];
+
+    char *client_msg = "Hello client!";
+    char *server_msg = "Hello server!";
+
+    int listen_fd = tcpListen("localhost", 54321);
+    int client_fd = tcpConnect("localhost", 54321);
+    int server_fd = tcpAccept(listen_fd);
+
+    if ((r = tcpWrite(client_fd, server_msg, strlen(server_msg))) != strlen(server_msg)) {
+        fprintf(stderr, "tcpWrite to client_fd failed.\n");
+        errors++;
+    }
+    else if ((r = tcpRead(server_fd, incoming, strlen(server_msg))) != strlen(server_msg)) {
+        fprintf(stderr, "tcpRead from server_fd failed.\n");
+        errors++;
+    }
+    else if (strncmp(incoming, server_msg, strlen(server_msg)) != 0) {
+        fprintf(stderr, "incoming = \"%s\", server_msg = \"%s\"\n", incoming, server_msg);
+        errors++;
+    }
+
+    if ((r = tcpWrite(server_fd, client_msg, strlen(client_msg))) != strlen(client_msg)) {
+        fprintf(stderr, "tcpWrite to server_fd failed.\n");
+        errors++;
+    }
+    else if ((r = tcpRead(client_fd, incoming, strlen(client_msg))) != strlen(client_msg)) {
+        fprintf(stderr, "tcpRead from client_fd failed.\n");
+        errors++;
+    }
+    else if (strncmp(incoming, client_msg, strlen(client_msg)) != 0) {
+        fprintf(stderr, "incoming = \"%s\", client_msg = \"%s\"\n", incoming, client_msg);
+        errors++;
+    }
+
+    return errors;
+}
+
+#endif
