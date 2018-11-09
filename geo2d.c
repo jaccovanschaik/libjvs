@@ -3,7 +3,7 @@
  *
  * Copyright: (c) 2018 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2018-11-04
- * Version:   $Id: geo2d.c 293 2018-11-04 20:21:33Z jacco $
+ * Version:   $Id: geo2d.c 298 2018-11-09 19:27:52Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -246,6 +246,66 @@ double g2dNormalizeSweep(double sweep, int clockwise)
     }
 
     return sweep;
+}
+
+/*
+ * Return a 2x2 identity matrix.
+ */
+Matrix2x2 g2dMatrixIdentity(void)
+{
+    Matrix2x2 m;
+
+    m.c[0].x = 1;
+    m.c[0].y = 0;
+    m.c[1].x = 0;
+    m.c[1].y = 1;
+
+    return m;
+}
+
+/*
+ * Return a matrix that scales by a factor of <x_factor> in the X direction and
+ * a factor of <y_factor> in the Y direction.
+ */
+Matrix2x2 g2dMatrixScale(double x_factor, double y_factor)
+{
+    Matrix2x2 m;
+
+    m.c[0].x = x_factor; m.c[1].x = 0;
+    m.c[0].y = 0;        m.c[1].y = y_factor;
+
+    return m;
+}
+
+/*
+ * Return a matrix that rotates around the origin along <angle> degrees. NOTE:
+ * positive angles are *clockwise*.
+ */
+Matrix2x2 g2dMatrixRotation(double angle)
+{
+    Matrix2x2 m;
+
+    m.c[0].x =  cos(angle);
+    m.c[0].y = -sin(angle);
+    m.c[1].x =  sin(angle);
+    m.c[1].y =  cos(angle);
+
+    return m;
+}
+
+/*
+ * Multiply matrices m1 and m2 and return the result.
+ */
+Matrix2x2 g2dMatrixMultiply(Matrix2x2 m1, Matrix2x2 m2)
+{
+    Matrix2x2 m;
+
+    m.c[0].x = m1.c[0].x * m2.c[0].x + m1.c[1].x * m2.c[0].y;
+    m.c[0].y = m1.c[0].y * m2.c[0].x + m1.c[1].y * m2.c[0].y;
+    m.c[1].x = m1.c[0].x * m2.c[1].x + m1.c[1].x * m2.c[1].y;
+    m.c[1].y = m1.c[0].y * m2.c[1].x + m1.c[1].y * m2.c[1].y;
+
+    return m;
 }
 
 #ifdef TEST

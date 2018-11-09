@@ -6,7 +6,7 @@
  *
  * Copyright: (c) 2018 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2018-11-04
- * Version:   $Id: geo2d.h 297 2018-11-04 20:36:46Z jacco $
+ * Version:   $Id: geo2d.h 298 2018-11-09 19:27:52Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -25,6 +25,10 @@ typedef struct {
     Vector2D c;
     double r;
 } Circle2D;
+
+typedef struct {
+    Vector2D c[2];
+} Matrix2x2;
 
 /*
  * Make a vector with <x> and <y> as its coordinates.
@@ -124,5 +128,27 @@ double g2dNormalizeAngle(double angle);
  * is TRUE, or <-2pi, 0] if clockwise is FALSE.
  */
 double g2dNormalizeSweep(double sweep, int clockwise);
+
+/*
+ * Return a 2x2 identity matrix.
+ */
+Matrix2x2 g2dMatrixIdentity(void);
+
+/*
+ * Return a matrix that scales by a factor of <x_factor> in the X direction and
+ * a factor of <y_factor> in the Y direction.
+ */
+Matrix2x2 g2dMatrixScale(double x_factor, double y_factor);
+
+/*
+ * Return a matrix that rotates around the origin along <angle> degrees. NOTE:
+ * positive angles are *clockwise*.
+ */
+Matrix2x2 g2dMatrixRotation(double angle);
+
+/*
+ * Multiply matrices m1 and m2 and return the result.
+ */
+Matrix2x2 g2dMatrixMultiply(Matrix2x2 m1, Matrix2x2 m2);
 
 #endif
