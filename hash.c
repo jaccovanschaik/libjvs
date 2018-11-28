@@ -18,6 +18,7 @@
 #include "list.h"
 #include "debug.h"
 #include "utils.h"
+#include "pa.h"
 #include "hash.h"
 
 /* An entry in a hash table. */
@@ -320,6 +321,49 @@ int hashNext(HashTable *tbl, void **ptr)
 
         return 1;
     }
+}
+
+/*
+ * Return a pointer array containing the number of entries in each hash bucket.
+ */
+PointerArray *hashStats(HashTable *tbl)
+{
+    int i;
+
+    PointerArray *stats = calloc(1, sizeof(PointerArray));
+
+    for (i = 0; i < HASH_BUCKETS; i++) {
+        List *bucket = tbl->bucket + i;
+
+        int n = listLength(bucket);
+
+        int *counter_p = paGet(stats, n);
+
+        if (counter_p == NULL) {
+            counter_p = calloc(1, sizeof(int));
+            paSet(stats, n, counter_p);
+        }
+
+        (*counter_p)++;
+    }
+
+    return stats;
+}
+
+/*
+ * Free the result from the hashStats function.
+ */
+void hashFreeStats(PointerArray *stats)
+{
+    int i;
+
+    for (i = 0; i < paCount(stats); i++) {
+        int *p;
+
+        if ((p = paGet(stats, i)) != NULL) free(p);
+    }
+
+    paDestroy(stats);
 }
 
 #ifdef TEST
