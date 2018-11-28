@@ -71,7 +71,7 @@ P       dbgError(stderr, "listen failed");
  * Open a listen port on <host> and <port> and return the corresponding
  * file descriptor. If <host> is NULL the socket will listen on all
  * interfaces. If <port> is equal to 0, the socket will be bound to a
- * random local port (use tcpLocalPort() on the returned fd to find out
+ * random local port (use netLocalPort() on the returned fd to find out
  * which).
  */
 int tcpListen(const char *host, uint16_t port)
