@@ -31,17 +31,17 @@ static void buf_increase(Buffer *buf, size_t len)
 {
     int new_len;
 
-    while (buf->act_len + len + 1 > buf->max_len) {
-        if (buf->max_len == 0)
+    while (buf->used + len + 1 > buf->size) {
+        if (buf->size == 0)
             new_len = INITIAL_SIZE;
         else
-            new_len = 2 * buf->max_len;
+            new_len = 2 * buf->size;
 
         buf->data = realloc(buf->data, new_len);
 
         dbgAssert(stderr, buf->data != NULL, "Could not (re-)allocate buffer data");
 
-        buf->max_len = new_len;
+        buf->size = new_len;
     }
 }
 
@@ -58,9 +58,9 @@ Buffer *bufCreate(void)
  */
 Buffer *bufInit(Buffer *buf)
 {
-    buf->max_len = INITIAL_SIZE;
-    buf->data = calloc(1, buf->max_len);
-    buf->act_len = 0;
+    buf->size = INITIAL_SIZE;
+    buf->data = calloc(1, buf->size);
+    buf->used = 0;
 
     return buf;
 }
@@ -87,8 +87,8 @@ char *bufDetach(Buffer *buf)
     char *data = buf->data;
 
     buf->data = NULL;
-    buf->max_len = 0;
-    buf->act_len = 0;
+    buf->size = 0;
+    buf->used = 0;
 
     return data ? data : strdup("");
 }
@@ -125,11 +125,11 @@ Buffer *bufAdd(Buffer *buf, const void *data, size_t len)
 
     buf_increase(buf, len);
 
-    memcpy(buf->data + buf->act_len, data, len);
+    memcpy(buf->data + buf->used, data, len);
 
-    buf->act_len += len;
+    buf->used += len;
 
-    buf->data[buf->act_len] = '\0';
+    buf->data[buf->used] = '\0';
 
     return buf;
 }
@@ -160,10 +160,10 @@ Buffer *bufAddV(Buffer *buf, const char *fmt, va_list ap)
     buf_increase(buf, size + 1);
 
     va_copy(my_ap, ap);
-    vsnprintf(buf->data + buf->act_len, size + 1, fmt, my_ap);
+    vsnprintf(buf->data + buf->used, size + 1, fmt, my_ap);
     va_end(my_ap);
 
-    buf->act_len += size;
+    buf->used += size;
 
     return buf;
 }
@@ -266,7 +266,7 @@ Buffer *bufClear(Buffer *buf)
 {
     if (buf->data != NULL) buf->data[0] = 0;
 
-    buf->act_len = 0;
+    buf->used = 0;
 
     return buf;
 }
@@ -276,7 +276,7 @@ Buffer *bufClear(Buffer *buf)
  */
 int bufLen(const Buffer *buf)
 {
-    return buf->act_len;
+    return buf->used;
 }
 
 /*
@@ -284,7 +284,7 @@ int bufLen(const Buffer *buf)
  */
 int bufIsEmpty(const Buffer *buf)
 {
-    return buf->act_len == 0;
+    return buf->used == 0;
 }
 
 /*
@@ -304,14 +304,14 @@ Buffer *bufTrim(Buffer *buf, size_t left, size_t right)
 {
     if (buf->data == NULL) return buf;
 
-    if (left  > buf->act_len) left = buf->act_len;
-    if (right > buf->act_len - left) right = buf->act_len - left;
+    if (left  > buf->used) left = buf->used;
+    if (right > buf->used - left) right = buf->used - left;
 
-    memmove(buf->data, buf->data + left, buf->act_len - left - right);
+    memmove(buf->data, buf->data + left, buf->used - left - right);
 
-    buf->act_len -= (left + right);
+    buf->used -= (left + right);
 
-    *(buf->data + buf->act_len) = '\0';
+    *(buf->data + buf->used) = '\0';
 
     return buf;
 }
@@ -344,27 +344,27 @@ Buffer *bufVaPack(Buffer *buf, va_list ap)
     while (1) {
         va_list ap_copy;
 
-        int required, available = buf->max_len - buf->act_len;
+        int required, available = buf->size - buf->used;
 
         va_copy(ap_copy, ap);
-        required = vstrpack(buf->data + buf->act_len, available, ap_copy);
+        required = vstrpack(buf->data + buf->used, available, ap_copy);
         va_end(ap_copy);
 
         if (available >= required + 1) {    /* Room for "required" plus a null-byte? */
-            buf->act_len += required;       /* Yes! Update actual length...          */
-            buf->data[buf->act_len] = '\0'; /* ... and add the null-byte.            */
+            buf->used += required;       /* Yes! Update actual length...          */
+            buf->data[buf->used] = '\0'; /* ... and add the null-byte.            */
             break;
         }
 
-        /* Not enough room: increase max_len until it fits. */
+        /* Not enough room: increase size until it fits. */
 
-        while (buf->max_len < buf->act_len + required + 1) {
-            buf->max_len *= 2;
+        while (buf->size < buf->used + required + 1) {
+            buf->size *= 2;
         }
 
         /* Then realloc and try again. */
 
-        buf->data = realloc(buf->data, buf->max_len);
+        buf->data = realloc(buf->data, buf->size);
     }
 
     return buf;
@@ -393,7 +393,7 @@ Buffer *bufVaUnpack(Buffer *buf, va_list ap)
 {
     if (buf->data == NULL) bufInit(buf);
 
-    vstrunpack(buf->data, buf->act_len, ap);
+    vstrunpack(buf->data, buf->used, ap);
 
     return buf;
 }

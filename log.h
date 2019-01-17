@@ -18,111 +18,109 @@ extern "C" {
 
 #include <stdio.h>
 #include <stdint.h>
+#include <syslog.h>
 
-typedef struct Logger Logger;
+/* Predefined channels, derived from the log levels in syslog.h. Feel free to
+ * define your own, though. */
 
-#define logWrite(logger, ...) _logWrite(logger, __FILE__, __LINE__, __func__, __VA_ARGS__)
+enum {
+    CH_EMERG   = 1 << LOG_EMERG,    /* system is unusable */
+    CH_ALERT   = 1 << LOG_ALERT,    /* action must be taken immediately */
+    CH_CRIT    = 1 << LOG_CRIT,     /* critical conditions */
+    CH_ERR     = 1 << LOG_ERR,	    /* error conditions */
+    CH_WARNING = 1 << LOG_WARNING,  /* warning conditions */
+    CH_NOTICE  = 1 << LOG_NOTICE,   /* normal but significant condition */
+    CH_INFO    = 1 << LOG_INFO,     /* informational */
+    CH_DEBUG   = 1 << LOG_DEBUG,    /* debug-level messages */
+};
 
-/*
- * Create a new logger.
- */
-Logger *logCreate(void);
+#define logWrite(channels, ...) _logWrite(channels, __FILE__, __LINE__, __func__, __VA_ARGS__)
 
 /*
  * Add an output channel to <logger> that sends messages to a UDP socket on port
  * <port> on host <host>. If the host could not be found, -1 is returned and the
  * channel is not created.
  */
-int logToUDP(Logger *logger, const char *host, uint16_t port);
+int logToUDP(uint64_t channels, const char *host, uint16_t port);
 
 /*
  * Add an output channel to <logger> that sends messages over a TCP connection
  * to port <port> on host <host>. If no connection could be opened, -1 is
  * returned and the channel is not created.
  */
-int logToTCP(Logger *logger, const char *host, uint16_t port);
+int logToTCP(uint64_t channels, const char *host, uint16_t port);
 
 /*
  * Add an output channel to <logger> that writes to the file specified with
  * <fmt> and the subsequent parameters. If the file could not be opened, -1 is
  * returned and the channel is not created.
  */
-int logToFile(Logger *logger, const char *fmt, ...)
-    __attribute__((format (printf, 2, 3)));
+int logToFile(uint64_t channels, const char *fmt, ...);
 
 /*
  * Add an output channel to <logger> that writes to the previously opened FILE
  * pointer <fp>.
  */
-int logToFP(Logger *logger, FILE *fp);
+int logToFP(uint64_t channels, FILE *fp);
 
 /*
  * Add an output channel to <logger> that writes to the previously opened file
  * descriptor <fd>.
  */
-int logToFD(Logger *logger, int fd);
+int logToFD(uint64_t channels, int fd);
 
 /*
  * Add an output channel to <logger> that writes to the syslog facility using
  * the given parameters (see openlog(3) for the meaning of these parameters).
  */
-int logToSyslog(Logger *logger,
-        const char *ident, int option, int facility, int priority);
+int logToSyslog(uint64_t channels, const char *ident, int option, int facility, int priority);
 
 /*
  * Add a date of the form YYYY-MM-DD in output messages.
  */
-void logWithDate(Logger *logger);
+void logWithDate(void);
 
 /*
  * Add a timestamp of the form HH:MM:SS to output messages. <precision> is the
  * number of sub-second digits to show.
  */
-void logWithTime(Logger *logger, int precision);
+void logWithTime(int precision);
 
 /*
  * Add the name of the file from which the logWrite function was called to log
  * messages.
  */
-void logWithFile(Logger *logger);
+void logWithFile(void);
 
 /*
  * Add the name of the function that called the logWrite function to log
  * messages.
  */
-void logWithFunction(Logger *logger);
+void logWithFunction(void);
 
 /*
  * Add the line number of the call to the logWrite function to log messages
  */
-void logWithLine(Logger *logger);
+void logWithLine(void);
 
 /*
  * Add a string defined by <fmt> and the subsequent arguments to log messages.
  */
-void logWithString(Logger *logger, const char *fmt, ...)
-    __attribute__((format (printf, 2, 3)));
+void logWithString(const char *fmt, ...);
 
 /*
  * Send out a logging message using <fmt> and the subsequent parameters through
  * <logger>. <file>, <line> and <func> are filled in by the logWrite macro,
  * which should be used to call this function.
  */
-void _logWrite(Logger *logger,
-        const char *file, int line, const char *func, const char *fmt, ...)
-    __attribute__((format (printf, 5, 6)));
+void _logWrite(uint64_t channels,
+        const char *file, int line, const char *func, const char *fmt, ...);
 
 /*
  * Log <fmt> and the subsequent parameters through <logger>, *without* any
  * prefixes. Useful to continue a previous log message.
  */
-void logAppend(Logger *logger, const char *fmt, ...)
-    __attribute__((format (printf, 2, 3)));
-
-/*
- * Close logger <logger>.
- */
-void logClose(Logger *logger);
+void logAppend(uint64_t channels, const char *fmt, ...);
 
 #ifdef __cplusplus
 }

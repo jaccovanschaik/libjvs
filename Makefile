@@ -18,7 +18,7 @@ CC = gcc
 LIBJVS = vector.o buffer.o hash.o list.o dp.o debug.o dis.o utils.o \
          bitmask.o net.o tcp.o udp.o log.o ns.o pa.o ml.o options.o geo2d.o
 
-CFLAGS = -std=c99 -D_GNU_SOURCE -g -fPIC -Wall -pedantic -O3 # -DPARANOID
+CFLAGS = -std=gnu99 -g -fPIC -Wall -pedantic -O3 # -DPARANOID
 
 all: libjvs.a libjvs.so
 
@@ -42,7 +42,7 @@ install: libjvs.a libjvs.so test
 	cp *.h $(INSTALL_INC)
 
 tags:
-	ctags -R .
+	ctags -R . /usr/include
 
 %.test: %.c %.h
 	$(CC) $(CFLAGS) -DTEST -o $@ $< libjvs.a -lm

@@ -17,6 +17,7 @@
 #include <time.h>
 #include <sys/time.h>
 #include <pthread.h>
+#include <assert.h>
 
 #include "net.h"
 #include "udp.h"
@@ -45,12 +46,12 @@ typedef enum {
 typedef struct {
     ListNode _node;
     LOG_OutputType type;
+    uint64_t channels;
     union {
         FILE *fp;       /* LOG_OT_FILE, LOG_OT_FP */
         int fd;         /* LOG_OT_UDP, LOG_OT_TCP, LOG_OT_FD */
         int priority;   /* LOG_OT_SYSLOG */
     } u;
-    pthread_mutex_t output;
 } LOG_Output;
 
 typedef enum {
@@ -74,69 +75,47 @@ typedef struct {
 /*
  * A logger.
  */
-struct Logger {
-    List outputs;
-    List prefixes;
-    Buffer scratch;
-    pthread_mutex_t access;
-};
+static List outputs = { 0 };
+static List prefixes = { 0 };
+static Buffer scratch = { 0 };
+
+pthread_mutex_t outputs_mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t prefixes_mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t scratch_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 /*
  * Add and return a logging output of type <type> to <logger>.
  */
-static LOG_Output *log_create_output(Logger *logger, LOG_OutputType type)
+static LOG_Output *log_create_output(LOG_OutputType type, uint64_t channels)
 {
     LOG_Output *out = calloc(1, sizeof(LOG_Output));
 
     out->type = type;
+    out->channels = channels;
 
-    pthread_mutex_init(&out->output, NULL);
+    pthread_mutex_lock(&outputs_mutex);
 
-    listAppendTail(&logger->outputs, out);
+    listAppendTail(&outputs, out);
+
+    pthread_mutex_unlock(&outputs_mutex);
 
     return out;
 }
 
 /*
- * Close logging output <out>.
- */
-static void log_close_output(LOG_Output *out)
-{
-    pthread_mutex_destroy(&out->output);
-
-    switch(out->type) {
-    case LOG_OT_UDP:
-    case LOG_OT_TCP:
-        /* Opened as file descriptors. */
-        close(out->u.fd);
-        break;
-    case LOG_OT_FILE:
-        /* Opened as FILE pointers. */
-        fclose(out->u.fp);
-        break;
-    case LOG_OT_FP:
-    case LOG_OT_FD:
-        /* Not opened by me, so leave them alone. */
-        break;
-    case LOG_OT_SYSLOG:
-        /* Opened using openlog(). */
-        closelog();
-        break;
-    }
-
-    free(out);
-}
-
-/*
  * Add a prefix of type <type> to the output of <logger>.
  */
-static LOG_Prefix *log_add_prefix(Logger *logger, LOG_PrefixType type)
+static LOG_Prefix *log_add_prefix(LOG_PrefixType type)
 {
     LOG_Prefix *prefix = calloc(1, sizeof(LOG_Prefix));
 
     prefix->type = type;
 
-    listAppendTail(&logger->prefixes, prefix);
+    pthread_mutex_lock(&prefixes_mutex);
+
+    listAppendTail(&prefixes, prefix);
+
+    pthread_mutex_unlock(&prefixes_mutex);
 
     return prefix;
 }
@@ -152,35 +131,20 @@ static void log_get_time(struct tm *tm, struct timeval *tv)
 }
 
 /*
- * Create a new logger.
- */
-Logger *logCreate(void)
-{
-    Logger *logger = calloc(1, sizeof(Logger));
-
-    pthread_mutex_init(&logger->access, NULL);
-
-    return logger;
-}
-
-/*
  * Add an output channel to <logger> that sends messages to a UDP socket on port
  * <port> on host <host>. If the host could not be found, -1 is returned and the
  * channel is not created.
  */
-int logToUDP(Logger *logger, const char *host, uint16_t port)
+int logToUDP(uint64_t channels, const char *host, uint16_t port)
 {
     int fd;
 
     if ((fd = udpSocket()) < 0 || netConnect(fd, host, port) != 0)
         return -1;
     else {
-        pthread_mutex_lock(&logger->access);
+        LOG_Output *out = log_create_output(LOG_OT_UDP, channels);
 
-        LOG_Output *out = log_create_output(logger, LOG_OT_UDP);
         out->u.fd = fd;
-
-        pthread_mutex_unlock(&logger->access);
 
         return 0;
     }
@@ -191,19 +155,16 @@ int logToUDP(Logger *logger, const char *host, uint16_t port)
  * to port <port> on host <host>. If no connection could be opened, -1 is
  * returned and the channel is not created.
  */
-int logToTCP(Logger *logger, const char *host, uint16_t port)
+int logToTCP(uint64_t channels, const char *host, uint16_t port)
 {
     int fd;
 
     if ((fd = tcpConnect(host, port)) < 0)
         return -1;
     else {
-        pthread_mutex_lock(&logger->access);
+        LOG_Output *out = log_create_output(LOG_OT_TCP, channels);
 
-        LOG_Output *out = log_create_output(logger, LOG_OT_TCP);
         out->u.fd = fd;
-
-        pthread_mutex_unlock(&logger->access);
 
         return 0;
     }
@@ -214,7 +175,7 @@ int logToTCP(Logger *logger, const char *host, uint16_t port)
  * <fmt> and the subsequent parameters. If the file could not be opened, -1 is
  * returned and the channel is not created.
  */
-int logToFile(Logger *logger, const char *fmt, ...)
+int logToFile(uint64_t channels, const char *fmt, ...)
 {
     va_list ap;
 
@@ -231,12 +192,9 @@ int logToFile(Logger *logger, const char *fmt, ...)
         return -1;
     }
     else {
-        pthread_mutex_lock(&logger->access);
+        LOG_Output *out = log_create_output(LOG_OT_FILE, channels);
 
-        LOG_Output *out = log_create_output(logger, LOG_OT_FILE);
         out->u.fp = fp;
-
-        pthread_mutex_unlock(&logger->access);
 
         bufReset(&filename);
 
@@ -248,15 +206,11 @@ int logToFile(Logger *logger, const char *fmt, ...)
  * Add an output channel to <logger> that writes to the previously opened FILE
  * pointer <fp>.
  */
-int logToFP(Logger *logger, FILE *fp)
+int logToFP(uint64_t channels, FILE *fp)
 {
-    pthread_mutex_lock(&logger->access);
-
-    LOG_Output *out = log_create_output(logger, LOG_OT_FP);
+    LOG_Output *out = log_create_output(LOG_OT_FP, channels);
 
     out->u.fp = fp;
-
-    pthread_mutex_unlock(&logger->access);
 
     return 0;
 }
@@ -265,15 +219,11 @@ int logToFP(Logger *logger, FILE *fp)
  * Add an output channel to <logger> that writes to the previously opened file
  * descriptor <fd>.
  */
-int logToFD(Logger *logger, int fd)
+int logToFD(uint64_t channels, int fd)
 {
-    pthread_mutex_lock(&logger->access);
-
-    LOG_Output *out = log_create_output(logger, LOG_OT_FD);
+    LOG_Output *out = log_create_output(LOG_OT_FD, channels);
 
     out->u.fd = fd;
-
-    pthread_mutex_unlock(&logger->access);
 
     return 0;
 }
@@ -282,18 +232,13 @@ int logToFD(Logger *logger, int fd)
  * Add an output channel to <logger> that writes to the syslog facility using
  * the given parameters (see openlog(3) for the meaning of these parameters).
  */
-int logToSyslog(Logger *logger,
-        const char *ident, int option, int facility, int priority)
+int logToSyslog(uint64_t channels, const char *ident, int option, int facility, int priority)
 {
-    pthread_mutex_lock(&logger->access);
-
-    LOG_Output *out = log_create_output(logger, LOG_OT_SYSLOG);
+    LOG_Output *out = log_create_output(LOG_OT_SYSLOG, channels);
 
     openlog(ident, option, facility);
 
     out->u.priority = priority;
-
-    pthread_mutex_unlock(&logger->access);
 
     return 0;
 }
@@ -301,94 +246,69 @@ int logToSyslog(Logger *logger,
 /*
  * Add a date of the form YYYY-MM-DD in output messages.
  */
-void logWithDate(Logger *logger)
+void logWithDate(void)
 {
-    pthread_mutex_lock(&logger->access);
-
-    log_add_prefix(logger, LOG_PT_DATE);
-
-    pthread_mutex_unlock(&logger->access);
+    log_add_prefix(LOG_PT_DATE);
 }
 
 /*
  * Add a timestamp of the form HH:MM:SS to output messages. <precision> is the
  * number of sub-second digits to show.
  */
-void logWithTime(Logger *logger, int precision)
+void logWithTime(int precision)
 {
-    pthread_mutex_lock(&logger->access);
-
-    LOG_Prefix *prefix = log_add_prefix(logger, LOG_PT_TIME);
+    LOG_Prefix *prefix = log_add_prefix(LOG_PT_TIME);
 
     prefix->u.precision = CLAMP(precision, 0, 6);
-
-    pthread_mutex_unlock(&logger->access);
 }
 
 /*
  * Add the name of the file from which the logWrite function was called to log
  * messages.
  */
-void logWithFile(Logger *logger)
+void logWithFile(void)
 {
-    pthread_mutex_lock(&logger->access);
-
-    log_add_prefix(logger, LOG_PT_FILE);
-
-    pthread_mutex_unlock(&logger->access);
+    log_add_prefix(LOG_PT_FILE);
 }
 
 /*
  * Add the name of the function that called the logWrite function to log
  * messages.
  */
-void logWithFunction(Logger *logger)
+void logWithFunction(void)
 {
-    pthread_mutex_lock(&logger->access);
-
-    log_add_prefix(logger, LOG_PT_FUNC);
-
-    pthread_mutex_unlock(&logger->access);
+    log_add_prefix(LOG_PT_FUNC);
 }
 
 /*
  * Add the line number of the call to the logWrite function to log messages
  */
-void logWithLine(Logger *logger)
+void logWithLine(void)
 {
-    pthread_mutex_lock(&logger->access);
-
-    log_add_prefix(logger, LOG_PT_LINE);
-
-    pthread_mutex_unlock(&logger->access);
+    log_add_prefix(LOG_PT_LINE);
 }
 
 /*
  * Add a string defined by <fmt> and the subsequent arguments to log messages.
  */
-void logWithString(Logger *logger, const char *fmt, ...)
+void logWithString(const char *fmt, ...)
 {
     va_list ap;
     Buffer string = { 0 };
 
-    pthread_mutex_lock(&logger->access);
-
-    LOG_Prefix *prefix = log_add_prefix(logger, LOG_PT_STR);
+    LOG_Prefix *prefix = log_add_prefix(LOG_PT_STR);
 
     va_start(ap, fmt);
     bufSetV(&string, fmt, ap);
     va_end(ap);
 
     prefix->u.string = bufDetach(&string);
-
-    pthread_mutex_unlock(&logger->access);
 }
 
 /*
  * Write the requested prefixes into the log message.
  */
-static void log_write_prefixes(Logger *logger,
-        const char *file, int line, const char *func)
+static void log_write_prefixes(const char *file, int line, const char *func)
 {
     struct tm tm = { 0 };
     struct timeval tv = { 0 };
@@ -397,43 +317,43 @@ static void log_write_prefixes(Logger *logger,
 
     tv.tv_sec = -1;
 
-    for (pfx = listHead(&logger->prefixes); pfx; pfx = listNext(pfx)) {
+    for (pfx = listHead(&prefixes); pfx; pfx = listNext(pfx)) {
         switch(pfx->type) {
         case LOG_PT_DATE:
             if (tv.tv_sec == -1) log_get_time(&tm, &tv);
 
-            bufAddF(&logger->scratch, "%04d-%02d-%02d ",
+            bufAddF(&scratch, "%04d-%02d-%02d ",
                     tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday);
 
             break;
         case LOG_PT_TIME:
             if (tv.tv_sec == -1) log_get_time(&tm, &tv);
 
-            bufAddF(&logger->scratch, "%02d:%02d:", tm.tm_hour, tm.tm_min);
+            bufAddF(&scratch, "%02d:%02d:", tm.tm_hour, tm.tm_min);
 
             if (pfx->u.precision == 0) {
-                bufAddF(&logger->scratch, "%02d ", tm.tm_sec);
+                bufAddF(&scratch, "%02d ", tm.tm_sec);
             }
             else {
                 double seconds =
                     (double) tm.tm_sec + (double) tv.tv_usec / 1000000.0;
 
-                bufAddF(&logger->scratch, "%0*.*f ",
+                bufAddF(&scratch, "%0*.*f ",
                         3 + pfx->u.precision, pfx->u.precision, seconds);
             }
 
             break;
         case LOG_PT_FILE:
-            bufAddF(&logger->scratch, "%s ", file);
+            bufAddF(&scratch, "%s ", file);
             break;
         case LOG_PT_LINE:
-            bufAddF(&logger->scratch, "%d ", line);
+            bufAddF(&scratch, "%d ", line);
             break;
         case LOG_PT_FUNC:
-            bufAddF(&logger->scratch, "%s ", func);
+            bufAddF(&scratch, "%s ", func);
             break;
         case LOG_PT_STR:
-            bufAddF(&logger->scratch, "%s ", pfx->u.string);
+            bufAddF(&scratch, "%s ", pfx->u.string);
             break;
         }
     }
@@ -442,32 +362,30 @@ static void log_write_prefixes(Logger *logger,
 /*
  * Write a log message out to all output channels.
  */
-static void log_output(Logger *logger)
+static void log_output(uint64_t channels)
 {
     LOG_Output *out;
 
-    for (out = listHead(&logger->outputs); out; out = listNext(out)) {
-        pthread_mutex_lock(&out->output);
+    for (out = listHead(&outputs); out; out = listNext(out)) {
+        if ((channels & out->channels) == 0) continue;
 
         switch(out->type) {
         case LOG_OT_UDP:
         case LOG_OT_TCP:
         case LOG_OT_FD:
-            tcpWrite(out->u.fd, bufGet(&logger->scratch),
-                    bufLen(&logger->scratch));
+            tcpWrite(out->u.fd, bufGet(&scratch),
+                    bufLen(&scratch));
             break;
         case LOG_OT_FILE:
         case LOG_OT_FP:
-            fwrite(bufGet(&logger->scratch),
-                    bufLen(&logger->scratch), 1, out->u.fp);
+            fwrite(bufGet(&scratch),
+                    bufLen(&scratch), 1, out->u.fp);
             fflush(out->u.fp);
             break;
         case LOG_OT_SYSLOG:
-            syslog(out->u.priority, "%s", bufGet(&logger->scratch));
+            syslog(out->u.priority, "%s", bufGet(&scratch));
             break;
         }
-
-        pthread_mutex_unlock(&out->output);
     }
 }
 
@@ -476,78 +394,43 @@ static void log_output(Logger *logger)
  * <logger>. <file>, <line> and <func> are filled in by the logWrite macro,
  * which should be used to call this function.
  */
-void _logWrite(Logger *logger,
+void _logWrite(uint64_t channels,
         const char *file, int line, const char *func, const char *fmt, ...)
 {
     va_list ap;
 
-    pthread_mutex_lock(&logger->access);
+    pthread_mutex_lock(&scratch_mutex);
 
-    bufClear(&logger->scratch);
+    bufClear(&scratch);
 
-    log_write_prefixes(logger, file, line, func);
+    log_write_prefixes(file, line, func);
 
     va_start(ap, fmt);
-    bufAddV(&logger->scratch, fmt, ap);
+    bufAddV(&scratch, fmt, ap);
     va_end(ap);
 
-    log_output(logger);
+    log_output(channels);
 
-    pthread_mutex_unlock(&logger->access);
+    pthread_mutex_unlock(&scratch_mutex);
 }
 
 /*
  * Log <fmt> and the subsequent parameters through <logger>, *without* any
  * prefixes. Useful to continue a previous log message.
  */
-void logAppend(Logger *logger, const char *fmt, ...)
+void logAppend(uint64_t channels, const char *fmt, ...)
 {
     va_list ap;
 
-    pthread_mutex_lock(&logger->access);
+    pthread_mutex_lock(&scratch_mutex);
 
-    bufClear(&logger->scratch);
+    bufClear(&scratch);
 
     va_start(ap, fmt);
-    bufAddV(&logger->scratch, fmt, ap);
+    bufAddV(&scratch, fmt, ap);
     va_end(ap);
 
-    log_output(logger);
+    log_output(channels);
 
-    pthread_mutex_unlock(&logger->access);
-}
-
-/*
- * Close logger <logger>.
- */
-void logClose(Logger *logger)
-{
-    LOG_Output *out;
-    LOG_Prefix *pfx;
-
-    if (logger == NULL) {
-        return;
-    }
-
-    pthread_mutex_lock(&logger->access);
-
-    bufReset(&logger->scratch);
-
-    while ((out = listRemoveHead(&logger->outputs)) != NULL) {
-        log_close_output(out);
-    }
-
-    while ((pfx = listRemoveHead(&logger->prefixes)) != NULL) {
-        if (pfx->type == LOG_PT_STR && pfx->u.string != NULL) {
-            free(pfx->u.string);
-        }
-
-        free(pfx);
-    }
-
-    pthread_mutex_unlock(&logger->access);
-
-    pthread_mutex_destroy(&logger->access);
-
-    free(logger);
+    pthread_mutex_unlock(&scratch_mutex);
 }

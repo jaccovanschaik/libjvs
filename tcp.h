@@ -18,24 +18,34 @@ extern "C" {
 
 #include <stdint.h>
 
-/* Open a listen port on <host> and <port> and return the corresponding
+/*
+ * Open a listen port on <host> and <port> and return the corresponding
  * file descriptor. If <host> is NULL the socket will listen on all
  * interfaces. If <port> is equal to 0, the socket will be bound to a
- * random local port (use tcpLocalPort() on the returned fd to find out
- * which). */
+ * random local port (use netLocalPort() on the returned fd to find out
+ * which).
+ */
 int tcpListen(const char *host, uint16_t port);
 
-/* Make a connection to <port> on <host> and return the corresponding
- * file descriptor. */
+/*
+ * Make a connection to <port> on <host> and return the corresponding
+ * file descriptor.
+ */
 int tcpConnect(const char *host, uint16_t port);
 
-/* Accept an incoming connection request on a listen socket */
+/*
+ * Accept an incoming connection request on a listen socket.
+ */
 int tcpAccept(int sd);
 
-/* Read from <fd> until <buf> contains exactly <len> bytes. */
+/*
+ * Read from <fd> until <buf> contains exactly <len> bytes.
+ */
 int tcpRead(int fd, void *buf, int len);
 
-/* Write all of the <len> bytes in <buf> to <fd>. */
+/*
+ * Write all of the <len> bytes in <buf> to <fd>.
+ */
 int tcpWrite(int fd, const void *buf, int len);
 
 #ifdef __cplusplus
