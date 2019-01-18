@@ -9,8 +9,6 @@
  * http://www.opensource.org/licenses/mit-license.php for details.
  */
 
-#define _BSD_SOURCE
-
 #include <execinfo.h>
 #include <stdio.h>
 #include <stdlib.h>
