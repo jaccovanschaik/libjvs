@@ -86,6 +86,12 @@ int logToFD(uint64_t channels, int fd);
 int logToSyslog(uint64_t channels, const char *ident, int option, int facility, int priority);
 
 /*
+ * Call function <handler> for every log message, passing in the message and the
+ * <udata> that is given here.
+ */
+int logToFunction(uint64_t channels, void (*handler)(const char *msg, void *udata), void *udata);
+
+/*
  * Add a date of the form YYYY-MM-DD in output messages.
  */
 void logWithDate(void);
@@ -131,7 +137,7 @@ void _logWrite(uint64_t channels,
  * <channels>, *without* any prefixes. Useful to continue a previous log
  * message.
  */
-void logAppend(uint64_t channels, const char *fmt, ...);
+void logContinue(uint64_t channels, const char *fmt, ...);
 
 #ifdef __cplusplus
 }

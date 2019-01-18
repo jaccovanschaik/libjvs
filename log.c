@@ -37,8 +37,14 @@ typedef enum {
     LOG_OT_FILE,
     LOG_OT_FP,
     LOG_OT_FD,
-    LOG_OT_SYSLOG
+    LOG_OT_SYSLOG,
+    LOG_OT_FUNCTION
 } LOG_OutputType;
+
+typedef struct {
+    void (*handler)(const char *msg, void *udata);
+    void *udata;
+} LOG_FunctionData;
 
 /*
  * An output channel for logging.
@@ -48,9 +54,10 @@ typedef struct {
     LOG_OutputType type;
     uint64_t channels;
     union {
-        FILE *fp;       /* For LOG_OT_FILE, LOG_OT_FP */
-        int fd;         /* For LOG_OT_UDP, LOG_OT_TCP, LOG_OT_FD */
-        int priority;   /* For LOG_OT_SYSLOG */
+        FILE *fp;                   /* For LOG_OT_FILE, LOG_OT_FP */
+        int fd;                     /* For LOG_OT_UDP, LOG_OT_TCP, LOG_OT_FD */
+        int priority;               /* For LOG_OT_SYSLOG */
+        LOG_FunctionData function;    /* For LOG_OT_FUNCTION */
     } u;
 } LOG_Output;
 
@@ -249,6 +256,20 @@ int logToSyslog(uint64_t channels, const char *ident, int option, int facility, 
 }
 
 /*
+ * Call function <handler> for every log message, passing in the message and the
+ * <udata> that is given here.
+ */
+int logToFunction(uint64_t channels, void (*handler)(const char *msg, void *udata), void *udata)
+{
+    LOG_Output *out = log_create_output(LOG_OT_FUNCTION, channels);
+
+    out->u.function.handler = handler;
+    out->u.function.udata = udata;
+
+    return 0;
+}
+
+/*
  * Add a date of the form YYYY-MM-DD in output messages.
  */
 void logWithDate(void)
@@ -390,6 +411,9 @@ static void log_output(uint64_t channels)
         case LOG_OT_SYSLOG:
             syslog(out->u.priority, "%s", bufGet(&scratch));
             break;
+        case LOG_OT_FUNCTION:
+            out->u.function.handler(bufGet(&scratch), out->u.function.udata);
+            break;
         }
     }
 }
@@ -424,7 +448,7 @@ void _logWrite(uint64_t channels,
  * <channels>, *without* any prefixes. Useful to continue a previous log
  * message.
  */
-void logAppend(uint64_t channels, const char *fmt, ...)
+void logContinue(uint64_t channels, const char *fmt, ...)
 {
     va_list ap;
 
