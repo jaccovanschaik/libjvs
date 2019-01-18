@@ -22,8 +22,8 @@ extern "C" {
 
 typedef struct {
     char  *data;    /* Data contained in this buffer. */
-    size_t used; /* The number of bytes in use (excluding a trailing null byte!). */
-    size_t size; /* The number of bytes allocated. */
+    size_t used;    /* The number of bytes in use (excluding a trailing null byte!). */
+    size_t size;    /* The number of bytes allocated. */
 } Buffer;
 
 /*

@@ -48,12 +48,15 @@ typedef struct {
     LOG_OutputType type;
     uint64_t channels;
     union {
-        FILE *fp;       /* LOG_OT_FILE, LOG_OT_FP */
-        int fd;         /* LOG_OT_UDP, LOG_OT_TCP, LOG_OT_FD */
-        int priority;   /* LOG_OT_SYSLOG */
+        FILE *fp;       /* For LOG_OT_FILE, LOG_OT_FP */
+        int fd;         /* For LOG_OT_UDP, LOG_OT_TCP, LOG_OT_FD */
+        int priority;   /* For LOG_OT_SYSLOG */
     } u;
 } LOG_Output;
 
+/*
+ * Prefix types.
+ */
 typedef enum {
     LOG_PT_DATE,
     LOG_PT_TIME,
@@ -63,6 +66,9 @@ typedef enum {
     LOG_PT_STR
 } LOG_PrefixType;
 
+/*
+ * Definition of a prefix.
+ */
 typedef struct {
     ListNode _node;
     LOG_PrefixType type;
@@ -72,19 +78,18 @@ typedef struct {
     } u;
 } LOG_Prefix;
 
-/*
- * A logger.
- */
-static List outputs = { 0 };
-static List prefixes = { 0 };
-static Buffer scratch = { 0 };
+static List outputs = { 0 };        /* List of outputs. */
+static List prefixes = { 0 };       /* List of prefixes. */
+static Buffer scratch = { 0 };      /* Scratch buffer for building messages. */
+
+/* Mutexes to guard multi-threaded access to these. */
 
 pthread_mutex_t outputs_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t prefixes_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t scratch_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 /*
- * Add and return a logging output of type <type> to <logger>.
+ * Add and return a logging output of type <type> on <channels>.
  */
 static LOG_Output *log_create_output(LOG_OutputType type, uint64_t channels)
 {
@@ -103,7 +108,7 @@ static LOG_Output *log_create_output(LOG_OutputType type, uint64_t channels)
 }
 
 /*
- * Add a prefix of type <type> to the output of <logger>.
+ * Add a prefix of type <type> to the output.
  */
 static LOG_Prefix *log_add_prefix(LOG_PrefixType type)
 {
@@ -131,9 +136,9 @@ static void log_get_time(struct tm *tm, struct timeval *tv)
 }
 
 /*
- * Add an output channel to <logger> that sends messages to a UDP socket on port
- * <port> on host <host>. If the host could not be found, -1 is returned and the
- * channel is not created.
+ * Send logging on any of <channels> to a UDP socket on port <port> on host
+ * <host>. If the host could not be found, -1 is returned and the channel is not
+ * created.
  */
 int logToUDP(uint64_t channels, const char *host, uint16_t port)
 {
@@ -151,9 +156,9 @@ int logToUDP(uint64_t channels, const char *host, uint16_t port)
 }
 
 /*
- * Add an output channel to <logger> that sends messages over a TCP connection
- * to port <port> on host <host>. If no connection could be opened, -1 is
- * returned and the channel is not created.
+ * Send logging on any of <channels> through a TCP connection to port <port> on
+ * host <host>. If no connection could be opened, -1 is returned and the channel
+ * is not created.
  */
 int logToTCP(uint64_t channels, const char *host, uint16_t port)
 {
@@ -171,7 +176,7 @@ int logToTCP(uint64_t channels, const char *host, uint16_t port)
 }
 
 /*
- * Add an output channel to <logger> that writes to the file specified with
+ * Write logging on any of <channels> to the file whose name is specified with
  * <fmt> and the subsequent parameters. If the file could not be opened, -1 is
  * returned and the channel is not created.
  */
@@ -203,8 +208,8 @@ int logToFile(uint64_t channels, const char *fmt, ...)
 }
 
 /*
- * Add an output channel to <logger> that writes to the previously opened FILE
- * pointer <fp>.
+ * Write logging on any of <channels> to the previously opened FILE pointer
+ * <fp>.
  */
 int logToFP(uint64_t channels, FILE *fp)
 {
@@ -216,8 +221,8 @@ int logToFP(uint64_t channels, FILE *fp)
 }
 
 /*
- * Add an output channel to <logger> that writes to the previously opened file
- * descriptor <fd>.
+ * Write logging on any of <channels> to the previously opened file descriptor
+ * <fd>.
  */
 int logToFD(uint64_t channels, int fd)
 {
@@ -229,8 +234,8 @@ int logToFD(uint64_t channels, int fd)
 }
 
 /*
- * Add an output channel to <logger> that writes to the syslog facility using
- * the given parameters (see openlog(3) for the meaning of these parameters).
+ * Write logging on any of <channels> to the syslog facility using the given
+ * parameters (see openlog(3) for the meaning of these parameters).
  */
 int logToSyslog(uint64_t channels, const char *ident, int option, int facility, int priority)
 {
@@ -360,7 +365,7 @@ static void log_write_prefixes(const char *file, int line, const char *func)
 }
 
 /*
- * Write a log message out to all output channels.
+ * Write a log message out to <channels>.
  */
 static void log_output(uint64_t channels)
 {
@@ -390,8 +395,8 @@ static void log_output(uint64_t channels)
 }
 
 /*
- * Send out a logging message using <fmt> and the subsequent parameters through
- * <logger>. <file>, <line> and <func> are filled in by the logWrite macro,
+ * Send out a logging message using <fmt> and the subsequent parameters to
+ * <channels>. <file>, <line> and <func> are filled in by the logWrite macro,
  * which should be used to call this function.
  */
 void _logWrite(uint64_t channels,
@@ -415,8 +420,9 @@ void _logWrite(uint64_t channels,
 }
 
 /*
- * Log <fmt> and the subsequent parameters through <logger>, *without* any
- * prefixes. Useful to continue a previous log message.
+ * Send a logging message using <fmt> and the subsequent parameters to
+ * <channels>, *without* any prefixes. Useful to continue a previous log
+ * message.
  */
 void logAppend(uint64_t channels, const char *fmt, ...)
 {

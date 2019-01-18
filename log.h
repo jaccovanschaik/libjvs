@@ -20,8 +20,18 @@ extern "C" {
 #include <stdint.h>
 #include <syslog.h>
 
-/* Predefined channels, derived from the log levels in syslog.h. Feel free to
- * define your own, though. */
+/*
+ * <channels>, in any of the functions below, is a 64-bit bitmask where each bit
+ * represents an output channel. You use the channels parameter in the logWrite
+ * and logAppend functions to define which channels that particular message goes
+ * to, and you use the channels parameter in the logTo... functions to define
+ * which channels have their output sent to that destination.
+ */
+
+/*
+ * These are some predefined channel masks, based on the log levels in syslog.h.
+ * You can use these, or you can define your own. It's entirely up to you.
+ */
 
 enum {
     CH_EMERG   = 1 << LOG_EMERG,    /* system is unusable */
@@ -37,41 +47,41 @@ enum {
 #define logWrite(channels, ...) _logWrite(channels, __FILE__, __LINE__, __func__, __VA_ARGS__)
 
 /*
- * Add an output channel to <logger> that sends messages to a UDP socket on port
- * <port> on host <host>. If the host could not be found, -1 is returned and the
- * channel is not created.
+ * Send logging on any of <channels> to a UDP socket on port <port> on host
+ * <host>. If the host could not be found, -1 is returned and the channel is not
+ * created.
  */
 int logToUDP(uint64_t channels, const char *host, uint16_t port);
 
 /*
- * Add an output channel to <logger> that sends messages over a TCP connection
- * to port <port> on host <host>. If no connection could be opened, -1 is
- * returned and the channel is not created.
+ * Send logging on any of <channels> through a TCP connection to port <port> on
+ * host <host>. If no connection could be opened, -1 is returned and the channel
+ * is not created.
  */
 int logToTCP(uint64_t channels, const char *host, uint16_t port);
 
 /*
- * Add an output channel to <logger> that writes to the file specified with
+ * Write logging on any of <channels> to the file whose name is specified with
  * <fmt> and the subsequent parameters. If the file could not be opened, -1 is
  * returned and the channel is not created.
  */
 int logToFile(uint64_t channels, const char *fmt, ...);
 
 /*
- * Add an output channel to <logger> that writes to the previously opened FILE
- * pointer <fp>.
+ * Write logging on any of <channels> to the previously opened FILE pointer
+ * <fp>.
  */
 int logToFP(uint64_t channels, FILE *fp);
 
 /*
- * Add an output channel to <logger> that writes to the previously opened file
- * descriptor <fd>.
+ * Write logging on any of <channels> to the previously opened file descriptor
+ * <fd>.
  */
 int logToFD(uint64_t channels, int fd);
 
 /*
- * Add an output channel to <logger> that writes to the syslog facility using
- * the given parameters (see openlog(3) for the meaning of these parameters).
+ * Write logging on any of <channels> to the syslog facility using the given
+ * parameters (see openlog(3) for the meaning of these parameters).
  */
 int logToSyslog(uint64_t channels, const char *ident, int option, int facility, int priority);
 
@@ -109,16 +119,17 @@ void logWithLine(void);
 void logWithString(const char *fmt, ...);
 
 /*
- * Send out a logging message using <fmt> and the subsequent parameters through
- * <logger>. <file>, <line> and <func> are filled in by the logWrite macro,
+ * Send out a logging message using <fmt> and the subsequent parameters to
+ * <channels>. <file>, <line> and <func> are filled in by the logWrite macro,
  * which should be used to call this function.
  */
 void _logWrite(uint64_t channels,
         const char *file, int line, const char *func, const char *fmt, ...);
 
 /*
- * Log <fmt> and the subsequent parameters through <logger>, *without* any
- * prefixes. Useful to continue a previous log message.
+ * Send a logging message using <fmt> and the subsequent parameters to
+ * <channels>, *without* any prefixes. Useful to continue a previous log
+ * message.
  */
 void logAppend(uint64_t channels, const char *fmt, ...);
 
