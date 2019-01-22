@@ -65,7 +65,7 @@ int logToTCP(uint64_t channels, const char *host, uint16_t port);
  * <fmt> and the subsequent parameters. If the file could not be opened, -1 is
  * returned and the channel is not created.
  */
-int logToFile(uint64_t channels, const char *fmt, ...);
+int logToFile(uint64_t channels, const char *fmt, ...) __attribute__((format (printf, 2, 3)));
 
 /*
  * Write logging on any of <channels> to the previously opened FILE pointer

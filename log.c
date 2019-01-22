@@ -137,7 +137,12 @@ static LOG_Prefix *log_add_prefix(LOG_PrefixType type)
  */
 static void log_get_time(struct tm *tm, struct timeval *tv)
 {
+#ifdef TEST
+    tv->tv_sec  = 12 * 60 * 60;
+    tv->tv_usec = 0;
+#else
     gettimeofday(tv, NULL);
+#endif
 
     localtime_r(&tv->tv_sec, tm);
 }
@@ -464,3 +469,87 @@ void logContinue(uint64_t channels, const char *fmt, ...)
 
     pthread_mutex_unlock(&scratch_mutex);
 }
+
+#ifdef TEST
+#include <sys/stat.h>
+
+static int errors = 0;
+
+static void log_handler(const char *msg, void *udata)
+{
+    FILE *fp = udata;
+
+    fputs(msg, fp);
+}
+
+#if 0
+static const char *get_file_contents(FILE *fp)
+{
+    static char *buffer = NULL;
+    struct stat stat_buf;
+
+    rewind(fp);
+
+    fstat(fileno(fp), &stat_buf);
+
+    buffer = realloc(buffer, stat_buf.st_size + 1);
+
+    if (fread(buffer, 1, stat_buf.st_size, fp) < stat_buf.st_size) {
+        return NULL;
+    }
+    else {
+        buffer[stat_buf.st_size] = '\0';
+
+        return buffer;
+    }
+}
+#endif
+
+int main(int argc, char *argv[])
+{
+    FILE *tmp_file[2] = { 0 };
+
+    logToFile(CH_DEBUG | CH_INFO, "/tmp/log_test");
+    logToFP(CH_DEBUG, tmp_file[0] = tmpfile());
+    logToFunction(CH_INFO, log_handler, tmp_file[1] = tmpfile());
+
+    _logWrite(CH_DEBUG, "test_file", 1, "test_func", "Debug message 1\n");
+    _logWrite(CH_INFO, "test_file", 2, "test_func", "Log message 2\n");
+    _logWrite(CH_DEBUG + CH_INFO, "test_file", 3, "test_func", "Log/Debug message 3\n");
+
+    logWithDate();
+
+    _logWrite(CH_DEBUG, "test_file", 4, "test_func", "Debug message 1\n");
+    _logWrite(CH_INFO, "test_file", 5, "test_func", "Log message 2\n");
+    _logWrite(CH_DEBUG + CH_INFO, "test_file", 6, "test_func", "Log/Debug message 3\n");
+
+    logWithTime(3);
+
+    _logWrite(CH_DEBUG, "test_file", 1, "test_func", "Debug message 1\n");
+    _logWrite(CH_INFO, "test_file", 1, "test_func", "Log message 2\n");
+    _logWrite(CH_DEBUG + CH_INFO, "test_file", 1, "test_func", "Log/Debug message 3\n");
+
+#if 0
+    const char *contents;
+    FILE *fp;
+
+    contents = get_file_contents(tmp_file[0]);
+    fputs(contents, stderr);
+
+    contents = get_file_contents(tmp_file[1]);
+    fputs(contents, stderr);
+
+    fp = fopen("/tmp/log_test", "r");
+    contents = get_file_contents(fp);
+    fclose(fp);
+    fputs(contents, stderr);
+#endif
+
+    fclose(tmp_file[0]);
+    fclose(tmp_file[1]);
+
+    remove("/tmp/log_test");
+
+    return errors;
+}
+#endif
