@@ -139,7 +139,7 @@ static LOG_Prefix *log_add_prefix(LOG_PrefixType type)
 /*
  * Fill <tm> and <tv> with the current time.
  */
-static void log_get_time(int local, struct tm *tm, struct timeval *tv)
+static void log_get_time(struct timeval *tv)
 {
 #ifdef TEST
     tv->tv_sec  = 12 * 60 * 60;
@@ -147,11 +147,26 @@ static void log_get_time(int local, struct tm *tm, struct timeval *tv)
 #else
     gettimeofday(tv, NULL);
 #endif
+}
 
-    if (local)
-        localtime_r(&tv->tv_sec, tm);
-    else
-        gmtime_r(&tv->tv_sec, tm);
+static void log_format_time(struct tm *tm, struct timeval *tv, int precision)
+{
+    bufAddF(&scratch, "%02d:%02d:", tm->tm_hour, tm->tm_min);
+
+    if (precision == 0) {
+        bufAddF(&scratch, "%02d%s", tm->tm_sec, separator);
+    }
+    else {
+        double seconds = (double) tm->tm_sec + (double) tv->tv_usec / 1000000.0;
+
+        bufAddF(&scratch, "%0*.*f%s", 3 + precision, precision, seconds, separator);
+    }
+}
+
+static void log_format_date(struct tm *tm)
+{
+    bufAddF(&scratch, "%04d-%02d-%02d%s",
+            tm->tm_year + 1900, tm->tm_mon + 1, tm->tm_mday, separator);
 }
 
 /*
@@ -387,12 +402,14 @@ void logWithSeparator(const char *fmt, ...)
  */
 static void log_write_prefixes(const char *file, int line, const char *func)
 {
-    struct tm tm = { 0 };
+    struct tm tm_local = { 0 }, tm_utc = { 0 };
     static struct timeval tv = { 0 };
 
     LOG_Prefix *pfx;
 
     tv.tv_sec = -1;
+    tm_utc.tm_sec = -1;
+    tm_local.tm_sec = -1;
 
     if (separator == NULL) {
         separator = strdup(" ");
@@ -401,29 +418,31 @@ static void log_write_prefixes(const char *file, int line, const char *func)
     for (pfx = listHead(&prefixes); pfx; pfx = listNext(pfx)) {
         switch(pfx->type) {
         case LOG_PT_LDATE:
-        case LOG_PT_UDATE:
-            if (tv.tv_sec == -1) log_get_time(pfx->type == LOG_PT_LDATE, &tm, &tv);
+            if (tv.tv_sec == -1) log_get_time(&tv);
+            if (tm_local.tm_sec == -1) localtime_r(&tv.tv_sec, &tm_local);
 
-            bufAddF(&scratch, "%04d-%02d-%02d%s",
-                    tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, separator);
+            log_format_date(&tm_local);
+
+            break;
+        case LOG_PT_UDATE:
+            if (tv.tv_sec == -1) log_get_time(&tv);
+            if (tm_utc.tm_sec == -1) gmtime_r(&tv.tv_sec, &tm_utc);
+
+            log_format_date(&tm_utc);
 
             break;
         case LOG_PT_LTIME:
+            if (tv.tv_sec == -1) log_get_time(&tv);
+            if (tm_local.tm_sec == -1) localtime_r(&tv.tv_sec, &tm_local);
+
+            log_format_time(&tm_local, &tv, pfx->u.precision);
+
+            break;
         case LOG_PT_UTIME:
-            if (tv.tv_sec == -1) log_get_time(pfx->type == LOG_PT_LTIME, &tm, &tv);
+            if (tv.tv_sec == -1) log_get_time(&tv);
+            if (tm_local.tm_sec == -1) gmtime_r(&tv.tv_sec, &tm_utc);
 
-            bufAddF(&scratch, "%02d:%02d:", tm.tm_hour, tm.tm_min);
-
-            if (pfx->u.precision == 0) {
-                bufAddF(&scratch, "%02d%s", tm.tm_sec, separator);
-            }
-            else {
-                double seconds =
-                    (double) tm.tm_sec + (double) tv.tv_usec / 1000000.0;
-
-                bufAddF(&scratch, "%0*.*f%s",
-                        3 + pfx->u.precision, pfx->u.precision, seconds, separator);
-            }
+            log_format_time(&tm_utc, &tv, pfx->u.precision);
 
             break;
         case LOG_PT_FILE:
