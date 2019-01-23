@@ -92,15 +92,26 @@ int logToSyslog(uint64_t channels, const char *ident, int option, int facility, 
 int logToFunction(uint64_t channels, void (*handler)(const char *msg, void *udata), void *udata);
 
 /*
- * Add a date of the form YYYY-MM-DD in output messages.
+ * Add a UTC date of the form YYYY-MM-DD in output messages.
  */
-void logWithDate(void);
+void logWithUniversalDate(void);
 
 /*
- * Add a timestamp of the form HH:MM:SS to output messages. <precision> is the
- * number of sub-second digits to show.
+ * Add a UTC timestamp of the form HH:MM:SS to output messages. <precision> is
+ * the number of sub-second digits to show.
  */
-void logWithTime(int precision);
+void logWithUniversalTime(int precision);
+
+/*
+ * Add a local date of the form YYYY-MM-DD in output messages.
+ */
+void logWithLocalDate(void);
+
+/*
+ * Add a local timestamp of the form HH:MM:SS to output messages. <precision> is
+ * the number of sub-second digits to show.
+ */
+void logWithLocalTime(int precision);
 
 /*
  * Add the name of the file from which the logWrite function was called to log

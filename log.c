@@ -65,8 +65,10 @@ typedef struct {
  * Prefix types.
  */
 typedef enum {
-    LOG_PT_DATE,
-    LOG_PT_TIME,
+    LOG_PT_UDATE,
+    LOG_PT_UTIME,
+    LOG_PT_LDATE,
+    LOG_PT_LTIME,
     LOG_PT_FILE,
     LOG_PT_LINE,
     LOG_PT_FUNC,
@@ -137,7 +139,7 @@ static LOG_Prefix *log_add_prefix(LOG_PrefixType type)
 /*
  * Fill <tm> and <tv> with the current time.
  */
-static void log_get_time(struct tm *tm, struct timeval *tv)
+static void log_get_time(int local, struct tm *tm, struct timeval *tv)
 {
 #ifdef TEST
     tv->tv_sec  = 12 * 60 * 60;
@@ -146,7 +148,10 @@ static void log_get_time(struct tm *tm, struct timeval *tv)
     gettimeofday(tv, NULL);
 #endif
 
-    localtime_r(&tv->tv_sec, tm);
+    if (local)
+        localtime_r(&tv->tv_sec, tm);
+    else
+        gmtime_r(&tv->tv_sec, tm);
 }
 
 /*
@@ -277,20 +282,39 @@ int logToFunction(uint64_t channels, void (*handler)(const char *msg, void *udat
 }
 
 /*
- * Add a date of the form YYYY-MM-DD in output messages.
+ * Add a UTC date of the form YYYY-MM-DD in output messages.
  */
-void logWithDate(void)
+void logWithUniversalDate(void)
 {
-    log_add_prefix(LOG_PT_DATE);
+    log_add_prefix(LOG_PT_UDATE);
 }
 
 /*
- * Add a timestamp of the form HH:MM:SS to output messages. <precision> is the
- * number of sub-second digits to show.
+ * Add a UTC timestamp of the form HH:MM:SS to output messages. <precision> is
+ * the number of sub-second digits to show.
  */
-void logWithTime(int precision)
+void logWithUniversalTime(int precision)
 {
-    LOG_Prefix *prefix = log_add_prefix(LOG_PT_TIME);
+    LOG_Prefix *prefix = log_add_prefix(LOG_PT_UTIME);
+
+    prefix->u.precision = CLAMP(precision, 0, 6);
+}
+
+/*
+ * Add a local date of the form YYYY-MM-DD in output messages.
+ */
+void logWithLocalDate(void)
+{
+    log_add_prefix(LOG_PT_LDATE);
+}
+
+/*
+ * Add a local timestamp of the form HH:MM:SS to output messages. <precision> is
+ * the number of sub-second digits to show.
+ */
+void logWithLocalTime(int precision)
+{
+    LOG_Prefix *prefix = log_add_prefix(LOG_PT_LTIME);
 
     prefix->u.precision = CLAMP(precision, 0, 6);
 }
@@ -364,7 +388,7 @@ void logWithSeparator(const char *fmt, ...)
 static void log_write_prefixes(const char *file, int line, const char *func)
 {
     struct tm tm = { 0 };
-    struct timeval tv = { 0 };
+    static struct timeval tv = { 0 };
 
     LOG_Prefix *pfx;
 
@@ -376,15 +400,17 @@ static void log_write_prefixes(const char *file, int line, const char *func)
 
     for (pfx = listHead(&prefixes); pfx; pfx = listNext(pfx)) {
         switch(pfx->type) {
-        case LOG_PT_DATE:
-            if (tv.tv_sec == -1) log_get_time(&tm, &tv);
+        case LOG_PT_LDATE:
+        case LOG_PT_UDATE:
+            if (tv.tv_sec == -1) log_get_time(pfx->type == LOG_PT_LDATE, &tm, &tv);
 
             bufAddF(&scratch, "%04d-%02d-%02d%s",
                     tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, separator);
 
             break;
-        case LOG_PT_TIME:
-            if (tv.tv_sec == -1) log_get_time(&tm, &tv);
+        case LOG_PT_LTIME:
+        case LOG_PT_UTIME:
+            if (tv.tv_sec == -1) log_get_time(pfx->type == LOG_PT_LTIME, &tm, &tv);
 
             bufAddF(&scratch, "%02d:%02d:", tm.tm_hour, tm.tm_min);
 
@@ -668,7 +694,7 @@ int main(int argc, char *argv[])
     close_logger(tmp_file);
 
     init_logger(tmp_file);
-    logWithDate();
+    logWithUniversalDate();
     write_messages();
 
     check_fp(tmp_file[0],
@@ -687,28 +713,28 @@ int main(int argc, char *argv[])
     close_logger(tmp_file);
 
     init_logger(tmp_file);
-    logWithDate();
-    logWithTime(3);
+    logWithUniversalDate();
+    logWithUniversalTime(3);
     write_messages();
 
     check_fp(tmp_file[0],
-            "1970-01-01 13:00:00.000 message 1\n"
-            "1970-01-01 13:00:00.000 message 3\n");
+            "1970-01-01 12:00:00.000 message 1\n"
+            "1970-01-01 12:00:00.000 message 3\n");
 
     check_fp(tmp_file[1],
-            "1970-01-01 13:00:00.000 message 2\n"
-            "1970-01-01 13:00:00.000 message 3\n");
+            "1970-01-01 12:00:00.000 message 2\n"
+            "1970-01-01 12:00:00.000 message 3\n");
 
     check_file(TEST_FILE,
-            "1970-01-01 13:00:00.000 message 1\n"
-            "1970-01-01 13:00:00.000 message 2\n"
-            "1970-01-01 13:00:00.000 message 3\n");
+            "1970-01-01 12:00:00.000 message 1\n"
+            "1970-01-01 12:00:00.000 message 2\n"
+            "1970-01-01 12:00:00.000 message 3\n");
 
     close_logger(tmp_file);
 
     init_logger(tmp_file);
-    logWithDate();
-    logWithTime(3);
+    logWithUniversalDate();
+    logWithUniversalTime(3);
     logWithFile();
     logWithLine();
     logWithFunction();
@@ -716,17 +742,17 @@ int main(int argc, char *argv[])
     write_messages();
 
     check_fp(tmp_file[0],
-            "1970-01-01\t13:00:00.000\tsome_file\t1\tsome_func\tmessage 1\n"
-            "1970-01-01\t13:00:00.000\tsome_file\t3\tsome_func\tmessage 3\n");
+            "1970-01-01\t12:00:00.000\tsome_file\t1\tsome_func\tmessage 1\n"
+            "1970-01-01\t12:00:00.000\tsome_file\t3\tsome_func\tmessage 3\n");
 
     check_fp(tmp_file[1],
-            "1970-01-01\t13:00:00.000\tsome_file\t2\tsome_func\tmessage 2\n"
-            "1970-01-01\t13:00:00.000\tsome_file\t3\tsome_func\tmessage 3\n");
+            "1970-01-01\t12:00:00.000\tsome_file\t2\tsome_func\tmessage 2\n"
+            "1970-01-01\t12:00:00.000\tsome_file\t3\tsome_func\tmessage 3\n");
 
     check_file(TEST_FILE,
-            "1970-01-01\t13:00:00.000\tsome_file\t1\tsome_func\tmessage 1\n"
-            "1970-01-01\t13:00:00.000\tsome_file\t2\tsome_func\tmessage 2\n"
-            "1970-01-01\t13:00:00.000\tsome_file\t3\tsome_func\tmessage 3\n");
+            "1970-01-01\t12:00:00.000\tsome_file\t1\tsome_func\tmessage 1\n"
+            "1970-01-01\t12:00:00.000\tsome_file\t2\tsome_func\tmessage 2\n"
+            "1970-01-01\t12:00:00.000\tsome_file\t3\tsome_func\tmessage 3\n");
 
     close_logger(tmp_file);
 
