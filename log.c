@@ -57,7 +57,7 @@ typedef struct {
         FILE *fp;                   /* For LOG_OT_FILE, LOG_OT_FP */
         int fd;                     /* For LOG_OT_UDP, LOG_OT_TCP, LOG_OT_FD */
         int priority;               /* For LOG_OT_SYSLOG */
-        LOG_FunctionData function;    /* For LOG_OT_FUNCTION */
+        LOG_FunctionData function;  /* For LOG_OT_FUNCTION */
     } u;
 } LOG_Output;
 
@@ -84,6 +84,8 @@ typedef struct {
         int precision;
     } u;
 } LOG_Prefix;
+
+static char *separator = NULL;
 
 static List outputs = { 0 };        /* List of outputs. */
 static List prefixes = { 0 };       /* List of prefixes. */
@@ -337,6 +339,26 @@ void logWithString(const char *fmt, ...)
 }
 
 /*
+ * Use a string defined with <fmt> and the subsequent arguments as a separator
+ * between the fields of log messages (default is a single space).
+ */
+void logWithSeparator(const char *fmt, ...)
+{
+    va_list ap;
+    Buffer string = { 0 };
+
+    va_start(ap, fmt);
+    bufSetV(&string, fmt, ap);
+    va_end(ap);
+
+    if (separator != NULL) {
+        free(separator);
+    }
+
+    separator = bufDetach(&string);
+}
+
+/*
  * Write the requested prefixes into the log message.
  */
 static void log_write_prefixes(const char *file, int line, const char *func)
@@ -348,13 +370,17 @@ static void log_write_prefixes(const char *file, int line, const char *func)
 
     tv.tv_sec = -1;
 
+    if (separator == NULL) {
+        separator = strdup(" ");
+    }
+
     for (pfx = listHead(&prefixes); pfx; pfx = listNext(pfx)) {
         switch(pfx->type) {
         case LOG_PT_DATE:
             if (tv.tv_sec == -1) log_get_time(&tm, &tv);
 
-            bufAddF(&scratch, "%04d-%02d-%02d ",
-                    tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday);
+            bufAddF(&scratch, "%04d-%02d-%02d%s",
+                    tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, separator);
 
             break;
         case LOG_PT_TIME:
@@ -363,28 +389,28 @@ static void log_write_prefixes(const char *file, int line, const char *func)
             bufAddF(&scratch, "%02d:%02d:", tm.tm_hour, tm.tm_min);
 
             if (pfx->u.precision == 0) {
-                bufAddF(&scratch, "%02d ", tm.tm_sec);
+                bufAddF(&scratch, "%02d%s", tm.tm_sec, separator);
             }
             else {
                 double seconds =
                     (double) tm.tm_sec + (double) tv.tv_usec / 1000000.0;
 
-                bufAddF(&scratch, "%0*.*f ",
-                        3 + pfx->u.precision, pfx->u.precision, seconds);
+                bufAddF(&scratch, "%0*.*f%s",
+                        3 + pfx->u.precision, pfx->u.precision, seconds, separator);
             }
 
             break;
         case LOG_PT_FILE:
-            bufAddF(&scratch, "%s ", file);
+            bufAddF(&scratch, "%s%s", file, separator);
             break;
         case LOG_PT_LINE:
-            bufAddF(&scratch, "%d ", line);
+            bufAddF(&scratch, "%d%s", line, separator);
             break;
         case LOG_PT_FUNC:
-            bufAddF(&scratch, "%s ", func);
+            bufAddF(&scratch, "%s%s", func, separator);
             break;
         case LOG_PT_STR:
-            bufAddF(&scratch, "%s ", pfx->u.string);
+            bufAddF(&scratch, "%s%s", pfx->u.string, separator);
             break;
         }
     }
@@ -420,6 +446,31 @@ static void log_output(uint64_t channels)
             out->u.function.handler(bufGet(&scratch), out->u.function.udata);
             break;
         }
+    }
+}
+
+/*
+ * Close logging output <out>.
+ */
+static void log_close_output(LOG_Output *out)
+{
+    switch(out->type) {
+    case LOG_OT_UDP:
+    case LOG_OT_TCP:
+        /* Opened as file descriptors. */
+        close(out->u.fd);
+        break;
+    case LOG_OT_FILE:
+        /* Opened as FILE pointers. */
+        fclose(out->u.fp);
+        break;
+    case LOG_OT_SYSLOG:
+        /* Opened using openlog(). */
+        closelog();
+        break;
+    default:
+        /* Nothing opened, or not opened by me, so leave them alone. */
+        break;
     }
 }
 
@@ -470,19 +521,48 @@ void logContinue(uint64_t channels, const char *fmt, ...)
     pthread_mutex_unlock(&scratch_mutex);
 }
 
+/*
+ * Close logging: close all channels, remove all prefixes.
+ */
+void logClose(void)
+{
+    LOG_Output *out;
+    LOG_Prefix *pfx;
+
+    pthread_mutex_lock(&scratch_mutex);
+
+    bufReset(&scratch);
+
+    pthread_mutex_unlock(&scratch_mutex);
+
+    pthread_mutex_lock(&outputs_mutex);
+
+    while ((out = listRemoveHead(&outputs)) != NULL) {
+        log_close_output(out);
+
+        free(out);
+    }
+
+    pthread_mutex_unlock(&outputs_mutex);
+
+    pthread_mutex_lock(&prefixes_mutex);
+
+    while ((pfx = listRemoveHead(&prefixes)) != NULL) {
+        if (pfx->type == LOG_PT_STR && pfx->u.string != NULL) {
+            free(pfx->u.string);
+        }
+
+        free(pfx);
+    }
+
+    pthread_mutex_unlock(&prefixes_mutex);
+}
+
 #ifdef TEST
 #include <sys/stat.h>
 
 static int errors = 0;
 
-static void log_handler(const char *msg, void *udata)
-{
-    FILE *fp = udata;
-
-    fputs(msg, fp);
-}
-
-#if 0
 static const char *get_file_contents(FILE *fp)
 {
     static char *buffer = NULL;
@@ -503,52 +583,152 @@ static const char *get_file_contents(FILE *fp)
         return buffer;
     }
 }
-#endif
+
+#define TEST_FILE "/tmp/log_test"
+
+static void log_handler(const char *msg, void *udata)
+{
+    FILE *fp = udata;
+
+    fputs(msg, fp);
+}
+
+static void init_logger(FILE **tmp_file)
+{
+    /* Log DEBUG and INFO messages to the named file. */
+    logToFile(CH_DEBUG | CH_INFO, TEST_FILE);
+    /* Log DEBUG messages to the fp of this temp file. */
+    logToFP(CH_DEBUG, tmp_file[0] = tmpfile());
+    /* Log INFO messages via log_handler to this other temp file. */
+    logToFunction(CH_INFO, log_handler, tmp_file[1] = tmpfile());
+}
+
+static void write_messages(void)
+{
+    _logWrite(CH_DEBUG, "some_file", 1, "some_func", "message 1\n");
+    _logWrite(CH_INFO, "some_file", 2, "some_func", "message 2\n");
+    _logWrite(CH_DEBUG + CH_INFO, "some_file", 3, "some_func", "message 3\n");
+}
+
+static void close_logger(FILE **tmp_file)
+{
+    logClose();
+
+    fclose(tmp_file[0]);
+    fclose(tmp_file[1]);
+
+    remove(TEST_FILE);
+}
+
+#define check_fp(fp, expected) _check_fp(fp, expected, __FILE__, __LINE__)
+
+static void _check_fp(FILE *fp, const char *expected, const char *file, int line)
+{
+    const char *actual = get_file_contents(fp);
+
+    if (strcmp(actual, expected) != 0) {
+        fprintf(stderr, "%s:%d: Test failed.\n\nExpected:\n\n%s\nGot:\n\n%s",
+                file, line, expected, actual);
+
+        errors++;
+    }
+}
+
+#define check_file(name, expected) _check_file(name, expected, __FILE__, __LINE__)
+
+static void _check_file(const char *filename, const char *text, const char *file, int line)
+{
+    FILE *fp = fopen(filename, "r");
+
+    _check_fp(fp, text, file, line);
+
+    fclose(fp);
+}
 
 int main(int argc, char *argv[])
 {
     FILE *tmp_file[2] = { 0 };
 
-    logToFile(CH_DEBUG | CH_INFO, "/tmp/log_test");
-    logToFP(CH_DEBUG, tmp_file[0] = tmpfile());
-    logToFunction(CH_INFO, log_handler, tmp_file[1] = tmpfile());
+    init_logger(tmp_file);
+    write_messages();
 
-    _logWrite(CH_DEBUG, "test_file", 1, "test_func", "Debug message 1\n");
-    _logWrite(CH_INFO, "test_file", 2, "test_func", "Log message 2\n");
-    _logWrite(CH_DEBUG + CH_INFO, "test_file", 3, "test_func", "Log/Debug message 3\n");
+    check_fp(tmp_file[0],
+            "message 1\n"
+            "message 3\n");
 
+    check_fp(tmp_file[1],
+            "message 2\n"
+            "message 3\n");
+
+    check_file(TEST_FILE,
+            "message 1\n"
+            "message 2\n"
+            "message 3\n");
+
+    close_logger(tmp_file);
+
+    init_logger(tmp_file);
     logWithDate();
+    write_messages();
 
-    _logWrite(CH_DEBUG, "test_file", 4, "test_func", "Debug message 1\n");
-    _logWrite(CH_INFO, "test_file", 5, "test_func", "Log message 2\n");
-    _logWrite(CH_DEBUG + CH_INFO, "test_file", 6, "test_func", "Log/Debug message 3\n");
+    check_fp(tmp_file[0],
+            "1970-01-01 message 1\n"
+            "1970-01-01 message 3\n");
 
+    check_fp(tmp_file[1],
+            "1970-01-01 message 2\n"
+            "1970-01-01 message 3\n");
+
+    check_file(TEST_FILE,
+            "1970-01-01 message 1\n"
+            "1970-01-01 message 2\n"
+            "1970-01-01 message 3\n");
+
+    close_logger(tmp_file);
+
+    init_logger(tmp_file);
+    logWithDate();
     logWithTime(3);
+    write_messages();
 
-    _logWrite(CH_DEBUG, "test_file", 1, "test_func", "Debug message 1\n");
-    _logWrite(CH_INFO, "test_file", 1, "test_func", "Log message 2\n");
-    _logWrite(CH_DEBUG + CH_INFO, "test_file", 1, "test_func", "Log/Debug message 3\n");
+    check_fp(tmp_file[0],
+            "1970-01-01 13:00:00.000 message 1\n"
+            "1970-01-01 13:00:00.000 message 3\n");
 
-#if 0
-    const char *contents;
-    FILE *fp;
+    check_fp(tmp_file[1],
+            "1970-01-01 13:00:00.000 message 2\n"
+            "1970-01-01 13:00:00.000 message 3\n");
 
-    contents = get_file_contents(tmp_file[0]);
-    fputs(contents, stderr);
+    check_file(TEST_FILE,
+            "1970-01-01 13:00:00.000 message 1\n"
+            "1970-01-01 13:00:00.000 message 2\n"
+            "1970-01-01 13:00:00.000 message 3\n");
 
-    contents = get_file_contents(tmp_file[1]);
-    fputs(contents, stderr);
+    close_logger(tmp_file);
 
-    fp = fopen("/tmp/log_test", "r");
-    contents = get_file_contents(fp);
-    fclose(fp);
-    fputs(contents, stderr);
-#endif
+    init_logger(tmp_file);
+    logWithDate();
+    logWithTime(3);
+    logWithFile();
+    logWithLine();
+    logWithFunction();
+    logWithSeparator("\t");
+    write_messages();
 
-    fclose(tmp_file[0]);
-    fclose(tmp_file[1]);
+    check_fp(tmp_file[0],
+            "1970-01-01\t13:00:00.000\tsome_file\t1\tsome_func\tmessage 1\n"
+            "1970-01-01\t13:00:00.000\tsome_file\t3\tsome_func\tmessage 3\n");
 
-    remove("/tmp/log_test");
+    check_fp(tmp_file[1],
+            "1970-01-01\t13:00:00.000\tsome_file\t2\tsome_func\tmessage 2\n"
+            "1970-01-01\t13:00:00.000\tsome_file\t3\tsome_func\tmessage 3\n");
+
+    check_file(TEST_FILE,
+            "1970-01-01\t13:00:00.000\tsome_file\t1\tsome_func\tmessage 1\n"
+            "1970-01-01\t13:00:00.000\tsome_file\t2\tsome_func\tmessage 2\n"
+            "1970-01-01\t13:00:00.000\tsome_file\t3\tsome_func\tmessage 3\n");
+
+    close_logger(tmp_file);
 
     return errors;
 }

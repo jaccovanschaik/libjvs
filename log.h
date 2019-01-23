@@ -122,7 +122,13 @@ void logWithLine(void);
 /*
  * Add a string defined by <fmt> and the subsequent arguments to log messages.
  */
-void logWithString(const char *fmt, ...);
+void logWithString(const char *fmt, ...) __attribute__((format (printf, 1, 2)));
+
+/*
+ * Use a string defined with <fmt> and the subsequent arguments as a separator
+ * between the fields of log messages (default is a single space).
+ */
+void logWithSeparator(const char *fmt, ...) __attribute__((format (printf, 1, 2)));
 
 /*
  * Send out a logging message using <fmt> and the subsequent parameters to
@@ -130,14 +136,20 @@ void logWithString(const char *fmt, ...);
  * which should be used to call this function.
  */
 void _logWrite(uint64_t channels,
-        const char *file, int line, const char *func, const char *fmt, ...);
+        const char *file, int line, const char *func, const char *fmt, ...)
+    __attribute__((format (printf, 5, 6)));
 
 /*
  * Send a logging message using <fmt> and the subsequent parameters to
  * <channels>, *without* any prefixes. Useful to continue a previous log
  * message.
  */
-void logContinue(uint64_t channels, const char *fmt, ...);
+void logContinue(uint64_t channels, const char *fmt, ...) __attribute__((format (printf, 2, 3)));
+
+/*
+ * Close logging: close all channels, remove all prefixes.
+ */
+void logClose(void);
 
 #ifdef __cplusplus
 }
