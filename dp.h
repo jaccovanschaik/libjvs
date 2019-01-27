@@ -71,9 +71,9 @@ DP_Stream *dpOpenString(const char *string);
 DP_Object *dpParse(DP_Stream *stream);
 
 /*
- * Return the type of <obj> as a string.
+ * Return type <type> as a string.
  */
-const char *dpType(const DP_Object *obj);
+const char *dpTypeName(const DP_Type type);
 
 /*
  * Retrieve an error text from <stream>, in case any function has returned an error.
@@ -86,7 +86,7 @@ const char *dpError(const DP_Stream *stream);
 void dpFree(DP_Object *root);
 
 /*
- * Free the memory occupied by <stream>.
+ * Close <stream> and free all its memory.
  */
 void dpClose(DP_Stream *stream);
 

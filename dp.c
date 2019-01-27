@@ -506,11 +506,11 @@ DP_Object *dpParse(DP_Stream *stream)
 }
 
 /*
- * Return the type of <obj> as a string.
+ * Return type <type> as a string.
  */
-const char *dpType(const DP_Object *obj)
+const char *dpTypeName(const DP_Type type)
 {
-    switch(obj->type) {
+    switch(type) {
     case DP_STRING:
         return "string";
     case DP_INT:
@@ -573,6 +573,8 @@ void dpClose(DP_Stream *stream)
 }
 
 #ifdef TEST
+#include "utils.h"
+
 static void dump(DP_Object *obj, Buffer *buf)
 {
     while (obj != NULL) {
@@ -695,6 +697,11 @@ static int num_tests = sizeof(test) / sizeof(test[0]);
 int main(int argc, char *argv[])
 {
     int i;
+
+    make_sure_that(strcmp(dpTypeName(DP_STRING), "string") == 0);
+    make_sure_that(strcmp(dpTypeName(DP_INT), "int") == 0);
+    make_sure_that(strcmp(dpTypeName(DP_FLOAT), "float") == 0);
+    make_sure_that(strcmp(dpTypeName(DP_CONTAINER), "container") == 0);
 
     for (i = 0; i < num_tests; i++) {
         do_test(i, test + i);
