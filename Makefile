@@ -29,7 +29,7 @@ libjvs.so: $(LIBJVS)
 	$(MAKE_SLIB) libjvs.so $(LIBJVS) -lm
 
 clean:
-	rm -f *.o libjvs.a libjvs.so core vgcore.* libjvs.tgz *.test *.log
+	rm -f *.o libjvs.a libjvs.so core vgcore.* libjvs.tgz *.test *.log tags
 
 libjvs.tgz: clean
 	tar cvf - `ls | grep -v libjvs.tgz` | gzip > libjvs.tgz
