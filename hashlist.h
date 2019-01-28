@@ -24,58 +24,98 @@ typedef struct {
     HashTable hash;
 } HashList;
 
-/* Create a new, empty hashlist. */
+#define hlAdd(hl, n, key, len)  f_hlAdd((hl), &(n)->_node, key, len)
+#define hlSet(hl, n, key, len)  f_hlSet((hl), &(n)->_node, key, len)
+#define hlNext(n)               f_hlNext(&(n)->_node)
+#define hlPrev(n)               f_hlPrev(&(n)->_node)
+
+/*
+ * Create a new, empty hashlist.
+ */
 HashList *hlCreate(void);
 
-/* Initialize the hashlist specified by <hashlist>. */
+/*
+ * Initialize the hashlist specified by <hashlist>.
+ */
 void hlInitialize(HashList *hashlist);
 
-/* Append <node> to the tail of hashlist <hashlist>. */
+/*
+ * Add an entry that points to <node> to <hashlist>. Associate it with <key>,
+ * whose length is <key_len>. <hashlist>, <hashlist> and <key> must not be NULL,
+ * <key_len> must be greater than 0. If an entry with the same key already
+ * exists this function calls abort(). The node is added to the end of the
+ * embedded list.
+ */
 void f_hlAdd(HashList *hashlist, ListNode *node, const void *key, int key_len);
 
 /*
- * Set the existing entry in <tbl> for <key>, whose length is <key_len>, to
- * <data>. <tbl>, <data> and <key> must not be NULL, <key_len> must
- * be greater than 0. If no such entry exists this function calls abort().
+ * Set the existing entry in <hashlist> for <key>, whose length is <key_len>, to
+ * <node>. <hashlist>, <node> and <key> must not be NULL, <key_len> must be
+ * greater than 0. If no such entry exists this function calls abort().
  */
 void f_hlSet(HashList *hashlist, ListNode *node, const void *key, int key_len);
 
 /*
- * Return TRUE if <tbl> has an entry for <key> with length <key_len>, FALSE otherwise. <tbl> and
- * <key> must not be NULL, <key_len> must be greater than 0.
+ * Return TRUE if <hashlist> has an entry for <key> with length <key_len>, FALSE
+ * otherwise. <hashlist> and <key> must not be NULL, <key_len> must be greater
+ * than 0.
  */
 int hlContains(const HashList *hashlist, const void *key, int key_len);
 
 /*
- * Get the data associated with <key>, whose length is <key_len> from <tbl>. If
- * no such entry exists NULL is returned. <tbl> and <key> must not be NULL,
- * <key_len> must be greater than 0.
+ * Get the data associated with <key>, whose length is <key_len> from
+ * <hashlist>. If no such entry exists NULL is returned. <hashlist> and <key>
+ * must not be NULL, <key_len> must be greater than 0.
  */
 void *hlGet(HashList *hashlist, const void *key, int key_len);
 
 /*
- * Delete the entry in <tbl> for <key> with length <key_len>. <tbl> and <key>
- * must not be NULL, <key_len> must be greater than 0. If no such entry exists
- * this function calls abort().
+ * Delete the entry in <hashlist> for <key> with length <key_len>. <hashlist>
+ * and <key> must not be NULL, <key_len> must be greater than 0. If no such
+ * entry exists this function calls abort().
  */
 void hlDel(HashList *hashlist, const void *key, int key_len);
 
-/* Return the node at the head of <hashlist>. */
+/*
+ * Return the node at the head of <hashlist>.
+ */
 void *hlHead(const HashList *hashlist);
 
-/* Return the node at the end of <hashlist>. */
+/*
+ * Return the node at the end of <hashlist>.
+ */
 void *hlTail(const HashList *hashlist);
 
-/* Return the node before <node>. */
+/*
+ * Return the node before <node>.
+ */
 void *f_hlPrev(const ListNode *node);
 
-/* Return the node following <node>. */
+/*
+ * Return the node following <node>.
+ */
 void *f_hlNext(const ListNode *node);
 
-/* Return TRUE if <hashlist> is empty. */
+/*
+ * Return TRUE if <hashlist> is empty.
+ */
 int hlIsEmpty(const HashList *hashlist);
 
-/* Sort <hashlist> using comparison function <cmp>. */
+/*
+ * Sort <hashlist> using comparison function <cmp>.
+ */
 void hlSort(HashList *hashlist, int(*cmp)(const void *, const void *));
+
+/*
+ * Clear hashlist <hashlist> i.e. remove all its entries. The user data that the
+ * entries point to is *not* removed.
+ */
+void hlClear(HashList *hashlist);
+
+/*
+ * Delete hashlist <hashlist> and its contents. The user data that its entries
+ * point to is *not* removed.
+ */
+void hlDestroy(HashList *hashlist);
 
 #endif

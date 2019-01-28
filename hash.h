@@ -56,13 +56,13 @@ HashTable *hashCreateTable(void);
  * Clear table <tbl> i.e. remove all its entries. The user data that the
  * entries point to is *not* removed.
  */
-void hashClearTable(HashTable *tbl);
+void hashClear(HashTable *tbl);
 
 /*
  * Delete hash table <tbl> and its contents. The user data that its
  * entries point to is *not* removed.
  */
-void hashDeleteTable(HashTable *tbl);
+void hashDestroy(HashTable *tbl);
 
 /*
  * Add an entry that points to <data> to <tbl>. Associate it with <key>, whose
@@ -98,23 +98,6 @@ void *hashGet(const HashTable *tbl, const void *key, int key_len);
  * this function calls abort().
  */
 void hashDel(HashTable *tbl, const void *key, int key_len);
-
-/*
- * Get the first entry in <tbl> and return its data pointer through <ptr>. Returns 1 if an entry was
- * found, otherwise 0 (in which case <*ptr> is not modified). Note that <*ptr> may be NULL if the
- * found entry contains a NULL pointer.
- */
-int hashFirst(HashTable *tbl, void **ptr);
-
-/*
- * Get the next entry in <tbl> and return its data pointer through <ptr>. Returns 1 if an entry was
- * found, otherwise 0 (in which case <*ptr> is not modified). Note that hashNext() and hashFirst()
- * above are not particularly quick. If you need to iterate over the entries in the hash table, and
- * do it quickly, it might be best to also put those entries in a linked list and use that to
- * iterate, rather than these functions. Also, these functions almost certainly return entries in a
- * different order than what they were added with.
- */
-int hashNext(HashTable *tbl, void **ptr);
 
 /*
  * Return a pointer array containing the number of entries in each hash bucket.

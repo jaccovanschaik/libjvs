@@ -96,7 +96,7 @@ HashTable *hashCreateTable(void)
  * Clear table <tbl> i.e. remove all its entries. The user data that the
  * entries point to is *not* removed.
  */
-void hashClearTable(HashTable *tbl)
+void hashClear(HashTable *tbl)
 {
    int i;
    HashEntry *entry;
@@ -113,9 +113,9 @@ void hashClearTable(HashTable *tbl)
  * Delete hash table <tbl> and its contents. The user data that its
  * entries point to is *not* removed.
  */
-void hashDeleteTable(HashTable *tbl)
+void hashDestroy(HashTable *tbl)
 {
-    hashClearTable(tbl);
+    hashClear(tbl);
 
     free(tbl);
 }
@@ -392,7 +392,7 @@ int main(int argc, char *argv[])
     make_sure_that(hashContains(table, HASH_STRING("three")) == FALSE);
     make_sure_that(hashContains(table, HASH_STRING("four"))  == FALSE);
 
-    hashDeleteTable(table);
+    hashDestroy(table);
 
     return errors;
 }

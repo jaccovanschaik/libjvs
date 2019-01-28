@@ -4,7 +4,7 @@
  * Part of libjvs.
  *
  * Copyright:	(c) 2013 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:	$Id: options.c 317 2019-01-28 17:23:14Z jacco $
+ * Version:	$Id: options.c 318 2019-01-28 18:12:00Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -17,11 +17,18 @@
 #include <stdio.h>
 
 #include "pa.h"
+#include "hashlist.h"
 #include "hash.h"
 #include "buffer.h"
 #include "utils.h"
 
 #include "options.h"
+
+typedef struct {
+    ListNode _node;
+    char *opt;
+    char *arg;
+} OptionResult;
 
 typedef struct {
     const char *long_name;
@@ -31,7 +38,7 @@ typedef struct {
 
 struct Options {
     PointerArray options;
-    HashTable results;
+    HashList results;
     Buffer errors;
 };
 
@@ -76,12 +83,17 @@ static Option *opt_find_long(Options *options, const char *long_name)
 static void opt_add_result(Options *options,
         const char *argv0, const Option *opt, const char *arg)
 {
-    if (hashContains(&options->results, HASH_STRING(opt->long_name))) {
+    if (hlContains(&options->results, HASH_STRING(opt->long_name))) {
         fprintf(stderr, "%s: option '--%s/-%c' given more than once\n",
                 argv0, opt->long_name, opt->short_name);
     }
 
-    hashAdd(&options->results, arg ? strdup(arg) : NULL, HASH_STRING(opt->long_name));
+    OptionResult *result = calloc(1, sizeof(*result));
+
+    result->arg = arg ? strdup(arg) : NULL;
+    result->opt = strdup(opt->long_name);
+
+    hlAdd(&options->results, result, result->opt, strlen(result->opt));
 }
 
 /*
@@ -174,7 +186,7 @@ int optParse(Options *options, int argc, char *argv[])
  */
 int optIsSet(Options *options, const char *long_name)
 {
-    return hashContains(&options->results, HASH_STRING(long_name));
+    return hlContains(&options->results, HASH_STRING(long_name));
 }
 
 /*
@@ -183,9 +195,9 @@ int optIsSet(Options *options, const char *long_name)
  */
 const char *optArg(Options *options, const char *long_name, const char *fallback)
 {
-    const char *arg = hashGet(&options->results, HASH_STRING(long_name));
+    OptionResult *result = hlGet(&options->results, HASH_STRING(long_name));
 
-    return arg ? arg : fallback;
+    return (result && result->arg) ? result->arg : fallback;
 }
 
 /*
@@ -194,7 +206,7 @@ const char *optArg(Options *options, const char *long_name, const char *fallback
 void optClear(Options *options)
 {
     int i;
-    void *ptr;
+    OptionResult *result, *next;
 
     for (i = 0; i < paCount(&options->options); i++) {
         Option *opt = paGet(&options->options, i);
@@ -202,12 +214,17 @@ void optClear(Options *options)
         free(opt);
     }
 
-    for (i = hashFirst(&options->results, &ptr); i; i = hashNext(&options->results, &ptr)) {
-        if (ptr != NULL) free(ptr);
+    for (result = hlHead(&options->results); result; result = next) {
+        next = hlNext(result);
+
+        hlDel(&options->results, HASH_STRING(result->opt));
+
+        free(result->arg);
+        free(result->opt);
+        free(result);
     }
 
     paClear(&options->options);
-    hashClearTable(&options->results);
     bufReset(&options->errors);
 }
 
