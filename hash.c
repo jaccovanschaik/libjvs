@@ -183,7 +183,7 @@ void hashSet(HashTable *tbl, const void *data, const void *key, int key_len)
  * Return TRUE if <tbl> has an entry for <key> with length <key_len>, FALSE otherwise. <tbl> and
  * <key> must not be NULL, <key_len> must be greater than 0.
  */
-int hashIsSet(const HashTable *tbl, const void *key, int key_len)
+int hashContains(const HashTable *tbl, const void *key, int key_len)
 {
    HashEntry *entry;
    HashKey hash_key = hash(key, key_len);
@@ -238,89 +238,6 @@ void hashDel(HashTable *tbl, const void *key, int key_len)
 
    free(entry->key);
    free(entry);
-}
-
-/*
- * Return the address of the next non-empty bucket after <after>, or NULL if there is none.
- */
-static List *hash_next_bucket(HashTable *tbl, List *after)
-{
-    int i;
-
-    if (after == NULL)
-        i = 0;
-    else
-        i = after - tbl->bucket + 1;
-
-    do {
-        after = tbl->bucket + i;
-
-        if (!listIsEmpty(after)) {
-            return after;
-        }
-    } while (++i < HASH_BUCKETS);
-
-    return NULL;
-}
-
-/*
- * Return the address of the next entry after <after>, or NULL if there is none.
- */
-static HashEntry *hash_next_entry(HashTable *tbl, HashEntry *after)
-{
-    List *next_bucket;
-
-    if (after == NULL) {
-        if ((next_bucket = hash_next_bucket(tbl, NULL)) == NULL)
-            return NULL;
-        else
-            return listHead(next_bucket);
-    }
-    else if (listNext(after) != NULL)
-        return listNext(after);
-    else if ((next_bucket = hash_next_bucket(tbl, listContaining(after))) != NULL)
-        return listHead(next_bucket);
-    else
-        return NULL;
-}
-
-/*
- * Get the first entry in <tbl> and return its data pointer through <ptr>. Returns 1 if an entry was
- * found, otherwise 0 (in which case <*ptr> is not modified). Note that <*ptr> may be NULL if the
- * found entry contains a NULL pointer.
- */
-int hashFirst(HashTable *tbl, void **ptr)
-{
-    HashEntry *first = hash_next_entry(tbl, NULL);
-
-    if (first == NULL)
-        return 0;
-    else {
-        tbl->next_entry = hash_next_entry(tbl, first);
-        *ptr = (void *) first->data;
-        return 1;
-    }
-}
-
-/*
- * Get the next entry in <tbl> and return its data pointer through <ptr>. Returns 1 if an entry was
- * found, otherwise 0 (in which case <*ptr> is not modified). Note that hashNext() and hashFirst()
- * above are not particularly quick. If you need to iterate over the entries in the hash table, and
- * do it quickly, it might be best to also put those entries in a linked list and use that to
- * iterate, rather than these functions. Also, these functions almost certainly return entries in a
- * different order than what they were added with.
- */
-int hashNext(HashTable *tbl, void **ptr)
-{
-    if (tbl->next_entry == NULL)
-        return 0;
-    else {
-        *ptr = (void *) tbl->next_entry->data;
-
-        tbl->next_entry = hash_next_entry(tbl, tbl->next_entry);
-
-        return 1;
-    }
 }
 
 /*
@@ -380,9 +297,6 @@ int main(int argc, char *argv[])
         char *s;
     };
 
-    struct Data *item;
-    void *ptr;
-
     struct Data data[] = {
         { 0, "zero" },
         { 1, "one" },
@@ -410,17 +324,17 @@ int main(int argc, char *argv[])
     make_sure_that(hashGet(table, HASH_STRING("three")) == &data[3]);
     make_sure_that(hashGet(table, HASH_STRING("four"))  == &data[4]);
 
-    make_sure_that(hashIsSet(table, HASH_VALUE(data[0].i)));
-    make_sure_that(hashIsSet(table, HASH_VALUE(data[1].i)));
-    make_sure_that(hashIsSet(table, HASH_VALUE(data[2].i)));
-    make_sure_that(hashIsSet(table, HASH_VALUE(data[3].i)));
-    make_sure_that(hashIsSet(table, HASH_VALUE(data[4].i)));
+    make_sure_that(hashContains(table, HASH_VALUE(data[0].i)));
+    make_sure_that(hashContains(table, HASH_VALUE(data[1].i)));
+    make_sure_that(hashContains(table, HASH_VALUE(data[2].i)));
+    make_sure_that(hashContains(table, HASH_VALUE(data[3].i)));
+    make_sure_that(hashContains(table, HASH_VALUE(data[4].i)));
 
-    make_sure_that(hashIsSet(table, HASH_STRING("zero")));
-    make_sure_that(hashIsSet(table, HASH_STRING("one")));
-    make_sure_that(hashIsSet(table, HASH_STRING("two")));
-    make_sure_that(hashIsSet(table, HASH_STRING("three")));
-    make_sure_that(hashIsSet(table, HASH_STRING("four")));
+    make_sure_that(hashContains(table, HASH_STRING("zero")));
+    make_sure_that(hashContains(table, HASH_STRING("one")));
+    make_sure_that(hashContains(table, HASH_STRING("two")));
+    make_sure_that(hashContains(table, HASH_STRING("three")));
+    make_sure_that(hashContains(table, HASH_STRING("four")));
 
     for (i = 0; i < count; i++) {
         hashDel(table, HASH_VALUE(i));
@@ -438,17 +352,17 @@ int main(int argc, char *argv[])
     make_sure_that(hashGet(table, HASH_STRING("three")) == &data[3]);
     make_sure_that(hashGet(table, HASH_STRING("four"))  == &data[4]);
 
-    make_sure_that(hashIsSet(table, HASH_VALUE(data[0].i)) == FALSE);
-    make_sure_that(hashIsSet(table, HASH_VALUE(data[1].i)) == FALSE);
-    make_sure_that(hashIsSet(table, HASH_VALUE(data[2].i)) == FALSE);
-    make_sure_that(hashIsSet(table, HASH_VALUE(data[3].i)) == FALSE);
-    make_sure_that(hashIsSet(table, HASH_VALUE(data[4].i)) == FALSE);
+    make_sure_that(hashContains(table, HASH_VALUE(data[0].i)) == FALSE);
+    make_sure_that(hashContains(table, HASH_VALUE(data[1].i)) == FALSE);
+    make_sure_that(hashContains(table, HASH_VALUE(data[2].i)) == FALSE);
+    make_sure_that(hashContains(table, HASH_VALUE(data[3].i)) == FALSE);
+    make_sure_that(hashContains(table, HASH_VALUE(data[4].i)) == FALSE);
 
-    make_sure_that(hashIsSet(table, HASH_STRING("zero")));
-    make_sure_that(hashIsSet(table, HASH_STRING("one")));
-    make_sure_that(hashIsSet(table, HASH_STRING("two")));
-    make_sure_that(hashIsSet(table, HASH_STRING("three")));
-    make_sure_that(hashIsSet(table, HASH_STRING("four")));
+    make_sure_that(hashContains(table, HASH_STRING("zero")));
+    make_sure_that(hashContains(table, HASH_STRING("one")));
+    make_sure_that(hashContains(table, HASH_STRING("two")));
+    make_sure_that(hashContains(table, HASH_STRING("three")));
+    make_sure_that(hashContains(table, HASH_STRING("four")));
 
     for (i = 0; i < count; i++) {
         hashDel(table, HASH_STRING(data[i].s));
@@ -466,45 +380,17 @@ int main(int argc, char *argv[])
     make_sure_that(hashGet(table, HASH_STRING("three")) == NULL);
     make_sure_that(hashGet(table, HASH_STRING("four"))  == NULL);
 
-    make_sure_that(hashIsSet(table, HASH_VALUE(data[0].i)) == FALSE);
-    make_sure_that(hashIsSet(table, HASH_VALUE(data[1].i)) == FALSE);
-    make_sure_that(hashIsSet(table, HASH_VALUE(data[2].i)) == FALSE);
-    make_sure_that(hashIsSet(table, HASH_VALUE(data[3].i)) == FALSE);
-    make_sure_that(hashIsSet(table, HASH_VALUE(data[4].i)) == FALSE);
+    make_sure_that(hashContains(table, HASH_VALUE(data[0].i)) == FALSE);
+    make_sure_that(hashContains(table, HASH_VALUE(data[1].i)) == FALSE);
+    make_sure_that(hashContains(table, HASH_VALUE(data[2].i)) == FALSE);
+    make_sure_that(hashContains(table, HASH_VALUE(data[3].i)) == FALSE);
+    make_sure_that(hashContains(table, HASH_VALUE(data[4].i)) == FALSE);
 
-    make_sure_that(hashIsSet(table, HASH_STRING("zero"))  == FALSE);
-    make_sure_that(hashIsSet(table, HASH_STRING("one"))   == FALSE);
-    make_sure_that(hashIsSet(table, HASH_STRING("two"))   == FALSE);
-    make_sure_that(hashIsSet(table, HASH_STRING("three")) == FALSE);
-    make_sure_that(hashIsSet(table, HASH_STRING("four"))  == FALSE);
-
-    hashDeleteTable(table);
-
-    table = hashCreateTable();
-
-    for (i = 0; i < count; i++) {
-        hashAdd(table, data + i, HASH_VALUE(i));
-    }
-
-    for (i = hashFirst(table, &ptr); i != 0; i = hashNext(table, &ptr)) {
-        item = ptr;
-
-        hashDel(table, HASH_VALUE(item->i));
-    }
-
-    make_sure_that(hashFirst(table, &ptr) == 0);
-
-    for (i = 0; i < count; i++) {
-        hashAdd(table, data + i, HASH_STRING(data[i].s));
-    }
-
-    for (i = hashFirst(table, &ptr); i != 0; i = hashNext(table, &ptr)) {
-        item = ptr;
-
-        hashDel(table, HASH_STRING(item->s));
-    }
-
-    make_sure_that(hashFirst(table, &ptr) == 0);
+    make_sure_that(hashContains(table, HASH_STRING("zero"))  == FALSE);
+    make_sure_that(hashContains(table, HASH_STRING("one"))   == FALSE);
+    make_sure_that(hashContains(table, HASH_STRING("two"))   == FALSE);
+    make_sure_that(hashContains(table, HASH_STRING("three")) == FALSE);
+    make_sure_that(hashContains(table, HASH_STRING("four"))  == FALSE);
 
     hashDeleteTable(table);
 

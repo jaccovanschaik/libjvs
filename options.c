@@ -4,7 +4,7 @@
  * Part of libjvs.
  *
  * Copyright:	(c) 2013 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:	$Id: options.c 279 2016-12-15 19:39:08Z jacco $
+ * Version:	$Id: options.c 317 2019-01-28 17:23:14Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -76,7 +76,7 @@ static Option *opt_find_long(Options *options, const char *long_name)
 static void opt_add_result(Options *options,
         const char *argv0, const Option *opt, const char *arg)
 {
-    if (hashIsSet(&options->results, HASH_STRING(opt->long_name))) {
+    if (hashContains(&options->results, HASH_STRING(opt->long_name))) {
         fprintf(stderr, "%s: option '--%s/-%c' given more than once\n",
                 argv0, opt->long_name, opt->short_name);
     }
@@ -174,7 +174,7 @@ int optParse(Options *options, int argc, char *argv[])
  */
 int optIsSet(Options *options, const char *long_name)
 {
-    return hashIsSet(&options->results, HASH_STRING(long_name));
+    return hashContains(&options->results, HASH_STRING(long_name));
 }
 
 /*

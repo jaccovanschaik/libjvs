@@ -32,7 +32,6 @@ typedef struct HashEntry HashEntry;
 
 typedef struct {
     List bucket[HASH_BUCKETS];
-    HashEntry *next_entry;
 } HashTable;
 
 /* Use these macros to provide the <key> and <key_len> parameters in the
@@ -84,7 +83,7 @@ void hashSet(HashTable *tbl, const void *data, const void *key, int key_len);
  * Return TRUE if <tbl> has an entry for <key> with length <key_len>, FALSE otherwise. <tbl> and
  * <key> must not be NULL, <key_len> must be greater than 0.
  */
-int hashIsSet(const HashTable *tbl, const void *key, int key_len);
+int hashContains(const HashTable *tbl, const void *key, int key_len);
 
 /*
  * Get the data associated with <key>, whose length is <key_len> from <tbl>. If
