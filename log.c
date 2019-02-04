@@ -149,7 +149,7 @@ static void log_get_time(struct timeval *tv)
 #endif
 }
 
-static void log_format_time(struct tm *tm, struct timeval *tv, int precision)
+static void log_add_time(struct tm *tm, struct timeval *tv, int precision)
 {
     bufAddF(&scratch, "%02d:%02d:", tm->tm_hour, tm->tm_min);
 
@@ -163,7 +163,7 @@ static void log_format_time(struct tm *tm, struct timeval *tv, int precision)
     }
 }
 
-static void log_format_date(struct tm *tm)
+static void log_add_date(struct tm *tm)
 {
     bufAddF(&scratch, "%04d-%02d-%02d%s",
             tm->tm_year + 1900, tm->tm_mon + 1, tm->tm_mday, separator);
@@ -398,9 +398,9 @@ void logWithSeparator(const char *fmt, ...)
 }
 
 /*
- * Write the requested prefixes into the log message.
+ * Add the requested prefixes to the log message.
  */
-static void log_write_prefixes(const char *file, int line, const char *func)
+static void log_add_prefixes(const char *file, int line, const char *func)
 {
     struct tm tm_local = { 0 }, tm_utc = { 0 };
     static struct timeval tv = { 0 };
@@ -421,28 +421,28 @@ static void log_write_prefixes(const char *file, int line, const char *func)
             if (tv.tv_sec == -1) log_get_time(&tv);
             if (tm_local.tm_sec == -1) localtime_r(&tv.tv_sec, &tm_local);
 
-            log_format_date(&tm_local);
+            log_add_date(&tm_local);
 
             break;
         case LOG_PT_UDATE:
             if (tv.tv_sec == -1) log_get_time(&tv);
             if (tm_utc.tm_sec == -1) gmtime_r(&tv.tv_sec, &tm_utc);
 
-            log_format_date(&tm_utc);
+            log_add_date(&tm_utc);
 
             break;
         case LOG_PT_LTIME:
             if (tv.tv_sec == -1) log_get_time(&tv);
             if (tm_local.tm_sec == -1) localtime_r(&tv.tv_sec, &tm_local);
 
-            log_format_time(&tm_local, &tv, pfx->u.precision);
+            log_add_time(&tm_local, &tv, pfx->u.precision);
 
             break;
         case LOG_PT_UTIME:
             if (tv.tv_sec == -1) log_get_time(&tv);
-            if (tm_local.tm_sec == -1) gmtime_r(&tv.tv_sec, &tm_utc);
+            if (tm_utc.tm_sec == -1) gmtime_r(&tv.tv_sec, &tm_utc);
 
-            log_format_time(&tm_utc, &tv, pfx->u.precision);
+            log_add_time(&tm_utc, &tv, pfx->u.precision);
 
             break;
         case LOG_PT_FILE:
@@ -464,7 +464,7 @@ static void log_write_prefixes(const char *file, int line, const char *func)
 /*
  * Write a log message out to <channels>.
  */
-static void log_output(uint64_t channels)
+static void log_write(uint64_t channels)
 {
     LOG_Output *out;
 
@@ -533,13 +533,13 @@ void _logWrite(uint64_t channels,
 
     bufClear(&scratch);
 
-    log_write_prefixes(file, line, func);
+    log_add_prefixes(file, line, func);
 
     va_start(ap, fmt);
     bufAddV(&scratch, fmt, ap);
     va_end(ap);
 
-    log_output(channels);
+    log_write(channels);
 
     pthread_mutex_unlock(&scratch_mutex);
 }
@@ -561,7 +561,7 @@ void logContinue(uint64_t channels, const char *fmt, ...)
     bufAddV(&scratch, fmt, ap);
     va_end(ap);
 
-    log_output(channels);
+    log_write(channels);
 
     pthread_mutex_unlock(&scratch_mutex);
 }
