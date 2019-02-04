@@ -27,7 +27,7 @@
 /*
  * Increase the size of <buf> to allow for another <len> bytes.
  */
-static void buf_increase(Buffer *buf, size_t len)
+static void buf_increase_by(Buffer *buf, size_t len)
 {
     int new_len;
 
@@ -66,12 +66,13 @@ Buffer *bufInit(Buffer *buf)
 }
 
 /*
- * Reset buffer <buf> to a virgin state, freeing its internal data. Use this if you have an
- * automatically allocated Buffer and want to completely discard its contents before it goes out of
- * scope. If <buf> was dynamically allocated (using bufCreate() above) you may free() it after
- * calling this function (or you could simply call bufDestroy()).
+ * Clear <buf>, freeing its internal data. Use this if you have an automatically
+ * allocated Buffer and want to completely discard its contents before it goes
+ * out of scope. If <buf> was dynamically allocated (using bufCreate() above)
+ * you may free() it after calling this function (or you could simply call
+ * bufDestroy()).
  */
-void bufReset(Buffer *buf)
+void bufClear(Buffer *buf)
 {
     if (buf->data) free(buf->data);
 
@@ -123,7 +124,7 @@ Buffer *bufAdd(Buffer *buf, const void *data, size_t len)
 {
     dbgAssert(stderr, len >= 0, "bufAdd called with length %zd", len);
 
-    buf_increase(buf, len);
+    buf_increase_by(buf, len);
 
     memcpy(buf->data + buf->used, data, len);
 
@@ -157,7 +158,7 @@ Buffer *bufAddV(Buffer *buf, const char *fmt, va_list ap)
     size = vsnprintf(NULL, 0, fmt, my_ap);
     va_end(my_ap);
 
-    buf_increase(buf, size + 1);
+    buf_increase_by(buf, size + 1);
 
     va_copy(my_ap, ap);
     vsnprintf(buf->data + buf->used, size + 1, fmt, my_ap);
@@ -197,7 +198,7 @@ Buffer *bufAddS(Buffer *buf, const char *str)
  */
 Buffer *bufSet(Buffer *buf, const void *data, size_t len)
 {
-    bufClear(buf);
+    bufReset(buf);
 
     return bufAdd(buf, data, len);
 }
@@ -207,7 +208,7 @@ Buffer *bufSet(Buffer *buf, const void *data, size_t len)
  */
 Buffer *bufSetC(Buffer *buf, char c)
 {
-    bufClear(buf);
+    bufReset(buf);
 
     return bufAdd(buf, &c, 1);
 }
@@ -234,7 +235,7 @@ Buffer *bufSetF(Buffer *buf, const char *fmt, ...)
  */
 Buffer *bufSetV(Buffer *buf, const char *fmt, va_list ap)
 {
-    bufClear(buf);
+    bufReset(buf);
 
     return bufAddV(buf, fmt, ap);
 }
@@ -258,11 +259,10 @@ const char *bufGet(const Buffer *buf)
 }
 
 /*
- * Clear the data in <buf>. Not that this function deviates from the "ground rules" in README, in
- * that it does not free <buf>'s internal data, so you shouldn't free() <buf> after this. If you
- * want to do that, use bufReset() instead.
+ * Reset <buf> to an empty state. Does not free its internal data (use
+ * bufClear() for that).
  */
-Buffer *bufClear(Buffer *buf)
+Buffer *bufReset(Buffer *buf)
 {
     if (buf->data != NULL) buf->data[0] = 0;
 
@@ -447,7 +447,7 @@ int main(int argc, char *argv[])
     Buffer buf2 = { 0 };
     Buffer *buf3;
 
-    bufClear(&buf1);
+    bufReset(&buf1);
 
     make_sure_that(bufLen(&buf1) == 0);
     make_sure_that(bufIsEmpty(&buf1));
@@ -493,7 +493,7 @@ int main(int argc, char *argv[])
     make_sure_that(bufLen(&buf1) == 6);
     make_sure_that(strcmp(bufGet(&buf1), "ABCDEF") == 0);
 
-    bufClear(&buf1);
+    bufReset(&buf1);
 
     make_sure_that(bufLen(&buf1) == 0);
     make_sure_that(strcmp(bufGet(&buf1), "") == 0);
@@ -594,20 +594,20 @@ int main(int argc, char *argv[])
     {
         const char *name[] = { "Mills", "Berry", "Buck", "Stipe" };
 
-        bufClear(&buf1);
+        bufReset(&buf1);
 
         bufList(&buf1, ", ", " and ", TRUE, TRUE, "%s", name[0]);
 
         make_sure_that(strcmp(bufGet(&buf1), "Mills") == 0);
 
-        bufClear(&buf1);
+        bufReset(&buf1);
 
         bufList(&buf1, ", ", " and ", TRUE, FALSE, "%s", name[0]);
         bufList(&buf1, ", ", " and ", FALSE, TRUE, "%s", name[1]);
 
         make_sure_that(strcmp(bufGet(&buf1), "Mills and Berry") == 0);
 
-        bufClear(&buf1);
+        bufReset(&buf1);
 
         bufList(&buf1, ", ", " and ", TRUE,  FALSE, "%s", name[0]);
         bufList(&buf1, ", ", " and ", FALSE, FALSE, "%s", name[1]);
@@ -615,7 +615,7 @@ int main(int argc, char *argv[])
 
         make_sure_that(strcmp(bufGet(&buf1), "Mills, Berry and Buck") == 0);
 
-        bufClear(&buf1);
+        bufReset(&buf1);
 
         bufList(&buf1, ", ", " and ", TRUE,  FALSE, "%s", name[0]);
         bufList(&buf1, ", ", " and ", FALSE, FALSE, "%s", name[1]);
@@ -625,8 +625,8 @@ int main(int argc, char *argv[])
         make_sure_that(strcmp(bufGet(&buf1), "Mills, Berry, Buck and Stipe") == 0);
     }
 
-    bufReset(&buf1);
-    bufReset(&buf2);
+    bufClear(&buf1);
+    bufClear(&buf2);
 
     return errors;
 }

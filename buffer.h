@@ -37,12 +37,13 @@ Buffer *bufCreate(void);
 Buffer *bufInit(Buffer *buf);
 
 /*
- * Reset buffer <buf> to a virgin state, freeing its internal data. Use this if you have an
- * automatically allocated Buffer and want to completely discard its contents before it goes out of
- * scope. If <buf> was dynamically allocated (using bufCreate() above) you may free() it after
- * calling this function (or you could simply call bufDestroy()).
+ * Clear <buf>, freeing its internal data. Use this if you have an automatically
+ * allocated Buffer and want to completely discard its contents before it goes
+ * out of scope. If <buf> was dynamically allocated (using bufCreate() above)
+ * you may free() it after calling this function (or you could simply call
+ * bufDestroy()).
  */
-void bufReset(Buffer *buf);
+void bufClear(Buffer *buf);
 
 /*
  * Detach and return the contents of <buf>, and reinitialize the buffer. The caller is responsible
@@ -80,7 +81,7 @@ Buffer *bufAddV(Buffer *buf, const char *fmt, va_list ap);
 /*
  * Append a string to <buf>, formatted according to <fmt> and the subsequent parameters.
  */
-Buffer *bufAddF(Buffer *buf, const char *fmt, ...) __attribute__ ((format (printf, 2, 3)));
+Buffer *bufAddF(Buffer *buf, const char *fmt, ...);
 
 /*
  * Append the null-terminated string <str> to <buf>.
@@ -100,7 +101,7 @@ Buffer *bufSetC(Buffer *buf, char c);
 /*
  * Set <buf> to a string formatted according to <fmt> and the subsequent parameters.
  */
-Buffer *bufSetF(Buffer *buf, const char *fmt, ...) __attribute__ ((format (printf, 2, 3)));
+Buffer *bufSetF(Buffer *buf, const char *fmt, ...);
 
 /*
  * Replace <buf> with a string formatted according to <fmt> and the subsequent parameters contained
@@ -121,11 +122,10 @@ Buffer *bufSetS(Buffer *buf, const char *str);
 const char *bufGet(const Buffer *buf);
 
 /*
- * Clear the data in <buf>. Not that this function deviates from the "ground rules" in README, in
- * that it does not free <buf>'s internal data, so you shouldn't free() <buf> after this. If you
- * want to do that, use bufReset() instead.
+ * Reset <buf> to an empty state. Does not free its internal data (use
+ * bufClear() for that).
  */
-Buffer *bufClear(Buffer *buf);
+Buffer *bufReset(Buffer *buf);
 
 /*
  * Get the number of valid bytes in <buf>.
@@ -183,8 +183,8 @@ Buffer *bufUnpack(Buffer *buf, ...);
  * is_first to TRUE when passing in "Tom", set is_last to TRUE when passing in "Harry", set them
  * both to FALSE for "Dick". Returns the same pointer to <buf> that was passed in.
  */
-Buffer *bufList(Buffer *buf, const char *sep1, const char *sep2, int is_first, int is_last,
-        const char *fmt, ...) __attribute__ ((format (printf, 6, 7)));
+Buffer *bufList(Buffer *buf, const char *sep1, const char *sep2,
+        int is_first, int is_last, const char *fmt, ...);
 
 #ifdef __cplusplus
 }
