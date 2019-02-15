@@ -254,7 +254,7 @@ static DP_Object *dp_parse(DP_Stream *stream, int nesting_level)
                     dp_add_object(DP_CONTAINER, &name, stream->file, stream->line, &root, &last);
 
                 if ((obj->u.c = dp_parse(stream, nesting_level + 1)) == NULL) {
-                    state = DP_STATE_ERROR;
+                    state = bufIsEmpty(&stream->error) ?  DP_STATE_NONE : DP_STATE_ERROR;
                 }
             }
             else if (c == '}') {
@@ -361,7 +361,8 @@ static DP_Object *dp_parse(DP_Stream *stream, int nesting_level)
             }
             else if (isspace(c) || c == '{' || c == '}' || c == EOF) {
                 DP_Object *obj =
-                    dp_add_object(DP_INT, &name, stream->file, stream->line, &root, &last);
+                    dp_add_object(DP_INT, &name, stream->file,
+                            c == '\n' ? stream->line - 1 : stream->line, &root, &last);
 
                 if (dp_interpret_number(bufGet(&value), obj) == 0) {
                     state = DP_STATE_NONE;
@@ -563,6 +564,7 @@ void dpFree(DP_Object *root)
 void dpClose(DP_Stream *stream)
 {
     if (stream->type == DP_ST_FILE || stream->type == DP_ST_FD) {
+        // These I have opened myself, so I should close them too.
         if (stream->u.fp != NULL) fclose(stream->u.fp);
     }
 
