@@ -574,9 +574,9 @@ int strunpack(const char *str, int size, ...)
 }
 
 /*
- * Expand environment variables in <text> and return the result. Non-existing 
- * variables are replaced with empty strings. Any dollar sign followed by 0 or 
- * more letters, digits or underscores is assumed to be an environment variable 
+ * Expand environment variables in <text> and return the result. Non-existing
+ * variables are replaced with empty strings. Any dollar sign followed by 0 or
+ * more letters, digits or underscores is assumed to be an environment variable
  * (which is probably more than your shell).
  */
 char *env_expand(const char *text)
