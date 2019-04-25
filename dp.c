@@ -1,7 +1,24 @@
 /*
  * dp.c: Data parser
  *
- * Part of libjvs.
+ * A data file consists of a sequence of name/value pairs. Names are unquoted
+ * strings, starting with a letter or underscore and followed by any number of
+ * letters, underscores or digits. Values are any of the following:
+ *
+ * - A double-quoted string;
+ * - A long integer (Hexadecimal if starting with 0x, octal if starting with 0,
+ *   otherwise decimal);
+ * - A double-precision float;
+ * - A container, started with { and ended with }, containing a new sequence of
+ *   name/value pairs.
+ *
+ * Data to be read can be given as a filename, a file descriptor, a FILE pointer
+ * or a character string. The first object in the data is returned to the caller
+ * as a DP_Object, and the caller can go to subsequent objects by following a
+ * "next" pointer. Contents of the objects are stored in a union based on the
+ * type of object described above.
+ *
+ * Data parser is part of libjvs.
  *
  * Copyright:	(c) 2013 Jacco van Schaik (jacco@jaccovanschaik.net)
  *
@@ -23,6 +40,8 @@
 
 #include "dp.h"
 
+/* State of the parser. */
+
 typedef enum {
     DP_STATE_NONE,
     DP_STATE_COMMENT,
@@ -34,13 +53,17 @@ typedef enum {
     DP_STATE_END
 } DP_State;
 
+/* Type of the stream. */
+
 typedef enum {
     DP_ST_NONE,
-    DP_ST_FILE,
-    DP_ST_FD,
-    DP_ST_FP,
-    DP_ST_STRING
+    DP_ST_FILE,     /* The caller gave me a filename. */
+    DP_ST_FD,       /* The caller gave me a file descriptor. */
+    DP_ST_FP,       /* The caller gave me a FILE pointer. */
+    DP_ST_STRING    /* The caller gave me a string to parse. */
 } DP_StreamType;
+
+/* Definition of a stream. */
 
 struct DP_Stream {
     DP_StreamType type;
@@ -63,7 +86,7 @@ static void dp_unget_char(DP_Stream *stream, int c)
     if (stream->type == DP_ST_STRING) {
         stream->u.str--;
 
-        /* We can't overwrite the string that the user has given us sinze it's declared const, so
+        /* We can't overwrite the string that the user has given us since it's declared const, so
          * we'll just assert that the character we're pushing back is the same that was already
          * there. */
 
@@ -385,8 +408,8 @@ static DP_Object *dp_parse(DP_Stream *stream, int nesting_level)
         }
     }
 
-    bufReset(&name);
-    bufReset(&value);
+    bufClear(&name);
+    bufClear(&value);
 
     if (state == DP_STATE_ERROR) {
         dpFree(root);

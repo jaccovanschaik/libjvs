@@ -3,7 +3,24 @@
 
 /* dp.c: Data parser
  *
- * Part of libjvs.
+ * A data file consists of a sequence of name/value pairs. Names are unquoted
+ * strings, starting with a letter or underscore and followed by any number of
+ * letters, underscores or digits. Values are any of the following:
+ *
+ * - A double-quoted string;
+ * - A long integer (Hexadecimal if starting with 0x, octal if starting with 0,
+ *   otherwise decimal);
+ * - A double-precision float;
+ * - A container, started with { and ended with }, containing a new sequence of
+ *   name/value pairs.
+ *
+ * Data to be read can be given as a filename, a file descriptor, a FILE pointer
+ * or a character string. The first object in the data is returned to the caller
+ * as a DP_Object, and the caller can go to subsequent objects by following a
+ * "next" pointer. Contents of the objects are stored in a union based on the
+ * type of object described above.
+ *
+ * Data parser is part of libjvs.
  *
  * Copyright:   (c) 2013 Jacco van Schaik (jacco@jaccovanschaik.net)
  *
@@ -20,16 +37,16 @@ extern "C" {
 typedef struct DP_Stream DP_Stream;
 typedef struct DP_Object DP_Object;
 
-/* Type of the object. */
+/* DP_Object types. */
 
 typedef enum {
-    DP_STRING,
-    DP_INT,
-    DP_FLOAT,
-    DP_CONTAINER
+    DP_STRING,      /* A (double-quoted) string. */
+    DP_INT,         /* A (long) integer. */
+    DP_FLOAT,       /* A (double-precision) float. */
+    DP_CONTAINER    /* A container with more DP_Objects. */
 } DP_Type;
 
-/* The object itself. */
+/* The DP_Object itself. */
 
 struct DP_Object {
     DP_Object *next;    /* Next object in the sequence. */
