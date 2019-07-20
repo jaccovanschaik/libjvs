@@ -91,13 +91,11 @@ static char *separator = NULL;
 
 static List outputs = { 0 };        /* List of outputs. */
 static List prefixes = { 0 };       /* List of prefixes. */
-static Buffer scratch = { 0 };      /* Scratch buffer for building messages. */
 
 /* Mutexes to guard multi-threaded access to these. */
 
-pthread_mutex_t outputs_mutex = PTHREAD_MUTEX_INITIALIZER;
-pthread_mutex_t prefixes_mutex = PTHREAD_MUTEX_INITIALIZER;
-pthread_mutex_t scratch_mutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t outputs_mutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t prefixes_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 /*
  * Add and return a logging output of type <type> on <channels>.
@@ -149,24 +147,30 @@ static void log_get_time(struct timeval *tv)
 #endif
 }
 
-static void log_add_time(struct tm *tm, struct timeval *tv, int precision)
+/*
+ * Add the time in <tm> and <tv>, using <precision> sub-second digits, to <buf>.
+ */
+static void log_add_time(Buffer *buf, struct tm *tm, struct timeval *tv, int precision)
 {
-    bufAddF(&scratch, "%02d:%02d:", tm->tm_hour, tm->tm_min);
+    bufAddF(buf, "%02d:%02d:", tm->tm_hour, tm->tm_min);
 
     if (precision == 0) {
-        bufAddF(&scratch, "%02d%s", tm->tm_sec, separator);
+        bufAddF(buf, "%02d", tm->tm_sec);
     }
     else {
         double seconds = (double) tm->tm_sec + (double) tv->tv_usec / 1000000.0;
 
-        bufAddF(&scratch, "%0*.*f%s", 3 + precision, precision, seconds, separator);
+        bufAddF(buf, "%0*.*f", 3 + precision, precision, seconds);
     }
 }
 
-static void log_add_date(struct tm *tm)
+/*
+ * Add the date in <tm> to <buf>.
+ */
+static void log_add_date(Buffer *buf, struct tm *tm)
 {
-    bufAddF(&scratch, "%04d-%02d-%02d%s",
-            tm->tm_year + 1900, tm->tm_mon + 1, tm->tm_mday, separator);
+    bufAddF(buf, "%04d-%02d-%02d",
+            tm->tm_year + 1900, tm->tm_mon + 1, tm->tm_mday);
 }
 
 /*
@@ -226,7 +230,7 @@ int logToFile(uint64_t channels, const char *fmt, ...)
     va_end(ap);
 
     if ((fp = fopen(bufGet(&filename), "w")) == NULL) {
-        bufReset(&filename);
+        bufClear(&filename);
 
         return -1;
     }
@@ -235,7 +239,7 @@ int logToFile(uint64_t channels, const char *fmt, ...)
 
         out->u.fp = fp;
 
-        bufReset(&filename);
+        bufClear(&filename);
 
         return 0;
     }
@@ -398,14 +402,14 @@ void logWithSeparator(const char *fmt, ...)
 }
 
 /*
- * Add the requested prefixes to the log message.
+ * Add the requested prefixes to <buf>.
  */
-static void log_add_prefixes(const char *file, int line, const char *func)
+static void log_add_prefixes(Buffer *buf, const char *file, int line, const char *func)
 {
     struct tm tm_local = { 0 }, tm_utc = { 0 };
     static struct timeval tv = { 0 };
 
-    LOG_Prefix *pfx;
+    LOG_Prefix *pfx, *next_pfx;
 
     tv.tv_sec = -1;
     tm_utc.tm_sec = -1;
@@ -415,56 +419,63 @@ static void log_add_prefixes(const char *file, int line, const char *func)
         separator = strdup(" ");
     }
 
-    for (pfx = listHead(&prefixes); pfx; pfx = listNext(pfx)) {
+    for (pfx = listHead(&prefixes); pfx; pfx = next_pfx) {
+        next_pfx = listNext(pfx);
+
         switch(pfx->type) {
         case LOG_PT_LDATE:
             if (tv.tv_sec == -1) log_get_time(&tv);
             if (tm_local.tm_sec == -1) localtime_r(&tv.tv_sec, &tm_local);
 
-            log_add_date(&tm_local);
+            log_add_date(buf, &tm_local);
 
             break;
         case LOG_PT_UDATE:
             if (tv.tv_sec == -1) log_get_time(&tv);
             if (tm_utc.tm_sec == -1) gmtime_r(&tv.tv_sec, &tm_utc);
 
-            log_add_date(&tm_utc);
+            log_add_date(buf, &tm_utc);
 
             break;
         case LOG_PT_LTIME:
             if (tv.tv_sec == -1) log_get_time(&tv);
             if (tm_local.tm_sec == -1) localtime_r(&tv.tv_sec, &tm_local);
 
-            log_add_time(&tm_local, &tv, pfx->u.precision);
+            log_add_time(buf, &tm_local, &tv, pfx->u.precision);
 
             break;
         case LOG_PT_UTIME:
             if (tv.tv_sec == -1) log_get_time(&tv);
             if (tm_utc.tm_sec == -1) gmtime_r(&tv.tv_sec, &tm_utc);
 
-            log_add_time(&tm_utc, &tv, pfx->u.precision);
+            log_add_time(buf, &tm_utc, &tv, pfx->u.precision);
 
             break;
         case LOG_PT_FILE:
-            bufAddF(&scratch, "%s%s", file, separator);
+            bufAddF(buf, "%s", file);
             break;
         case LOG_PT_LINE:
-            bufAddF(&scratch, "%d%s", line, separator);
+            bufAddF(buf, "%d", line);
             break;
         case LOG_PT_FUNC:
-            bufAddF(&scratch, "%s%s", func, separator);
+            bufAddF(buf, "%s", func);
             break;
         case LOG_PT_STR:
-            bufAddF(&scratch, "%s%s", pfx->u.string, separator);
+            bufAddF(buf, "%s", pfx->u.string);
             break;
+        }
+
+        if (pfx->type != LOG_PT_STR &&
+                (next_pfx == NULL || next_pfx->type != LOG_PT_STR)) {
+            bufAddS(buf, separator);
         }
     }
 }
 
 /*
- * Write a log message out to <channels>.
+ * Write the log message in <buf> out to <channels>.
  */
-static void log_write(uint64_t channels)
+static void log_write(Buffer *buf, uint64_t channels)
 {
     LOG_Output *out;
 
@@ -475,20 +486,20 @@ static void log_write(uint64_t channels)
         case LOG_OT_UDP:
         case LOG_OT_TCP:
         case LOG_OT_FD:
-            tcpWrite(out->u.fd, bufGet(&scratch),
-                    bufLen(&scratch));
+            tcpWrite(out->u.fd, bufGet(buf),
+                    bufLen(buf));
             break;
         case LOG_OT_FILE:
         case LOG_OT_FP:
-            fwrite(bufGet(&scratch),
-                    bufLen(&scratch), 1, out->u.fp);
+            fwrite(bufGet(buf),
+                    bufLen(buf), 1, out->u.fp);
             fflush(out->u.fp);
             break;
         case LOG_OT_SYSLOG:
-            syslog(out->u.priority, "%s", bufGet(&scratch));
+            syslog(out->u.priority, "%s", bufGet(buf));
             break;
         case LOG_OT_FUNCTION:
-            out->u.function.handler(bufGet(&scratch), out->u.function.udata);
+            out->u.function.handler(bufGet(buf), out->u.function.udata);
             break;
         }
     }
@@ -527,21 +538,19 @@ static void log_close_output(LOG_Output *out)
 void _logWrite(uint64_t channels,
         const char *file, int line, const char *func, const char *fmt, ...)
 {
+    Buffer scratch = { 0 };
+
     va_list ap;
 
-    pthread_mutex_lock(&scratch_mutex);
-
-    bufClear(&scratch);
-
-    log_add_prefixes(file, line, func);
+    log_add_prefixes(&scratch, file, line, func);
 
     va_start(ap, fmt);
     bufAddV(&scratch, fmt, ap);
     va_end(ap);
 
-    log_write(channels);
+    log_write(&scratch, channels);
 
-    pthread_mutex_unlock(&scratch_mutex);
+    bufClear(&scratch);
 }
 
 /*
@@ -551,19 +560,17 @@ void _logWrite(uint64_t channels,
  */
 void logContinue(uint64_t channels, const char *fmt, ...)
 {
+    Buffer scratch = { 0 };
+
     va_list ap;
-
-    pthread_mutex_lock(&scratch_mutex);
-
-    bufClear(&scratch);
 
     va_start(ap, fmt);
     bufAddV(&scratch, fmt, ap);
     va_end(ap);
 
-    log_write(channels);
+    log_write(&scratch, channels);
 
-    pthread_mutex_unlock(&scratch_mutex);
+    bufClear(&scratch);
 }
 
 /*
@@ -573,12 +580,6 @@ void logClose(void)
 {
     LOG_Output *out;
     LOG_Prefix *pfx;
-
-    pthread_mutex_lock(&scratch_mutex);
-
-    bufReset(&scratch);
-
-    pthread_mutex_unlock(&scratch_mutex);
 
     pthread_mutex_lock(&outputs_mutex);
 
