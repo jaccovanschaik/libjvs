@@ -41,24 +41,19 @@ typedef enum {
     LOG_OT_FUNCTION
 } LOG_OutputType;
 
-typedef struct {
-    void (*handler)(const char *msg, void *udata);
-    void *udata;
-} LOG_FunctionData;
-
 /*
- * An output channel for logging.
+ * An output stream for logging.
  */
 typedef struct {
     ListNode _node;
     LOG_OutputType type;
-    uint64_t channels;
-    union {
-        FILE *fp;                   /* For LOG_OT_FILE, LOG_OT_FP */
-        int fd;                     /* For LOG_OT_UDP, LOG_OT_TCP, LOG_OT_FD */
-        int priority;               /* For LOG_OT_SYSLOG */
-        LOG_FunctionData function;  /* For LOG_OT_FUNCTION */
-    } u;
+    uint64_t streams;
+    char *file;
+    FILE *fp;                   /* For LOG_OT_FILE, LOG_OT_FP */
+    int fd;                     /* For LOG_OT_UDP, LOG_OT_TCP, LOG_OT_FD */
+    int priority;               /* For LOG_OT_SYSLOG */
+    void (*handler)(const char *msg, void *udata);
+    void *udata;
 } LOG_Output;
 
 /*
@@ -87,31 +82,33 @@ typedef struct {
     } u;
 } LOG_Prefix;
 
-static char *separator = NULL;
+struct Logger {
+    char *separator;
 
-static List outputs = { 0 };        /* List of outputs. */
-static List prefixes = { 0 };       /* List of prefixes. */
+    int stream_count;
 
-/* Mutexes to guard multi-threaded access to these. */
+    List outputs;                   /* List of outputs. */
+    pthread_mutex_t outputs_mutex;  /* Guard multithread access to this list. */
 
-static pthread_mutex_t outputs_mutex = PTHREAD_MUTEX_INITIALIZER;
-static pthread_mutex_t prefixes_mutex = PTHREAD_MUTEX_INITIALIZER;
+    List prefixes;                  /* List of prefixes. */
+    pthread_mutex_t prefixes_mutex; /* Guard multithread access to this list. */
+};
 
 /*
- * Add and return a logging output of type <type> on <channels>.
+ * Add and return a logging output of type <type> on <streams>.
  */
-static LOG_Output *log_create_output(LOG_OutputType type, uint64_t channels)
+static LOG_Output *log_create_output(Logger *logger, LOG_OutputType type, uint64_t streams)
 {
     LOG_Output *out = calloc(1, sizeof(LOG_Output));
 
     out->type = type;
-    out->channels = channels;
+    out->streams = streams;
 
-    pthread_mutex_lock(&outputs_mutex);
+    pthread_mutex_lock(&logger->outputs_mutex);
 
-    listAppendTail(&outputs, out);
+    listAppendTail(&logger->outputs, out);
 
-    pthread_mutex_unlock(&outputs_mutex);
+    pthread_mutex_unlock(&logger->outputs_mutex);
 
     return out;
 }
@@ -119,17 +116,17 @@ static LOG_Output *log_create_output(LOG_OutputType type, uint64_t channels)
 /*
  * Add a prefix of type <type> to the output.
  */
-static LOG_Prefix *log_add_prefix(LOG_PrefixType type)
+static LOG_Prefix *log_add_prefix(Logger *logger, LOG_PrefixType type)
 {
     LOG_Prefix *prefix = calloc(1, sizeof(LOG_Prefix));
 
     prefix->type = type;
 
-    pthread_mutex_lock(&prefixes_mutex);
+    pthread_mutex_lock(&logger->prefixes_mutex);
 
-    listAppendTail(&prefixes, prefix);
+    listAppendTail(&logger->prefixes, prefix);
 
-    pthread_mutex_unlock(&prefixes_mutex);
+    pthread_mutex_unlock(&logger->prefixes_mutex);
 
     return prefix;
 }
@@ -174,51 +171,90 @@ static void log_add_date(Buffer *buf, struct tm *tm)
 }
 
 /*
- * Send logging on any of <channels> to a UDP socket on port <port> on host
- * <host>. If the host could not be found, -1 is returned and the channel is not
- * created.
+ * Create a new logger.
  */
-int logToUDP(uint64_t channels, const char *host, uint16_t port)
+Logger *logCreate(void)
+{
+    Logger *logger = calloc(1, sizeof(Logger));
+
+    pthread_mutex_init(&logger->outputs_mutex, NULL);
+    pthread_mutex_init(&logger->prefixes_mutex, NULL);
+
+    return logger;
+}
+
+/*
+ * Open a new stream with name <name> on logger <logger>.
+ *
+ * Returns a bit mask representing this output stream (or 0 in case no new
+ * stream could be opened); these bitmasks can be or-ed together to have
+ * multiple streams write to the same output (in the logTo... calls), to add the
+ * same prefix to multiple streams (in the logWith... calls), or to write to
+ * multiple streams at once (in the logWrite call).
+ *
+ * A maximum of 64 streams can be opened in a single logger.
+ */
+uint64_t logStream(Logger *logger, const char *name)
+{
+    uint64_t stream;
+
+    if (logger->stream_count == 8 * sizeof(uint64_t)) {
+        return 0;
+    }
+    else {
+        stream = 1 << logger->stream_count;
+        logger->stream_count++;
+    }
+
+    return stream;
+}
+
+/*
+ * Send logging on any of <streams> of <logger> to a UDP socket on port <port>
+ * on host <host>. If the host could not be found, -1 is returned and the stream
+ * is not created.
+ */
+int logToUDP(Logger *logger, uint64_t streams, const char *host, uint16_t port)
 {
     int fd;
 
     if ((fd = udpSocket()) < 0 || netConnect(fd, host, port) != 0)
         return -1;
     else {
-        LOG_Output *out = log_create_output(LOG_OT_UDP, channels);
+        LOG_Output *out = log_create_output(logger, LOG_OT_UDP, streams);
 
-        out->u.fd = fd;
+        out->fd = fd;
 
         return 0;
     }
 }
 
 /*
- * Send logging on any of <channels> through a TCP connection to port <port> on
- * host <host>. If no connection could be opened, -1 is returned and the channel
- * is not created.
+ * Send logging on any of <streams> of <logger> through a TCP connection to port
+ * <port> on host <host>. If no connection could be opened, -1 is returned and
+ * the stream is not created.
  */
-int logToTCP(uint64_t channels, const char *host, uint16_t port)
+int logToTCP(Logger *logger, uint64_t streams, const char *host, uint16_t port)
 {
     int fd;
 
     if ((fd = tcpConnect(host, port)) < 0)
         return -1;
     else {
-        LOG_Output *out = log_create_output(LOG_OT_TCP, channels);
+        LOG_Output *out = log_create_output(logger, LOG_OT_TCP, streams);
 
-        out->u.fd = fd;
+        out->fd = fd;
 
         return 0;
     }
 }
 
 /*
- * Write logging on any of <channels> to the file whose name is specified with
- * <fmt> and the subsequent parameters. If the file could not be opened, -1 is
- * returned and the channel is not created.
+ * Write logging on any of <streams> of <logger> to the file whose name is
+ * specified with <fmt> and the subsequent parameters. If the file could not be
+ * opened, -1 is returned and the stream is not created.
  */
-int logToFile(uint64_t channels, const char *fmt, ...)
+int logToFile(Logger *logger, uint64_t streams, const char *fmt, ...)
 {
     va_list ap;
 
@@ -235,9 +271,9 @@ int logToFile(uint64_t channels, const char *fmt, ...)
         return -1;
     }
     else {
-        LOG_Output *out = log_create_output(LOG_OT_FILE, channels);
+        LOG_Output *out = log_create_output(logger, LOG_OT_FILE, streams);
 
-        out->u.fp = fp;
+        out->fp = fp;
 
         bufClear(&filename);
 
@@ -246,133 +282,135 @@ int logToFile(uint64_t channels, const char *fmt, ...)
 }
 
 /*
- * Write logging on any of <channels> to the previously opened FILE pointer
- * <fp>.
+ * Write logging on any of <streams> of <logger> to the previously opened FILE
+ * pointer <fp>.
  */
-int logToFP(uint64_t channels, FILE *fp)
+int logToFP(Logger *logger, uint64_t streams, FILE *fp)
 {
-    LOG_Output *out = log_create_output(LOG_OT_FP, channels);
+    LOG_Output *out = log_create_output(logger, LOG_OT_FP, streams);
 
-    out->u.fp = fp;
+    out->fp = fp;
 
     return 0;
 }
 
 /*
- * Write logging on any of <channels> to the previously opened file descriptor
- * <fd>.
+ * Write logging on any of <streams> of <logger> to the previously opened file
+ * descriptor <fd>.
  */
-int logToFD(uint64_t channels, int fd)
+int logToFD(Logger *logger, uint64_t streams, int fd)
 {
-    LOG_Output *out = log_create_output(LOG_OT_FD, channels);
+    LOG_Output *out = log_create_output(logger, LOG_OT_FD, streams);
 
-    out->u.fd = fd;
+    out->fd = fd;
 
     return 0;
 }
 
 /*
- * Write logging on any of <channels> to the syslog facility using the given
- * parameters (see openlog(3) for the meaning of these parameters).
+ * Write logging on any of <streams> of <logger> to the syslog facility using
+ * the given parameters (see openlog(3) for the meaning of these parameters).
  */
-int logToSyslog(uint64_t channels, const char *ident, int option, int facility, int priority)
+int logToSyslog(Logger *logger, uint64_t streams, const char *ident, int option, int facility, int priority)
 {
-    LOG_Output *out = log_create_output(LOG_OT_SYSLOG, channels);
+    LOG_Output *out = log_create_output(logger, LOG_OT_SYSLOG, streams);
 
     openlog(ident, option, facility);
 
-    out->u.priority = priority;
+    out->priority = priority;
 
     return 0;
 }
 
 /*
- * Call function <handler> for every log message, passing in the message and the
- * <udata> that is given here.
+ * Call function <handler> for every log messageof <logger> , passing in the
+ * message and the <udata> that is given here.
  */
-int logToFunction(uint64_t channels, void (*handler)(const char *msg, void *udata), void *udata)
+int logToFunction(Logger *logger, uint64_t streams, void (*handler)(const char *msg, void *udata), void *udata)
 {
-    LOG_Output *out = log_create_output(LOG_OT_FUNCTION, channels);
+    LOG_Output *out = log_create_output(logger, LOG_OT_FUNCTION, streams);
 
-    out->u.function.handler = handler;
-    out->u.function.udata = udata;
+    out->handler = handler;
+    out->udata = udata;
 
     return 0;
 }
 
 /*
- * Add a UTC date of the form YYYY-MM-DD in output messages.
+ * Add a UTC date of the form YYYY-MM-DD in log messages on <logger>.
  */
-void logWithUniversalDate(void)
+void logWithUniversalDate(Logger *logger)
 {
-    log_add_prefix(LOG_PT_UDATE);
+    log_add_prefix(logger, LOG_PT_UDATE);
 }
 
 /*
- * Add a UTC timestamp of the form HH:MM:SS to output messages. <precision> is
- * the number of sub-second digits to show.
+ * Add a UTC timestamp of the form HH:MM:SS to log messages on <logger>.
+ * <precision> is the number of sub-second digits to show.
  */
-void logWithUniversalTime(int precision)
+void logWithUniversalTime(Logger *logger, int precision)
 {
-    LOG_Prefix *prefix = log_add_prefix(LOG_PT_UTIME);
+    LOG_Prefix *prefix = log_add_prefix(logger, LOG_PT_UTIME);
 
     prefix->u.precision = CLAMP(precision, 0, 6);
 }
 
 /*
- * Add a local date of the form YYYY-MM-DD in output messages.
+ * Add a local date of the form YYYY-MM-DD in log messages on <logger>.
  */
-void logWithLocalDate(void)
+void logWithLocalDate(Logger *logger)
 {
-    log_add_prefix(LOG_PT_LDATE);
+    log_add_prefix(logger, LOG_PT_LDATE);
 }
 
 /*
- * Add a local timestamp of the form HH:MM:SS to output messages. <precision> is
- * the number of sub-second digits to show.
+ * Add a local timestamp of the form HH:MM:SS to log messages on <logger>.
+ * <precision> is the number of sub-second digits to show.
  */
-void logWithLocalTime(int precision)
+void logWithLocalTime(Logger *logger, int precision)
 {
-    LOG_Prefix *prefix = log_add_prefix(LOG_PT_LTIME);
+    LOG_Prefix *prefix = log_add_prefix(logger, LOG_PT_LTIME);
 
     prefix->u.precision = CLAMP(precision, 0, 6);
 }
 
 /*
  * Add the name of the file from which the logWrite function was called to log
- * messages.
+ * messages on <logger>.
  */
-void logWithFile(void)
+void logWithFile(Logger *logger)
 {
-    log_add_prefix(LOG_PT_FILE);
+    log_add_prefix(logger, LOG_PT_FILE);
 }
 
 /*
  * Add the name of the function that called the logWrite function to log
- * messages.
+ * messages on <logger>.
  */
-void logWithFunction(void)
+void logWithFunction(Logger *logger)
 {
-    log_add_prefix(LOG_PT_FUNC);
+    log_add_prefix(logger, LOG_PT_FUNC);
 }
 
 /*
- * Add the line number of the call to the logWrite function to log messages
+ * Add the line number of the call to the logWrite function to log message on
+ * <logger>.
  */
-void logWithLine(void)
+void logWithLine(Logger *logger)
 {
-    log_add_prefix(LOG_PT_LINE);
+    log_add_prefix(logger, LOG_PT_LINE);
 }
 
 /*
- * Add a string defined by <fmt> and the subsequent arguments to log messages.
+ * Add a string defined by <fmt> and the subsequent arguments to log messages on
+ * <logger>.
  */
-void logWithString(const char *fmt, ...)
+void logWithString(Logger *logger, const char *fmt, ...)
 {
     va_list ap;
     Buffer string = { 0 };
 
-    LOG_Prefix *prefix = log_add_prefix(LOG_PT_STR);
+    LOG_Prefix *prefix = log_add_prefix(logger, LOG_PT_STR);
 
     va_start(ap, fmt);
     bufSetV(&string, fmt, ap);
@@ -383,9 +421,9 @@ void logWithString(const char *fmt, ...)
 
 /*
  * Use a string defined with <fmt> and the subsequent arguments as a separator
- * between the fields of log messages (default is a single space).
+ * between the fields of log messages on <logger> (default is a single space).
  */
-void logWithSeparator(const char *fmt, ...)
+void logWithSeparator(Logger *logger, const char *fmt, ...)
 {
     va_list ap;
     Buffer string = { 0 };
@@ -394,17 +432,17 @@ void logWithSeparator(const char *fmt, ...)
     bufSetV(&string, fmt, ap);
     va_end(ap);
 
-    if (separator != NULL) {
-        free(separator);
+    if (logger->separator != NULL) {
+        free(logger->separator);
     }
 
-    separator = bufDetach(&string);
+    logger->separator = bufDetach(&string);
 }
 
 /*
  * Add the requested prefixes to <buf>.
  */
-static void log_add_prefixes(Buffer *buf, const char *file, int line, const char *func)
+static void log_add_prefixes(Logger *logger, Buffer *buf, const char *file, int line, const char *func)
 {
     struct tm tm_local = { 0 }, tm_utc = { 0 };
     static struct timeval tv = { 0 };
@@ -415,11 +453,11 @@ static void log_add_prefixes(Buffer *buf, const char *file, int line, const char
     tm_utc.tm_sec = -1;
     tm_local.tm_sec = -1;
 
-    if (separator == NULL) {
-        separator = strdup(" ");
+    if (logger->separator == NULL) {
+        logger->separator = strdup(" ");
     }
 
-    for (pfx = listHead(&prefixes); pfx; pfx = next_pfx) {
+    for (pfx = listHead(&logger->prefixes); pfx; pfx = next_pfx) {
         next_pfx = listNext(pfx);
 
         switch(pfx->type) {
@@ -467,39 +505,39 @@ static void log_add_prefixes(Buffer *buf, const char *file, int line, const char
 
         if (pfx->type != LOG_PT_STR &&
                 (next_pfx == NULL || next_pfx->type != LOG_PT_STR)) {
-            bufAddS(buf, separator);
+            bufAddS(buf, logger->separator);
         }
     }
 }
 
 /*
- * Write the log message in <buf> out to <channels>.
+ * Write the log message in <buf> out to <streams>.
  */
-static void log_write(Buffer *buf, uint64_t channels)
+static void log_write(Logger *logger, Buffer *buf, uint64_t streams)
 {
     LOG_Output *out;
 
-    for (out = listHead(&outputs); out; out = listNext(out)) {
-        if ((channels & out->channels) == 0) continue;
+    for (out = listHead(&logger->outputs); out; out = listNext(out)) {
+        if ((streams & out->streams) == 0) continue;
 
         switch(out->type) {
         case LOG_OT_UDP:
         case LOG_OT_TCP:
         case LOG_OT_FD:
-            tcpWrite(out->u.fd, bufGet(buf),
+            tcpWrite(out->fd, bufGet(buf),
                     bufLen(buf));
             break;
         case LOG_OT_FILE:
         case LOG_OT_FP:
             fwrite(bufGet(buf),
-                    bufLen(buf), 1, out->u.fp);
-            fflush(out->u.fp);
+                    bufLen(buf), 1, out->fp);
+            fflush(out->fp);
             break;
         case LOG_OT_SYSLOG:
-            syslog(out->u.priority, "%s", bufGet(buf));
+            syslog(out->priority, "%s", bufGet(buf));
             break;
         case LOG_OT_FUNCTION:
-            out->u.function.handler(bufGet(buf), out->u.function.udata);
+            out->handler(bufGet(buf), out->udata);
             break;
         }
     }
@@ -514,11 +552,11 @@ static void log_close_output(LOG_Output *out)
     case LOG_OT_UDP:
     case LOG_OT_TCP:
         /* Opened as file descriptors. */
-        close(out->u.fd);
+        close(out->fd);
         break;
     case LOG_OT_FILE:
         /* Opened as FILE pointers. */
-        fclose(out->u.fp);
+        fclose(out->fp);
         break;
     case LOG_OT_SYSLOG:
         /* Opened using openlog(). */
@@ -532,33 +570,33 @@ static void log_close_output(LOG_Output *out)
 
 /*
  * Send out a logging message using <fmt> and the subsequent parameters to
- * <channels>. <file>, <line> and <func> are filled in by the logWrite macro,
- * which should be used to call this function.
+ * <streams> on <logger>. <file>, <line> and <func> are filled in by the
+ * logWrite macro, which should be used to call this function.
  */
-void _logWrite(uint64_t channels,
+void _logWrite(Logger *logger, uint64_t streams,
         const char *file, int line, const char *func, const char *fmt, ...)
 {
     Buffer scratch = { 0 };
 
     va_list ap;
 
-    log_add_prefixes(&scratch, file, line, func);
+    log_add_prefixes(logger, &scratch, file, line, func);
 
     va_start(ap, fmt);
     bufAddV(&scratch, fmt, ap);
     va_end(ap);
 
-    log_write(&scratch, channels);
+    log_write(logger, &scratch, streams);
 
     bufClear(&scratch);
 }
 
 /*
- * Send a logging message using <fmt> and the subsequent parameters to
- * <channels>, *without* any prefixes. Useful to continue a previous log
+ * Send a logging message using <fmt> and the subsequent parameters to <streams>
+ * on <logger>, *without* any prefixes. Useful to continue a previous log
  * message.
  */
-void logContinue(uint64_t channels, const char *fmt, ...)
+void logContinue(Logger *logger, uint64_t streams, const char *fmt, ...)
 {
     Buffer scratch = { 0 };
 
@@ -568,32 +606,32 @@ void logContinue(uint64_t channels, const char *fmt, ...)
     bufAddV(&scratch, fmt, ap);
     va_end(ap);
 
-    log_write(&scratch, channels);
+    log_write(logger, &scratch, streams);
 
     bufClear(&scratch);
 }
 
 /*
- * Close logging: close all channels, remove all prefixes.
+ * Close <logger>: close all outputs, remove all prefixes.
  */
-void logClose(void)
+void logClose(Logger *logger)
 {
     LOG_Output *out;
     LOG_Prefix *pfx;
 
-    pthread_mutex_lock(&outputs_mutex);
+    pthread_mutex_lock(&logger->outputs_mutex);
 
-    while ((out = listRemoveHead(&outputs)) != NULL) {
+    while ((out = listRemoveHead(&logger->outputs)) != NULL) {
         log_close_output(out);
 
         free(out);
     }
 
-    pthread_mutex_unlock(&outputs_mutex);
+    pthread_mutex_unlock(&logger->outputs_mutex);
 
-    pthread_mutex_lock(&prefixes_mutex);
+    pthread_mutex_lock(&logger->prefixes_mutex);
 
-    while ((pfx = listRemoveHead(&prefixes)) != NULL) {
+    while ((pfx = listRemoveHead(&logger->prefixes)) != NULL) {
         if (pfx->type == LOG_PT_STR && pfx->u.string != NULL) {
             free(pfx->u.string);
         }
@@ -601,13 +639,16 @@ void logClose(void)
         free(pfx);
     }
 
-    pthread_mutex_unlock(&prefixes_mutex);
+    pthread_mutex_unlock(&logger->prefixes_mutex);
 }
 
 #ifdef TEST
 #include <sys/stat.h>
 
 static int errors = 0;
+static Logger *logger = NULL;
+static uint64_t debug_stream = 0;
+static uint64_t info_stream = 0;
 
 static const char *get_file_contents(FILE *fp)
 {
@@ -641,29 +682,34 @@ static void log_handler(const char *msg, void *udata)
 
 static void init_logger(FILE **tmp_file)
 {
+    logger = logCreate();
+
+    debug_stream = logStream(logger, "DEBUG");
+    info_stream = logStream(logger, "INFO");
+
     /* Log DEBUG and INFO messages to the named file. */
-    logToFile(CH_DEBUG | CH_INFO, TEST_FILE);
+    logToFile(logger, debug_stream | info_stream, TEST_FILE);
     /* Log DEBUG messages to the fp of this temp file. */
-    logToFP(CH_DEBUG, tmp_file[0] = tmpfile());
+    logToFP(logger, debug_stream, tmp_file[0] = tmpfile());
     /* Log INFO messages via log_handler to this other temp file. */
-    logToFunction(CH_INFO, log_handler, tmp_file[1] = tmpfile());
+    logToFunction(logger, info_stream, log_handler, tmp_file[1] = tmpfile());
 }
 
 static void write_messages(void)
 {
-    _logWrite(CH_DEBUG, "some_file", 1, "some_func", "message 1\n");
-    _logWrite(CH_INFO, "some_file", 2, "some_func", "message 2\n");
-    _logWrite(CH_DEBUG + CH_INFO, "some_file", 3, "some_func", "message 3\n");
+    _logWrite(logger, debug_stream, "some_file", 1, "some_func", "message 1\n");
+    _logWrite(logger, info_stream, "some_file", 2, "some_func", "message 2\n");
+    _logWrite(logger, debug_stream | info_stream, "some_file", 3, "some_func", "message 3\n");
 }
 
 static void close_logger(FILE **tmp_file)
 {
-    logClose();
+    logClose(logger);
 
     fclose(tmp_file[0]);
     fclose(tmp_file[1]);
 
-    remove(TEST_FILE);
+    // remove(TEST_FILE);
 }
 
 #define check_fp(fp, expected) _check_fp(fp, expected, __FILE__, __LINE__)
@@ -714,7 +760,7 @@ int main(int argc, char *argv[])
     close_logger(tmp_file);
 
     init_logger(tmp_file);
-    logWithUniversalDate();
+    logWithUniversalDate(logger);
     write_messages();
 
     check_fp(tmp_file[0],
@@ -733,8 +779,8 @@ int main(int argc, char *argv[])
     close_logger(tmp_file);
 
     init_logger(tmp_file);
-    logWithUniversalDate();
-    logWithUniversalTime(3);
+    logWithUniversalDate(logger);
+    logWithUniversalTime(logger, 3);
     write_messages();
 
     check_fp(tmp_file[0],
@@ -753,12 +799,12 @@ int main(int argc, char *argv[])
     close_logger(tmp_file);
 
     init_logger(tmp_file);
-    logWithUniversalDate();
-    logWithUniversalTime(3);
-    logWithFile();
-    logWithLine();
-    logWithFunction();
-    logWithSeparator("\t");
+    logWithUniversalDate(logger);
+    logWithUniversalTime(logger, 3);
+    logWithFile(logger);
+    logWithLine(logger);
+    logWithFunction(logger);
+    logWithSeparator(logger, "\t");
     write_messages();
 
     check_fp(tmp_file[0],
