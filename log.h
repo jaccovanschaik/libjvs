@@ -30,7 +30,8 @@ typedef struct Logger Logger;
  * which streams have their output sent to that destination.
  */
 
-#define logWrite(streams, ...) _logWrite(streams, __FILE__, __LINE__, __func__, __VA_ARGS__)
+#define logWrite(logger, streams, ...) \
+    _logWrite(logger, streams, __FILE__, __LINE__, __func__, __VA_ARGS__)
 
 /*
  * Create a new logger.
