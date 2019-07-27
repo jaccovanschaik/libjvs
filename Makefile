@@ -45,7 +45,7 @@ tags:
 	ctags -R . /usr/include
 
 %.test: %.c %.h
-	$(CC) $(CFLAGS) -DTEST -o $@ $< libjvs.a -lm
+	$(CC) $(CFLAGS) -O0 -DTEST -o $@ $< libjvs.a -lm
 
 test: do_tests.sh libjvs.a
 	./do_tests.sh
