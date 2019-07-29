@@ -1,9 +1,9 @@
 /*
- * log.c: Handle logging.
+ * log.c: XXX
  *
  * Copyright: (c) 2019 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Created:   2019-07-26
- * Version:   $Id: log.c 332 2019-07-27 20:59:13Z jacco $
+ * Created:   2019-07-29
+ * Version:   $Id: log.c 334 2019-07-29 18:07:55Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -13,8 +13,17 @@
 
 #include "log.h"
 
+#include "net.h"
+#include "tcp.h"
+#include "udp.h"
+#include "list.h"
+#include "buffer.h"
+#include "defs.h"
+#include "utils.h"
+
 #include <stdio.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <string.h>
 #include <syslog.h>
 #include <time.h>
@@ -23,305 +32,61 @@
 #include <regex.h>
 #include <unistd.h>
 
-#include "buffer.h"
-#include "list.h"
-#include "net.h"
-#include "udp.h"
-#include "tcp.h"
-#include "defs.h"
-#include "utils.h"
-
-/*
- * Output types.
- */
-typedef enum {
-    LOG_OT_UDP,
-    LOG_OT_TCP,
-    LOG_OT_FILE,
-    LOG_OT_FP,
-    LOG_OT_FD,
-    LOG_OT_SYSLOG,
-    LOG_OT_FUNCTION
-} LOG_OutputType;
-
-/*
- * An output stream for logging.
- */
-typedef struct {
-    ListNode _node;
-    LOG_OutputType type;
-    char *filename;             /* For LOG_OT_FILE */
-    char *host;                 /* For LOG_OT_UDP, LOG_OT_TCP */
-    uint16_t port;              /* For LOG_OT_TCP, LOG_OT_TCP */
-    FILE *fp;                   /* For LOG_OT_FILE, LOG_OT_FP */
-    int fd;                     /* For LOG_OT_UDP, LOG_OT_TCP, LOG_OT_FD */
-    int priority;               /* For LOG_OT_SYSLOG */
-    void (*handler)(const char *msg, void *udata);
-    void *udata;                /* For LOG_OT_FUNCTION */
-} LOG_Output;
-
-/*
- * A listable reference to an output.
- */
-typedef struct {
-    ListNode _node;
-    LOG_Output *output;
-} LOG_OutputRef;
-
-/*
- * Prefix types.
- */
 typedef enum {
     LOG_PT_UTIME,
     LOG_PT_LTIME,
     LOG_PT_FILE,
     LOG_PT_LINE,
     LOG_PT_FUNC,
+    LOG_PT_CHAN,
     LOG_PT_STR
-} LOG_PrefixType;
+} LogPrefixType;
 
-/*
- * Definition of a prefix.
- */
 typedef struct {
     ListNode _node;
-    LOG_PrefixType type;
-    char *str;                  /* For LOG_PT_UTIME, LOG_PT_LTIME, LOG_PT_STR */
-} LOG_Prefix;
+    LogPrefixType type;
+    char *str;
+} LogPrefix;
 
-/*
- * Definition of a log channel.
- */
-typedef struct {
-    List output_refs;           /* List of references to outputs. */
-    List prefixes;              /* List of prefixes. */
-    char *separator;            /* Separator for this channel. */
-} LOG_Channel;
+typedef enum {
+    LOG_OT_FILE,
+    LOG_OT_FP,
+    LOG_OT_FD,
+    LOG_OT_TCP,
+    LOG_OT_UDP,
+    LOG_OT_SYSLOG,
+    LOG_OT_FUNC
+} LogWriterType;
 
-#define LOG_MAX_CHANNELS (8 * sizeof(uint64_t))
+struct LogChannel {
+    ListNode _node;
+    char *name;
+    List writer_refs;
+};
 
-static LOG_Channel log_channel[LOG_MAX_CHANNELS];
-
-static List outputs = { 0 };
-
-static LOG_Prefix *log_add_prefix(LOG_Channel *channel, LOG_PrefixType type)
-{
-    LOG_Prefix *prefix = calloc(1, sizeof(LOG_Prefix));
-
-    prefix->type = type;
-
-    listAppendTail(&channel->prefixes, prefix);
-
-    return prefix;
-}
-
-static void add_multi_prefix(uint64_t channels, LOG_PrefixType type)
-{
-    for (int i = 0; i < LOG_MAX_CHANNELS; i++) {
-        if ((channels & (1L << i)) == 0) continue;
-
-        LOG_Channel *channel = log_channel + i;
-
-        log_add_prefix(channel, type);
-    }
-}
-
-static LOG_Output *log_add_output(LOG_OutputType type)
-{
-    LOG_Output *output = calloc(1, sizeof(*output));
-
-    output->type = type;
-
-    listAppendTail(&outputs, output);
-
-    return output;
-}
-
-static LOG_Output *log_find_file_output(const char *filename)
-{
-    LOG_Output *output;
-
-    for (output = listHead(&outputs); output; output = listNext(output)) {
-        if (output->type == LOG_OT_FILE && strcmp(output->filename, filename) == 0) break;
-    }
-
-    return output;
-}
-
-static LOG_Output *log_add_file_output(const char *filename)
-{
+struct LogWriter {
+    ListNode _node;
+    LogWriterType type;
+    List prefixes;
+    char *host;
+    uint16_t port;
+    char *file;
     FILE *fp;
-
-    if ((fp = fopen(filename, "w")) == NULL) {
-        return NULL;
-    }
-
-    LOG_Output *output = log_add_output(LOG_OT_FILE);
-
-    output->filename = strdup(filename);
-    output->fp = fp;
-
-    return output;
-}
-
-static LOG_Output *log_find_fp_output(FILE *fp)
-{
-    LOG_Output *output;
-
-    for (output = listHead(&outputs); output; output = listNext(output)) {
-        if (output->type == LOG_OT_FP && output->fp == fp) break;
-    }
-
-    return output;
-}
-
-static LOG_Output *log_add_fp_output(FILE *fp)
-{
-    LOG_Output *output = log_add_output(LOG_OT_FP);
-
-    output->fp = fp;
-
-    return output;
-}
-
-static LOG_Output *log_find_fd_output(int fd)
-{
-    LOG_Output *output;
-
-    for (output = listHead(&outputs); output; output = listNext(output)) {
-        if (output->type == LOG_OT_FD && output->fd == fd) break;
-    }
-
-    return output;
-}
-
-static LOG_Output *log_add_fd_output(int fd)
-{
-    LOG_Output *output = log_add_output(LOG_OT_FD);
-
-    output->fd = fd;
-
-    return output;
-}
-
-static LOG_Output *log_add_syslog_output(const char *ident, int option,
-        int facility, int priority)
-{
-    LOG_Output *output = log_add_output(LOG_OT_SYSLOG);
-
-    openlog(ident, option, facility);
-
-    output->priority = priority;
-
-    return output;
-}
-
-static LOG_Output *log_find_udp_output(const char *host, uint16_t port)
-{
-    LOG_Output *output;
-
-    for (output = listHead(&outputs); output; output = listNext(output)) {
-        if (output->type == LOG_OT_UDP &&
-            strcmp(output->host, host) == 0 &&
-            output->port == port) break;
-    }
-
-    return output;
-}
-
-static LOG_Output *log_add_udp_output(const char *host, uint16_t port)
-{
     int fd;
+    int priority;
+    void (*handler)(const char *msg, void *udata);
+    char *separator;
+    void *udata;
+};
 
-    if ((fd = udpSocket()) < 0 || netConnect(fd, host, port) != 0) {
-        return NULL;
-    }
+typedef struct {
+    ListNode _node;
+    LogWriter *writer;
+} LogWriterRef;
 
-    LOG_Output *output = log_add_output(LOG_OT_UDP);
+static List channels = { 0 };
+static List writers = { 0 };
 
-    output->host = strdup(host);
-    output->port = port;
-    output->fd   = fd;
-
-    return output;
-}
-
-static LOG_Output *log_find_tcp_output(const char *host, uint16_t port)
-{
-    LOG_Output *output;
-
-    for (output = listHead(&outputs); output; output = listNext(output)) {
-        if (output->type == LOG_OT_TCP &&
-            strcmp(output->host, host) == 0 &&
-            output->port == port) break;
-    }
-
-    return output;
-}
-
-static LOG_Output *log_add_tcp_output(const char *host, uint16_t port)
-{
-    int fd;
-
-    if ((fd = tcpConnect(host, port)) < 0) {
-        return NULL;
-    }
-
-    LOG_Output *output = log_add_output(LOG_OT_TCP);
-
-    output->host = strdup(host);
-    output->port = port;
-    output->fd   = fd;
-
-    return output;
-}
-
-static LOG_Output *log_find_function_output(
-        void (*handler)(const char *msg, void *udata),
-        void *udata)
-{
-    LOG_Output *output;
-
-    for (output = listHead(&outputs); output; output = listNext(output)) {
-        if (output->type == LOG_OT_FUNCTION &&
-            output->handler == handler &&
-            output->udata == udata) break;
-    }
-
-    return output;
-}
-
-static LOG_Output *log_add_function_output(
-        void (*handler)(const char *msg, void *udata),
-        void *udata)
-{
-    LOG_Output *output = log_add_output(LOG_OT_FUNCTION);
-
-    output->handler = handler;
-    output->udata = udata;
-
-    return output;
-}
-
-static LOG_OutputRef *log_create_output_ref(LOG_Output *output)
-{
-    LOG_OutputRef *ref = calloc(1, sizeof(*ref));
-
-    ref->output = output;
-
-    return ref;
-}
-
-static void log_add_output_ref(LOG_Channel *channel, LOG_Output *output)
-{
-    LOG_OutputRef *ref = log_create_output_ref(output);
-
-    listAppendTail(&channel->output_refs, ref);
-}
-
-/*
- * Fill <tm> and <tv> with the current time.
- */
 static void log_get_time(struct timeval *tv)
 {
 #ifdef TEST
@@ -332,9 +97,6 @@ static void log_get_time(struct timeval *tv)
 #endif
 }
 
-/*
- * Add the time in <tm> and <tv>, using strftime-compatible format <fmt>, to <buf>.
- */
 static void log_add_time(Buffer *buf, struct tm *tm, struct timeval *tv, const char *fmt)
 {
     static regex_t *regex = NULL;
@@ -374,26 +136,19 @@ static void log_add_time(Buffer *buf, struct tm *tm, struct timeval *tv, const c
     bufAddS(buf, buffer);
 }
 
-/*
- * Add the requested prefixes to <buf>.
- */
-static void log_add_prefixes(LOG_Channel *channel, Buffer *buf,
-        const char *file, int line, const char *func)
+static void log_add_prefixes(List *prefixes, Buffer *buf,
+        const char *separator, const char *chan, const char *file, int line, const char *func)
 {
     struct tm tm_local = { 0 }, tm_utc = { 0 };
     static struct timeval tv = { 0 };
 
-    LOG_Prefix *pfx, *next_pfx;
+    LogPrefix *pfx, *next_pfx;
 
     tv.tv_sec = -1;
     tm_utc.tm_sec = -1;
     tm_local.tm_sec = -1;
 
-    if (channel->separator == NULL) {
-        channel->separator = strdup(" ");
-    }
-
-    for (pfx = listHead(&channel->prefixes); pfx; pfx = next_pfx) {
+    for (pfx = listHead(prefixes); pfx; pfx = next_pfx) {
         next_pfx = listNext(pfx);
 
         switch(pfx->type) {
@@ -420,6 +175,9 @@ static void log_add_prefixes(LOG_Channel *channel, Buffer *buf,
         case LOG_PT_FUNC:
             bufAddF(buf, "%s", func);
             break;
+        case LOG_PT_CHAN:
+            bufAddF(buf, "%s", chan);
+            break;
         case LOG_PT_STR:
             bufAddF(buf, "%s", pfx->str);
             break;
@@ -427,438 +185,509 @@ static void log_add_prefixes(LOG_Channel *channel, Buffer *buf,
 
         if (pfx->type != LOG_PT_STR &&
                 (next_pfx == NULL || next_pfx->type != LOG_PT_STR)) {
-            bufAddS(buf, channel->separator);
+            bufAddS(buf, separator ? separator : " ");
         }
     }
 }
 
-static void log_write(LOG_Channel *channel, const char *buf)
+static void log_write(LogWriter *writer, const char *buf)
 {
-    LOG_OutputRef *ref;
     size_t len = strlen(buf);
 
-    for (ref = listHead(&channel->output_refs); ref; ref = listNext(ref)) {
-        switch(ref->output->type) {
-        case LOG_OT_UDP:
-        case LOG_OT_TCP:
-        case LOG_OT_FD:
-            tcpWrite(ref->output->fd, buf, len);
-            break;
-        case LOG_OT_FILE:
-        case LOG_OT_FP:
-            fwrite(buf, len, 1, ref->output->fp);
-            break;
-        case LOG_OT_SYSLOG:
-            syslog(ref->output->priority, "%s", buf);
-            break;
-        case LOG_OT_FUNCTION:
-            ref->output->handler(buf, ref->output->udata);
-            break;
-        }
+    switch(writer->type) {
+    case LOG_OT_UDP:
+    case LOG_OT_TCP:
+    case LOG_OT_FD:
+        tcpWrite(writer->fd, buf, len);
+        break;
+    case LOG_OT_FILE:
+    case LOG_OT_FP:
+        fwrite(buf, len, 1, writer->fp);
+        break;
+    case LOG_OT_SYSLOG:
+        syslog(writer->priority, "%s", buf);
+        break;
+    case LOG_OT_FUNC:
+        writer->handler(buf, writer->udata);
+        break;
     }
 }
 
-/*
- * Add a UTC date/time to all log messages on <channels>, using strftime(3)
- * compatible format string <fmt>. This function accepts an additional
- * conversion specifier "%<n>N" which inserts <n> sub-second digits, up to a
- * maximum of 6.
- */
-void logWithUniversalTime(uint64_t channels, const char *fmt)
+static LogPrefix *log_add_prefix(LogWriter *writer, LogPrefixType type)
 {
-    for (int i = 0; i < LOG_MAX_CHANNELS; i++) {
-        if ((channels & (1L << i)) == 0) continue;
+    LogPrefix *prefix = calloc(1, sizeof(LogPrefix));
 
-        LOG_Channel *channel = log_channel + i;
+    prefix->type = type;
 
-        LOG_Prefix *prefix = log_add_prefix(channel, LOG_PT_UTIME);
+    listAppendTail(&writer->prefixes, prefix);
 
-        prefix->str = strdup(fmt);
-    }
+    return prefix;
 }
 
-/*
- * Add a local date/time to all log messages on <channels>, using strftime(3)
- * compatible format string <fmt>. This function accepts an additional
- * conversion specifier "%<n>N" which inserts <n> sub-second digits, up to a
- * maximum of 6.
- */
-void logWithLocalTime(uint64_t channels, const char *fmt, int precision)
+static LogWriter *log_add_writer(LogWriterType type)
 {
-    for (int i = 0; i < LOG_MAX_CHANNELS; i++) {
-        if ((channels & (1L << i)) == 0) continue;
+    LogWriter *writer = calloc(1, sizeof(*writer));
 
-        LOG_Channel *channel = log_channel + i;
+    writer->type = type;
 
-        LOG_Prefix *prefix = log_add_prefix(channel, LOG_PT_LTIME);
-
-        prefix->str = strdup(fmt);
-    }
+    return writer;
 }
 
-/*
- * Add the source file from which logWrite is called to all log messages on
- * <channels>.
- */
-void logWithFile(uint64_t channels)
+static LogWriter *log_find_file_writer(const char *filename)
 {
-    add_multi_prefix(channels, LOG_PT_FILE);
+    LogWriter *writer;
+
+    for (writer = listHead(&writers); writer; writer = listNext(writer)) {
+        if (writer->type == LOG_OT_FILE && strcmp(writer->file, filename) == 0) break;
+    }
+
+    return writer;
 }
 
-/*
- * Add the function from which logWrite is called to all log messages on
- * <channels>.
- */
-void logWithFunction(uint64_t channels)
+static LogWriter *log_add_file_writer(const char *filename)
 {
-    add_multi_prefix(channels, LOG_PT_FUNC);
+    FILE *fp;
+
+    if ((fp = fopen(filename, "w")) == NULL) {
+        return NULL;
+    }
+
+    LogWriter *writer = log_add_writer(LOG_OT_FILE);
+
+    writer->file = strdup(filename);
+    writer->fp = fp;
+
+    return writer;
 }
 
-/*
- * Add the source line from which logWrite is called to all log messages on
- * <channels>.
- */
-void logWithLine(uint64_t channels)
+static LogWriter *log_find_fp_writer(FILE *fp)
 {
-    add_multi_prefix(channels, LOG_PT_LINE);
+    LogWriter *writer;
+
+    for (writer = listHead(&writers); writer; writer = listNext(writer)) {
+        if (writer->type == LOG_OT_FP && writer->fp == fp) break;
+    }
+
+    return writer;
 }
 
-/*
- * Add the string given by the printf(3)-compatible format string <fmt> and the
- * subsequent parameters to all log messages on <channels>.
- */
-void logWithString(uint64_t channels, const char *fmt, ...)
+static LogWriter *log_add_fp_writer(FILE *fp)
 {
-    va_list ap;
-    char *buf;
-    int r;
+    LogWriter *writer = log_add_writer(LOG_OT_FP);
 
-    va_start(ap, fmt);
-    r = vasprintf(&buf, fmt, ap);
-    va_end(ap);
+    writer->fp = fp;
 
-    if (r == -1) {
-        return;
-    }
-
-    for (int i = 0; i < LOG_MAX_CHANNELS; i++) {
-        if ((channels & (1L << i)) == 0) continue;
-
-        LOG_Channel *channel = log_channel + i;
-
-        LOG_Prefix *prefix = log_add_prefix(channel, LOG_PT_STR);
-
-        prefix->str = strdup(buf);
-    }
+    return writer;
 }
 
-/*
- * Use string <str> as the separator on all log messages on <channels>. This
- * separator is *not* included when the prefix on either side of it is specified
- * using logWithString() above.
- */
-void logWithSeparator(uint64_t channels, const char *str)
+static LogWriter *log_find_fd_writer(int fd)
 {
-    for (int i = 0; i < LOG_MAX_CHANNELS; i++) {
-        if ((channels & (1L << i)) == 0) continue;
+    LogWriter *writer;
 
-        LOG_Channel *channel = log_channel + i;
-
-        channel->separator = strdup(str);
+    for (writer = listHead(&writers); writer; writer = listNext(writer)) {
+        if (writer->type == LOG_OT_FD && writer->fd == fd) break;
     }
+
+    return writer;
 }
 
-/*
- * Write all log messages on <channels> to the file whose path is given by <fmt>
- * and the subsequent parameters.
- */
-int logToFile(uint64_t channels, const char *fmt, ...)
+static LogWriter *log_add_fd_writer(int fd)
 {
-    va_list ap;
-    char *filename;
-    int r;
+    LogWriter *writer = log_add_writer(LOG_OT_FD);
 
-    va_start(ap, fmt);
-    r = vasprintf(&filename, fmt, ap);
-    va_end(ap);
+    writer->fd = fd;
 
-    if (r == -1) {
-        return -1;
-    }
-
-    LOG_Output *output;
-
-    if ((output = log_find_file_output(filename)) == NULL &&
-        (output = log_add_file_output(filename)) == NULL) {
-        free(filename);
-        return -1;
-    }
-
-    for (int i = 0; i < LOG_MAX_CHANNELS; i++) {
-        if (channels & (1L << i)) {
-            LOG_Channel *channel = log_channel + i;
-
-            log_add_output_ref(channel, output);
-        }
-    }
-
-    return 0;
+    return writer;
 }
 
-/*
- * Write all log messages on <channels> to the open file stream <fp>.
- */
-int logToFP(uint64_t channels, FILE *fp)
+static LogWriter *log_add_syslog_writer(const char *ident, int option,
+        int facility, int priority)
 {
-    LOG_Output *output;
+    LogWriter *writer = log_add_writer(LOG_OT_SYSLOG);
 
-    if ((output = log_find_fp_output(fp)) == NULL) {
-        output = log_add_fp_output(fp);
-    }
+    openlog(ident, option, facility);
 
-    for (int i = 0; i < LOG_MAX_CHANNELS; i++) {
-        if (channels & (1L << i)) {
-            LOG_Channel *channel = log_channel + i;
+    writer->priority = priority;
 
-            log_add_output_ref(channel, output);
-        }
-    }
-
-    return 0;
+    return writer;
 }
 
-/*
- * Write all log messages on <channels> to the open file descriptor <fd>.
- */
-int logToFD(uint64_t channels, int fd)
+static LogWriter *log_find_udp_writer(const char *host, uint16_t port)
 {
-    LOG_Output *output;
+    LogWriter *writer;
 
-    if ((output = log_find_fd_output(fd)) == NULL) {
-        output = log_add_fd_output(fd);
+    for (writer = listHead(&writers); writer; writer = listNext(writer)) {
+        if (writer->type == LOG_OT_UDP &&
+            strcmp(writer->host, host) == 0 &&
+            writer->port == port) break;
     }
 
-    for (int i = 0; i < LOG_MAX_CHANNELS; i++) {
-        if (channels & (1L << i)) {
-            LOG_Channel *channel = log_channel + i;
-
-            log_add_output_ref(channel, output);
-        }
-    }
-
-    return 0;
+    return writer;
 }
 
-/*
- * Write all log messages on <channels> to the syslog facility using the given
- * parameters (see openlog(3) for the meaning of these parameters).
- */
-int logToSyslog(uint64_t channels, const char *ident, int option, int facility, int priority)
+static LogWriter *log_add_udp_writer(const char *host, uint16_t port)
 {
-    LOG_Output *output = log_add_syslog_output(ident, option, facility, priority);
+    int fd;
 
-    for (int i = 0; i < LOG_MAX_CHANNELS; i++) {
-        if (channels & (1L << i)) {
-            LOG_Channel *channel = log_channel + i;
-
-            log_add_output_ref(channel, output);
-        }
+    if ((fd = udpSocket()) < 0 || netConnect(fd, host, port) != 0) {
+        return NULL;
     }
 
-    return 0;
+    LogWriter *writer = log_add_writer(LOG_OT_UDP);
+
+    writer->host = strdup(host);
+    writer->port = port;
+    writer->fd   = fd;
+
+    return writer;
 }
 
-/*
- * Write all log messages on <channels> as UDP packets to port <port> on host
- * <host>. If the host could not be found, -1 is returned and no packets will be
- * sent.
- */
-int logToUDP(uint64_t channels, const char *host, uint16_t port)
+static LogWriter *log_find_tcp_writer(const char *host, uint16_t port)
 {
-    LOG_Output *output;
+    LogWriter *writer;
 
-    if ((output = log_find_udp_output(host, port)) == NULL &&
-        (output = log_add_udp_output(host, port)) == NULL) {
-        return 1;
+    for (writer = listHead(&writers); writer; writer = listNext(writer)) {
+        if (writer->type == LOG_OT_TCP &&
+            strcmp(writer->host, host) == 0 &&
+            writer->port == port) break;
     }
 
-    for (int i = 0; i < LOG_MAX_CHANNELS; i++) {
-        if (channels & (1L << i)) {
-            LOG_Channel *channel = log_channel + i;
-
-            log_add_output_ref(channel, output);
-        }
-    }
-
-    return 0;
+    return writer;
 }
 
-/*
- * Send all log messages on <channels> via a TCP connection to port <port> on
- * host <host>. If a connection could not be opened, -1 is returned and no
- * messages will be sent.
- */
-int logToTCP(uint64_t channels, const char *host, uint16_t port)
+static LogWriter *log_add_tcp_writer(const char *host, uint16_t port)
 {
-    LOG_Output *output;
+    int fd;
 
-    if ((output = log_find_tcp_output(host, port)) == NULL &&
-        (output = log_add_tcp_output(host, port)) == NULL) {
-        return 1;
+    if ((fd = tcpConnect(host, port)) < 0) {
+        return NULL;
     }
 
-    for (int i = 0; i < LOG_MAX_CHANNELS; i++) {
-        if (channels & (1L << i)) {
-            LOG_Channel *channel = log_channel + i;
+    LogWriter *writer = log_add_writer(LOG_OT_TCP);
 
-            log_add_output_ref(channel, output);
-        }
-    }
+    writer->host = strdup(host);
+    writer->port = port;
+    writer->fd   = fd;
 
-    return 0;
+    return writer;
 }
 
-/*
- * Call function <handler> for every log message on <channels>. The text of the
- * message will be passed in through <msg>, together with the channels through
- * which the message was sent and the udata pointer given here.
- */
-int logToFunction(uint64_t channels,
+static LogWriter *log_find_function_writer(
         void (*handler)(const char *msg, void *udata),
         void *udata)
 {
-    LOG_Output *output;
+    LogWriter *writer;
 
-    if ((output = log_find_function_output(handler, udata)) == NULL &&
-        (output = log_add_function_output(handler, udata)) == NULL) {
-        return 1;
+    for (writer = listHead(&writers); writer; writer = listNext(writer)) {
+        if (writer->type == LOG_OT_FUNC &&
+            writer->handler == handler &&
+            writer->udata == udata) break;
     }
 
-    for (int i = 0; i < LOG_MAX_CHANNELS; i++) {
-        if (channels & (1L << i)) {
-            LOG_Channel *channel = log_channel + i;
+    return writer;
+}
 
-            log_add_output_ref(channel, output);
+static LogWriter *log_add_function_writer(
+        void (*handler)(const char *msg, void *udata),
+        void *udata)
+{
+    LogWriter *writer = log_add_writer(LOG_OT_FUNC);
+
+    writer->handler = handler;
+    writer->udata = udata;
+
+    return writer;
+}
+
+LogWriter *logFileWriter(const char *fmt, ...)
+{
+    char *filename;
+    va_list ap;
+
+    va_start(ap, fmt);
+    int r = asprintf(&filename, fmt, ap);
+    va_end(ap);
+
+    if (r == -1) return NULL;
+
+    LogWriter *writer;
+
+    if ((writer = log_find_file_writer(filename)) == NULL &&
+        (writer = log_add_file_writer(filename)) == NULL) {
+        return NULL;
+    }
+    else {
+        return writer;
+    }
+}
+
+LogWriter *logFPWriter(FILE *fp)
+{
+    LogWriter *writer;
+
+    if ((writer = log_find_fp_writer(fp)) == NULL && 
+        (writer = log_add_fp_writer(fp)) == NULL) {
+        return NULL;
+    }
+    else {
+        return writer;
+    }
+}
+
+LogWriter *logFDWriter(int fd)
+{
+    LogWriter *writer;
+
+    if ((writer = log_find_fd_writer(fd)) == NULL &&
+        (writer = log_add_fd_writer(fd)) == NULL) {
+        return NULL;
+    }
+    else {
+        return writer;
+    }
+}
+
+LogWriter *logTCPWriter(const char *host, uint16_t port)
+{
+    LogWriter *writer;
+
+    if ((writer = log_find_tcp_writer(host, port)) == NULL &&
+        (writer = log_add_tcp_writer(host, port)) == NULL) {
+        return NULL;
+    }
+    else {
+        return writer;
+    }
+}
+
+LogWriter *logUDPWriter(const char *host, uint16_t port)
+{
+    LogWriter *writer;
+
+    if ((writer = log_find_udp_writer(host, port)) == NULL &&
+        (writer = log_add_udp_writer(host, port)) == NULL) {
+        return NULL;
+    }
+    else {
+        return writer;
+    }
+}
+
+LogWriter *logSyslogWriter(const char *ident, int option, int facility, int priority)
+{
+    return log_add_syslog_writer(ident, option, facility, priority);
+}
+
+LogWriter *logFunctionWriter(void (*handler)(const char *msg, void *udata), void *udata)
+{
+    LogWriter *writer;
+
+    if ((writer = log_find_function_writer(handler, udata)) == NULL &&
+        (writer = log_add_function_writer(handler, udata)) == NULL) {
+        return NULL;
+    }
+    else {
+        return writer;
+    }
+}
+
+void logWithLocalTime(LogWriter *writer, const char *fmt)
+{
+    LogPrefix *prefix = log_add_prefix(writer, LOG_PT_LTIME);
+
+    prefix->str = strdup(fmt);
+}
+
+void logWithUniversalTime(LogWriter *writer, const char *fmt)
+{
+    LogPrefix *prefix = log_add_prefix(writer, LOG_PT_UTIME);
+
+    prefix->str = strdup(fmt);
+}
+
+void logWithFile(LogWriter *writer)
+{
+    log_add_prefix(writer, LOG_PT_FILE);
+}
+
+void logWithLine(LogWriter *writer)
+{
+    log_add_prefix(writer, LOG_PT_LINE);
+}
+
+void logWithFunction(LogWriter *writer)
+{
+    log_add_prefix(writer, LOG_PT_FUNC);
+}
+
+void logWithChannel(LogWriter *writer)
+{
+    log_add_prefix(writer, LOG_PT_CHAN);
+}
+
+void logWithString(LogWriter *writer, const char *fmt, ...)
+{
+    char *str;
+    va_list ap;
+
+    va_start(ap, fmt);
+    int r = asprintf(&str, fmt, ap);
+    va_end(ap);
+
+    if (r != -1) {
+        LogPrefix *prefix = log_add_prefix(writer, LOG_PT_STR);
+
+        prefix->str = str;
+    }
+}
+
+void logWithSeparator(LogWriter *writer, const char *sep)
+{
+    free(writer->separator);
+
+    writer->separator = strdup(sep);
+}
+
+void logCloseWriter(LogWriter *writer) 
+{
+    for (LogChannel *chan = listHead(&channels); chan; chan = listNext(chan)) {
+        LogWriterRef *next_ref;
+
+        for (LogWriterRef *ref = listHead(&chan->writer_refs); ref; ref = next_ref) {
+            next_ref = listNext(ref);
+
+            if (ref->writer == writer) {
+                listRemove(&chan->writer_refs, ref);
+                free(ref);
+            }
         }
     }
 
-    return 0;
+    switch(writer->type) {
+    case LOG_OT_UDP:
+    case LOG_OT_TCP:
+        /* Opened as file descriptors. */
+        close(writer->fd);
+        break;
+    case LOG_OT_FILE:
+        /* Opened as FILE pointers. */
+        fclose(writer->fp);
+        break;
+    case LOG_OT_SYSLOG:
+        /* Opened using openlog(). */
+        closelog();
+        break;
+    default:
+        /* Nothing opened, or not opened by me, so leave them alone. */
+        break;
+    }
+
+    LogPrefix *pfx;
+
+    while ((pfx = listRemoveHead(&writer->prefixes)) != NULL) {
+        free(pfx->str);
+        free(pfx);
+    }
+
+    free(writer->host);
+    free(writer->file);
+    free(writer->separator);
+
+    free(writer);
 }
 
-/*
- * Send the message given using <fmt> and the subsequent parameters to
- * <channels>. Call this function using the logWrite macro which will fill in
- * the <file>, <line> and <func> fields for you.
- */
-void _logWrite(uint64_t channels, const char *file, int line, const char *func,
-        const char *fmt, ...)
+LogChannel *logChannel(const char *name)
 {
-    va_list ap;
+    LogChannel *chan = calloc(1, sizeof(*chan));
 
+    chan->name = strdup(name);
+
+    return chan;
+}
+
+void logConnect(LogChannel *chan, LogWriter *writer)
+{
+    LogWriterRef *ref = calloc(1, sizeof(*ref));
+
+    ref->writer = writer;
+
+    listAppendTail(&chan->writer_refs, ref);
+}
+
+void logCloseChannel(LogChannel *chan)
+{
+    LogWriterRef *ref;
+
+    listRemove(&channels, chan);
+
+    while ((ref = listRemoveHead(&chan->writer_refs)) != NULL) {
+        free(ref);
+    }
+
+    free(chan);
+}
+
+void _logWrite(LogChannel *chan, const char *file, int line, const char *func, const char *fmt, ...)
+{
     Buffer msg = { 0 };
+
+    va_list ap;
 
     va_start(ap, fmt);
     bufAddV(&msg, fmt, ap);
     va_end(ap);
 
-    for (int i = 0; i < LOG_MAX_CHANNELS; i++) {
-        if (channels & (1L << i)) {
-            LOG_Channel *channel = log_channel + i;
+    for (LogWriterRef *ref = listHead(&chan->writer_refs); ref; ref = listNext(ref)) {
+        LogWriter *writer = ref->writer;
 
-            Buffer buf = { 0 };
+        Buffer str = { 0 };
 
-            log_add_prefixes(channel, &buf, file, line, func);
+        log_add_prefixes(&writer->prefixes, &str, writer->separator, chan->name, file, line, func);
 
-            bufAdd(&buf, bufGet(&msg), bufLen(&msg));
+        bufAdd(&str, bufGet(&msg), bufLen(&msg));
 
-            log_write(channel, bufGet(&buf));
+        log_write(writer, bufGet(&str));
 
-            bufClear(&buf);
-        }
+        bufClear(&str);
     }
 
     bufClear(&msg);
 }
 
-/*
- * Output a string given by <fmt> and the subsequent parameters to <channels>,
- * but *without* prefixes. Useful to continue a previously started log message.
- */
-void logContinue(uint64_t channels, const char *fmt, ...)
+void logContinue(LogChannel *chan, const char *fmt, ...)
 {
-    char *buf;
+    Buffer msg = { 0 };
+
     va_list ap;
-    int r;
 
     va_start(ap, fmt);
-    r = vasprintf(&buf, fmt, ap);
+    bufAddV(&msg, fmt, ap);
     va_end(ap);
 
-    if (r < 0) {
-        return;
+    for (LogWriterRef *ref = listHead(&chan->writer_refs); ref; ref = listNext(ref)) {
+        LogWriter *writer = ref->writer;
+
+        log_write(writer, bufGet(&msg));
     }
 
-    for (int i = 0; i < LOG_MAX_CHANNELS; i++) {
-        if (channels & (1L << i)) {
-            LOG_Channel *channel = log_channel + i;
-
-            log_write(channel, buf);
-        }
-    }
-
-    free(buf);
+    bufClear(&msg);
 }
 
-/*
- * Reset logging. Closes all outputs, deletes all channels. After this, you may
- * re-initialize logging using logWith... and logTo... calls.
- */
 void logReset(void)
 {
-    for (int i = 0; i < LOG_MAX_CHANNELS; i++) {
-        LOG_Channel *channel = log_channel + i;
+    LogChannel *chan, *next_chan;
+    LogWriter *writer, *next_writer;
 
-        LOG_Prefix *pfx;
-        LOG_OutputRef *ref;
+    for (chan = listHead(&channels); chan; chan = next_chan) {
+        next_chan = listNext(chan);
 
-        while ((pfx = listRemoveHead(&channel->prefixes)) != NULL) {
-            free(pfx->str);
-            free(pfx);
-        }
-
-        while ((ref = listRemoveHead(&channel->output_refs)) != NULL) {
-            free(ref);
-        }
-
-        free(channel->separator);
+        logCloseChannel(chan);
     }
 
-    LOG_Output *out;
+    for (writer = listHead(&writers); writer; writer = next_writer) {
+        next_writer = listNext(writer);
 
-    while ((out = listRemoveHead(&outputs)) != NULL) {
-        switch(out->type) {
-        case LOG_OT_UDP:
-        case LOG_OT_TCP:
-            /* Opened as file descriptors. */
-            close(out->fd);
-            break;
-        case LOG_OT_FILE:
-            /* Opened as FILE pointers. */
-            fclose(out->fp);
-            break;
-        case LOG_OT_SYSLOG:
-            /* Opened using openlog(). */
-            closelog();
-            break;
-        default:
-            /* Nothing opened, or not opened by me, so leave them alone. */
-            break;
-        }
-
-        free(out->filename);
-        free(out->host);
-
-        free(out);
+        logCloseWriter(writer);
     }
 }
 
@@ -903,21 +732,33 @@ int main(int argc, char *argv[])
 {
     errors += test_time_format();
 
-    logWithUniversalTime(CH_INFO | CH_DEBUG, "%Y-%m-%d %H:%M:%S.%3N");
-    logWithFunction(CH_DEBUG);
-    logWithString(CH_DEBUG, "@");
-    logWithFile(CH_DEBUG);
-    logWithString(CH_DEBUG, ":");
-    logWithLine(CH_DEBUG);
+    LogWriter *file_writer = logFileWriter("/tmp/debug.log");
 
-    logToFile(CH_INFO | CH_DEBUG, "/tmp/log_test.txt");
+    logWithUniversalTime(file_writer, "%Y-%m-%d/%H:%M:%S.%6N");
+    logWithChannel(file_writer);
+    logWithFunction(file_writer);
+    logWithString(file_writer, "@");
+    logWithFile(file_writer);
+    logWithString(file_writer, ":");
+    logWithLine(file_writer);
+    logWithSeparator(file_writer, "\t");
 
-    logWrite(CH_INFO, "Logging to CH_INFO\n");
-    logWrite(CH_DEBUG, "Logging to CH_DEBUG\n");
+    LogWriter *stderr_writer = logFPWriter(stderr);
 
-    logReset();
+    LogChannel *err_channel = logChannel("ERROR");
+    LogChannel *info_channel = logChannel("INFO");
+    LogChannel *debug_channel = logChannel("DEBUG");
+
+    logConnect(err_channel, file_writer);
+    logConnect(err_channel, stderr_writer);
+
+    logConnect(info_channel, file_writer);
+    logConnect(debug_channel, file_writer);
+
+    _logWrite(err_channel, "log.c", 1, "func", "This is an error.\n");
+    _logWrite(info_channel, "log.c", 2, "func", "This is an info message.\n");
+    _logWrite(debug_channel, "log.c", 3, "func", "This is a debug message.\n");
 
     return errors;
 }
-
 #endif
