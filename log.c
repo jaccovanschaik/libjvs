@@ -3,7 +3,7 @@
  *
  * Copyright: (c) 2019 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2019-07-29
- * Version:   $Id: log.c 334 2019-07-29 18:07:55Z jacco $
+ * Version:   $Id: log.c 335 2019-07-30 08:34:47Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -32,119 +32,165 @@
 #include <regex.h>
 #include <unistd.h>
 
+/*
+ * Types of prefixes.
+ */
 typedef enum {
-    LOG_PT_UTIME,
-    LOG_PT_LTIME,
-    LOG_PT_FILE,
-    LOG_PT_LINE,
-    LOG_PT_FUNC,
-    LOG_PT_CHAN,
-    LOG_PT_STR
+    LOG_PT_UTIME,                       // UTC time.
+    LOG_PT_LTIME,                       // Local time.
+    LOG_PT_FILE,                        // File where logWrite was called.
+    LOG_PT_LINE,                        // Line where logWrite was called.
+    LOG_PT_FUNC,                        // Function where logWrite was called.
+    LOG_PT_CHAN,                        // Name of log channel.
+    LOG_PT_STR                          // Fixed string.
 } LogPrefixType;
 
+/*
+ * A prefix definition.
+ */
 typedef struct {
-    ListNode _node;
-    LogPrefixType type;
-    char *str;
+    ListNode _node;                     // Make it listable.
+    LogPrefixType type;                 // Prefix type.
+    char *str;                          // String (for UTIME, LTIME and STR).
 } LogPrefix;
 
+/*
+ * A log channel.
+ */
+struct LogChannel {
+    ListNode _node;                     // Make it listable.
+    char *name;                         // Name of the channel.
+    List writer_refs;                   // List of writer references.
+};
+
+/*
+ * Types of writers.
+ */
 typedef enum {
-    LOG_OT_FILE,
-    LOG_OT_FP,
-    LOG_OT_FD,
-    LOG_OT_TCP,
-    LOG_OT_UDP,
-    LOG_OT_SYSLOG,
-    LOG_OT_FUNC
+    LOG_OT_FILE,                        // Write to a named file.
+    LOG_OT_FP,                          // Write to a FILE pointer.
+    LOG_OT_FD,                          // Write to a file descriptor.
+    LOG_OT_TCP,                         // Write on a TCP connection.
+    LOG_OT_UDP,                         // Write to a UDP socket.
+    LOG_OT_SYSLOG,                      // Write to syslog.
+    LOG_OT_FUNC                         // Write to a handler function.
 } LogWriterType;
 
-struct LogChannel {
-    ListNode _node;
-    char *name;
-    List writer_refs;
-};
-
+/*
+ * A log writer.
+ */
 struct LogWriter {
-    ListNode _node;
-    LogWriterType type;
-    List prefixes;
-    char *host;
-    uint16_t port;
-    char *file;
-    FILE *fp;
-    int fd;
-    int priority;
+    ListNode _node;                     // Make it listable.
+    LogWriterType type;                 // Type of this writer.
+    List prefixes;                      // List of prefixes to use.
+    char *host;                         // Host name (UDP and TCP).
+    uint16_t port;                      // Port number (UDP and TCP).
+    char *file;                         // File name (FILE).
+    FILE *fp;                           // FILE pointer (FILE and FP).
+    int fd;                             // File descriptor (FD, UDP, TCP).
+    int priority;                       // Priority (SYSLOG).
     void (*handler)(const char *msg, void *udata);
-    char *separator;
-    void *udata;
+                                        // Handler function (FUNC).
+    void *udata;                        // User data (FUNC).
+    char *separator;                    // Field separator.
 };
 
+/*
+ * A reference to a log writer.
+ */
 typedef struct {
-    ListNode _node;
-    LogWriter *writer;
+    ListNode _node;                     // Make it listable.
+    LogWriter *writer;                  // Pointer to the writer.
 } LogWriterRef;
 
-static List channels = { 0 };
-static List writers = { 0 };
+static List channels = { 0 };           // The channels we know.
+static List writers = { 0 };            // The writers we know.
 
-static void log_get_time(struct timeval *tv)
+/*
+ * Get the current timestamp in <ts>. In case we're running tests return a fixed
+ * time that we can test against.
+ */
+static void log_get_time(struct timespec *ts)
 {
 #ifdef TEST
-    tv->tv_sec  = 12 * 3600 + 34 * 60 + 56;
-    tv->tv_usec = 123456;
+    ts->tv_sec  = 12 * 3600 + 34 * 60 + 56;
+    ts->tv_nsec = 123456789;
 #else
-    gettimeofday(tv, NULL);
+    clock_gettime(CLOCK_REALTIME, ts);
 #endif
 }
 
-static void log_add_time(Buffer *buf, struct tm *tm, struct timeval *tv, const char *fmt)
+/*
+ * Add the timestamp data in <tm> and <ts> to <buf>, using the
+ * strftime-compatible format string in <fmt>. This function supports an
+ * additional format specifier "%<n>N" which is replaced with <n> sub-second
+ * digits (i.e. 2 gives hundredths, 3 gives thousands, 6 gives millionths etc.)
+ * %N is a specifier in the date command where it gives nanoseconds. The number
+ * of digits can be 0 to 9. The default, if no <n> is given is 9.
+ */
+static void log_add_time(Buffer *buf, struct tm *tm, struct timespec *ts, const char *fmt)
 {
     static regex_t *regex = NULL;
 
-    char buffer[80];
-    char new_fmt[80];
     const size_t nmatch = 2;
     regmatch_t pmatch[nmatch];
 
+    int precision;
+    double remainder = (double) ts->tv_nsec / 1000000000.0;
+    char rem_string[12]; // "0.123456789\0"
+
     if (regex == NULL) {
         regex = calloc(1, sizeof(*regex));
-        regcomp(regex, "%([0-9]*)N", REG_EXTENDED);
+        regcomp(regex, "%([+-]?[0-9]*)N", REG_EXTENDED);
     }
 
-    if (regexec(regex, fmt, nmatch, pmatch, 0) == 0) {
-        int precision;
+    char *new_str = NULL;
+    char *cur_str = strdup(fmt);
 
-        sscanf(fmt + pmatch[1].rm_so, "%d", &precision);
+    while (regexec(regex, cur_str, nmatch, pmatch, 0) == 0) {
+        if (sscanf(cur_str + pmatch[1].rm_so, "%d", &precision) == 0) {
+            precision = 9;
+        }
+        else {
+            precision = CLAMP(precision, 0, 9);
+        }
 
-        precision = CLAMP(precision, 0, 6);
+        snprintf(rem_string, sizeof(rem_string), "%0*.*f", 2 + precision, precision, remainder);
 
-        double remainder = (double) tv->tv_usec / 1000000.0;
+        if (asprintf(&new_str, "%.*s%s%s",
+                pmatch[0].rm_so, cur_str, rem_string + 2, cur_str + pmatch[0].rm_eo) == -1) {
+            break;
+        }
 
-        char rem_buffer[10];
+        cur_str = strdup(new_str);
 
-        snprintf(rem_buffer, sizeof(rem_buffer), "%0*.*f", 2 + precision, precision, remainder);
-
-        snprintf(new_fmt,
-                sizeof(new_fmt), "%.*s%s%s",
-                pmatch[0].rm_so, fmt, rem_buffer + 2, fmt + pmatch[0].rm_eo);
-
-        fmt = new_fmt;
+        free(new_str);
     }
 
-    strftime(buffer, sizeof(buffer), fmt, tm);
+    new_str = malloc(80);
 
-    bufAddS(buf, buffer);
+    strftime(new_str, 80, cur_str, tm);
+
+    free(cur_str);
+
+    bufAddS(buf, new_str);
+
+    free(new_str);
 }
 
+/*
+ * Add the prefixes in <prefixes> to <buf>. Use, if necessary, <separator>,
+ * <chan>, <file>, <line>, <func> as values.
+ */
 static void log_add_prefixes(List *prefixes, Buffer *buf,
         const char *separator, const char *chan, const char *file, int line, const char *func)
 {
     struct tm tm_local = { 0 }, tm_utc = { 0 };
-    static struct timeval tv = { 0 };
+    static struct timespec ts = { 0 };
 
     LogPrefix *pfx, *next_pfx;
 
-    tv.tv_sec = -1;
+    ts.tv_sec = -1;
     tm_utc.tm_sec = -1;
     tm_local.tm_sec = -1;
 
@@ -153,17 +199,17 @@ static void log_add_prefixes(List *prefixes, Buffer *buf,
 
         switch(pfx->type) {
         case LOG_PT_LTIME:
-            if (tv.tv_sec == -1) log_get_time(&tv);
-            if (tm_local.tm_sec == -1) localtime_r(&tv.tv_sec, &tm_local);
+            if (ts.tv_sec == -1) log_get_time(&ts);
+            if (tm_local.tm_sec == -1) localtime_r(&ts.tv_sec, &tm_local);
 
-            log_add_time(buf, &tm_local, &tv, pfx->str);
+            log_add_time(buf, &tm_local, &ts, pfx->str);
 
             break;
         case LOG_PT_UTIME:
-            if (tv.tv_sec == -1) log_get_time(&tv);
-            if (tm_utc.tm_sec == -1) gmtime_r(&tv.tv_sec, &tm_utc);
+            if (ts.tv_sec == -1) log_get_time(&ts);
+            if (tm_utc.tm_sec == -1) gmtime_r(&ts.tv_sec, &tm_utc);
 
-            log_add_time(buf, &tm_utc, &tv, pfx->str);
+            log_add_time(buf, &tm_utc, &ts, pfx->str);
 
             break;
         case LOG_PT_FILE:
@@ -183,13 +229,20 @@ static void log_add_prefixes(List *prefixes, Buffer *buf,
             break;
         }
 
+        // Don't insert a separator if the current or the next prefix is a
+        // LOG_PT_STR, and don't append a separator if the prefix list ends on a
+        // LOG_PT_STR.
+
         if (pfx->type != LOG_PT_STR &&
-                (next_pfx == NULL || next_pfx->type != LOG_PT_STR)) {
+            (next_pfx == NULL || next_pfx->type != LOG_PT_STR)) {
             bufAddS(buf, separator ? separator : " ");
         }
     }
 }
 
+/*
+ * Write out the log message in <buf> to <writer>.
+ */
 static void log_write(LogWriter *writer, const char *buf)
 {
     size_t len = strlen(buf);
@@ -213,6 +266,9 @@ static void log_write(LogWriter *writer, const char *buf)
     }
 }
 
+/*
+ * Add an (as yet empty) prefix of type <type> to <writer>.
+ */
 static LogPrefix *log_add_prefix(LogWriter *writer, LogPrefixType type)
 {
     LogPrefix *prefix = calloc(1, sizeof(LogPrefix));
@@ -224,6 +280,9 @@ static LogPrefix *log_add_prefix(LogWriter *writer, LogPrefixType type)
     return prefix;
 }
 
+/*
+ * Add an (as yet empty) log writer of type <type>.
+ */
 static LogWriter *log_add_writer(LogWriterType type)
 {
     LogWriter *writer = calloc(1, sizeof(*writer));
@@ -233,6 +292,10 @@ static LogWriter *log_add_writer(LogWriterType type)
     return writer;
 }
 
+/*
+ * If there is an existing file writer that writes to <filename> return it,
+ * otherwise return NULL.
+ */
 static LogWriter *log_find_file_writer(const char *filename)
 {
     LogWriter *writer;
@@ -244,6 +307,9 @@ static LogWriter *log_find_file_writer(const char *filename)
     return writer;
 }
 
+/*
+ * Add a file writer that writes to <filename>.
+ */
 static LogWriter *log_add_file_writer(const char *filename)
 {
     FILE *fp;
@@ -260,6 +326,10 @@ static LogWriter *log_add_file_writer(const char *filename)
     return writer;
 }
 
+/*
+ * If there is an existing FP writer that writes to <fp> return it, otherwise
+ * return NULL.
+ */
 static LogWriter *log_find_fp_writer(FILE *fp)
 {
     LogWriter *writer;
@@ -271,6 +341,9 @@ static LogWriter *log_find_fp_writer(FILE *fp)
     return writer;
 }
 
+/*
+ * Add an FP writer that writes to <fp>.
+ */
 static LogWriter *log_add_fp_writer(FILE *fp)
 {
     LogWriter *writer = log_add_writer(LOG_OT_FP);
@@ -280,6 +353,10 @@ static LogWriter *log_add_fp_writer(FILE *fp)
     return writer;
 }
 
+/*
+ * If there is an existing FD writer that writes to <fd> return it, otherwise
+ * return NULL.
+ */
 static LogWriter *log_find_fd_writer(int fd)
 {
     LogWriter *writer;
@@ -291,6 +368,9 @@ static LogWriter *log_find_fd_writer(int fd)
     return writer;
 }
 
+/*
+ * Add an FD writer that writes to <fd>.
+ */
 static LogWriter *log_add_fd_writer(int fd)
 {
     LogWriter *writer = log_add_writer(LOG_OT_FD);
@@ -300,6 +380,10 @@ static LogWriter *log_add_fd_writer(int fd)
     return writer;
 }
 
+/*
+ * Add a syslog writer that writes messages using <ident>, <option>, <facility>
+ * and <priority> (see "man 3 syslog" for details on these parameters).
+ */
 static LogWriter *log_add_syslog_writer(const char *ident, int option,
         int facility, int priority)
 {
@@ -312,6 +396,10 @@ static LogWriter *log_add_syslog_writer(const char *ident, int option,
     return writer;
 }
 
+/*
+ * If there is an existing UDP writer that writes to <port> on <host> return
+ * it, otherwise return NULL.
+ */
 static LogWriter *log_find_udp_writer(const char *host, uint16_t port)
 {
     LogWriter *writer;
@@ -325,6 +413,9 @@ static LogWriter *log_find_udp_writer(const char *host, uint16_t port)
     return writer;
 }
 
+/*
+ * Add a UDP writer that sends log messages as UDP packets to <port> on <host>.
+ */
 static LogWriter *log_add_udp_writer(const char *host, uint16_t port)
 {
     int fd;
@@ -342,6 +433,10 @@ static LogWriter *log_add_udp_writer(const char *host, uint16_t port)
     return writer;
 }
 
+/*
+ * If there is an existing TCP writer that writes to <port> on <host> return
+ * it, otherwise return NULL.
+ */
 static LogWriter *log_find_tcp_writer(const char *host, uint16_t port)
 {
     LogWriter *writer;
@@ -355,6 +450,10 @@ static LogWriter *log_find_tcp_writer(const char *host, uint16_t port)
     return writer;
 }
 
+/*
+ * Add a TCP writer that sends log messages over a TCP connection to <port> on
+ * <host>.
+ */
 static LogWriter *log_add_tcp_writer(const char *host, uint16_t port)
 {
     int fd;
@@ -372,6 +471,10 @@ static LogWriter *log_add_tcp_writer(const char *host, uint16_t port)
     return writer;
 }
 
+/*
+ * If there is an existing function writer that writes to <handler>, using
+ * <udata>, return it, otherwise return NULL.
+ */
 static LogWriter *log_find_function_writer(
         void (*handler)(const char *msg, void *udata),
         void *udata)
@@ -387,6 +490,10 @@ static LogWriter *log_find_function_writer(
     return writer;
 }
 
+/*
+ * Add a log writer that calls <handler> with the log message and the same
+ * <udata> that was given here.
+ */
 static LogWriter *log_add_function_writer(
         void (*handler)(const char *msg, void *udata),
         void *udata)
@@ -697,31 +804,67 @@ static int errors = 0;
 static int test_time_format(void)
 {
     struct tm tm_local = { 0 };
-    struct timeval tv = { 0 };
+    struct timespec ts = { 0 };
 
-    log_get_time(&tv);
+    log_get_time(&ts);
 
-    gmtime_r(&tv.tv_sec, &tm_local);
+    gmtime_r(&ts.tv_sec, &tm_local);
 
     Buffer buf = { 0 };
 
-    log_add_time(&buf, &tm_local, &tv, "%Y-%m-%d %H:%M:%S.%4N: bladibla");
-    make_sure_that(strcmp(bufGet(&buf), "1970-01-01 12:34:56.1235: bladibla") == 0);
+    // Check a general string with some standard strftime specifiers.
+
+    log_add_time(&buf, &tm_local, &ts, "%Y-%m-%d %H:%M:%S.%3N: bladibla");
+    make_sure_that(strcmp(bufGet(&buf), "1970-01-01 12:34:56.123: bladibla") == 0);
 
     bufClear(&buf);
 
-    log_add_time(&buf, &tm_local, &tv, "%6N");
-    make_sure_that(strcmp(bufGet(&buf), "123456") == 0);
+    // Check rounding
+
+    log_add_time(&buf, &tm_local, &ts, "%6N");
+    make_sure_that(strcmp(bufGet(&buf), "123457") == 0);
 
     bufClear(&buf);
 
-    log_add_time(&buf, &tm_local, &tv, "%0N");
+    // Check no digits at all
+
+    log_add_time(&buf, &tm_local, &ts, "%0N");
     make_sure_that(strcmp(bufGet(&buf), "") == 0);
 
     bufClear(&buf);
 
-    log_add_time(&buf, &tm_local, &tv, "%12N");
-    make_sure_that(strcmp(bufGet(&buf), "123456") == 0);
+    // Check too great precision
+
+    log_add_time(&buf, &tm_local, &ts, "%12N");
+    make_sure_that(strcmp(bufGet(&buf), "123456789") == 0);
+
+    bufClear(&buf);
+
+    // Check default precision
+
+    log_add_time(&buf, &tm_local, &ts, "%N");
+    make_sure_that(strcmp(bufGet(&buf), "123456789") == 0);
+
+    bufClear(&buf);
+
+    // Check multiple specifiers
+
+    log_add_time(&buf, &tm_local, &ts, "%3N/%6N");
+    make_sure_that(strcmp(bufGet(&buf), "123/123457") == 0);
+
+    bufClear(&buf);
+
+    // Check that negative digit counts are handled as 0.
+
+    log_add_time(&buf, &tm_local, &ts, "%-3N");
+    make_sure_that(strcmp(bufGet(&buf), "") == 0);
+
+    bufClear(&buf);
+
+    // Check that positive digit counts are accepted.
+
+    log_add_time(&buf, &tm_local, &ts, "%+3N");
+    make_sure_that(strcmp(bufGet(&buf), "123") == 0);
 
     bufClear(&buf);
 
