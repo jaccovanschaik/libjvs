@@ -1,9 +1,9 @@
 /*
- * log.c: XXX
+ * log.c: Provide logging.
  *
  * Copyright: (c) 2019 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2019-07-29
- * Version:   $Id: log.c 336 2019-07-30 12:05:28Z jacco $
+ * Version:   $Id: log.c 337 2019-07-31 08:20:18Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -775,8 +775,11 @@ void logWithString(LogWriter *writer, const char *fmt, ...)
 }
 
 /*
- * Separate fields in log messages to <writer> with the separator given by
- * <sep>.
+ * Separate prefixes in log messages to <writer> with the separator given by
+ * <sep>. Separators are *not* written if the prefix before or after it is a
+ * predefined string (added using logWithString). The user may be trying to set
+ * up alternative separators between certain prefixes and we don't want to mess
+ * that up.
  */
 void logWithSeparator(LogWriter *writer, const char *sep)
 {
@@ -893,6 +896,10 @@ void logReset(void)
 }
 
 #ifdef TEST
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+
 static int errors = 0;
 
 static int test_time_format(void)
@@ -965,36 +972,163 @@ static int test_time_format(void)
     return errors;
 }
 
+#define FILE_WRITER_TEST_FILE "/tmp/test_log_to_file.log"
+#define FP_WRITER_TEST_FILE "/tmp/test_log_to_fp.log"
+#define FD_WRITER_TEST_FILE "/tmp/test_log_to_fd.log"
+
+static int compare_file(const char *filename, const char *text)
+{
+    int fd = open(filename, O_RDONLY);
+
+    if (fd == -1) {
+        fprintf(stderr, "Could not open file \"%s\" for comparison.\n", filename);
+        return 1;
+    }
+
+    struct stat statbuf;
+
+    fstat(fd, &statbuf);
+
+    char *content = calloc(1, statbuf.st_size + 1);
+
+    if (read(fd, content, statbuf.st_size) != statbuf.st_size) {
+        fprintf(stderr, "Could not read file \"%s\" for comparison.\n", filename);
+        return 1;
+    }
+
+    int r = strncmp(content, text, statbuf.st_size);
+
+    if (r != 0) {
+        fprintf(stderr, "File \"%s\" does not match expectation.\n", filename);
+        fprintf(stderr, "Expected:\n");
+        fputs(text, stderr);
+        fprintf(stderr, "Actual:\n");
+        fputs(content, stderr);
+    }
+
+    free(content);
+
+    return r == 0 ? 0 : 1;
+}
+
 int main(int argc, char *argv[])
 {
+    FILE *fp = NULL;
+    int   fd = -1;
+    LogWriter *file_writer;
+    LogWriter *fp_writer;
+    LogWriter *fd_writer;
+
     errors += test_time_format();
 
-    LogWriter *file_writer = logFileWriter("/tmp/debug.log");
+    LogChannel *err_channel = logChannel("ERROR");
+    LogChannel *info_channel = logChannel("INFO");
+    LogChannel *debug_channel = logChannel("DEBUG");
+
+    if ((file_writer = logFileWriter(FILE_WRITER_TEST_FILE)) == NULL) {
+        fprintf(stderr, "Couldn't open %s.\n", FILE_WRITER_TEST_FILE);
+        errors++;
+        goto quit;
+    }
 
     logWithUniversalTime(file_writer, "%Y-%m-%d/%H:%M:%S.%6N");
+    logWithString(file_writer, " FILE ");
     logWithChannel(file_writer);
     logWithFunction(file_writer);
     logWithString(file_writer, "@");
     logWithFile(file_writer);
     logWithString(file_writer, ":");
     logWithLine(file_writer);
-    logWithSeparator(file_writer, "\t");
-
-    LogWriter *stderr_writer = logFPWriter(stderr);
-
-    LogChannel *err_channel = logChannel("ERROR");
-    LogChannel *info_channel = logChannel("INFO");
-    LogChannel *debug_channel = logChannel("DEBUG");
 
     logConnect(err_channel, file_writer);
-    logConnect(err_channel, stderr_writer);
-
     logConnect(info_channel, file_writer);
-    logConnect(debug_channel, file_writer);
+
+    if ((fp = fopen(FP_WRITER_TEST_FILE, "w")) == NULL) {
+        fprintf(stderr, "Couldn't open %s.\n", FP_WRITER_TEST_FILE);
+        errors++;
+        goto quit;
+    }
+    else if ((fp_writer = logFPWriter(fp)) == NULL) {
+        fprintf(stderr, "logFPWriter returned NULL.\n");
+        errors++;
+        goto quit;
+    }
+
+    logWithUniversalTime(fp_writer, "%Y-%m-%d/%H:%M:%S.%6N");
+    logWithString(fp_writer, "\tFP\t");
+    logWithChannel(fp_writer);
+    logWithFunction(fp_writer);
+    logWithString(fp_writer, "@");
+    logWithFile(fp_writer);
+    logWithString(fp_writer, ":");
+    logWithLine(fp_writer);
+    logWithSeparator(fp_writer, "\t");
+
+    logConnect(err_channel, fp_writer);
+    logConnect(debug_channel, fp_writer);
+
+    if ((fd = creat(FD_WRITER_TEST_FILE, 0666)) == -1) {
+        fprintf(stderr, "Couldn't open %s.\n", FD_WRITER_TEST_FILE);
+        errors++;
+        goto quit;
+    }
+    else if ((fd_writer = logFDWriter(fd)) == NULL) {
+        fprintf(stderr, "logFDWriter returned NULL.\n");
+        errors++;
+        goto quit;
+    }
+
+    logWithUniversalTime(fd_writer, "%Y-%m-%d/%H:%M:%S.%6N");
+    logWithString(fd_writer, ",FD,");
+    logWithChannel(fd_writer);
+    logWithFunction(fd_writer);
+    logWithString(fd_writer, "@");
+    logWithFile(fd_writer);
+    logWithString(fd_writer, ":");
+    logWithLine(fd_writer);
+    logWithSeparator(fd_writer, ",");
+
+    logConnect(info_channel, fd_writer);
+    logConnect(debug_channel, fd_writer);
 
     _logWrite(err_channel, "log.c", 1, "func", "This is an error.\n");
     _logWrite(info_channel, "log.c", 2, "func", "This is an info message.\n");
     _logWrite(debug_channel, "log.c", 3, "func", "This is a debug message.\n");
+
+    logReset();
+
+    if (fp != NULL) { fclose(fp); fp = NULL; }
+    if (fd >= 0)    { close(fd);  fd = -1; }
+
+    errors += compare_file(FILE_WRITER_TEST_FILE,
+            "1970-01-01/12:34:56.123457 FILE ERROR func@log.c:1 This is an error.\n"
+            "1970-01-01/12:34:56.123457 FILE INFO func@log.c:2 This is an info message.\n");
+
+    errors += compare_file(FP_WRITER_TEST_FILE,
+            "1970-01-01/12:34:56.123457\tFP\tERROR\tfunc@log.c:1\tThis is an error.\n"
+            "1970-01-01/12:34:56.123457\tFP\tDEBUG\tfunc@log.c:3\tThis is a debug message.\n");
+
+    errors += compare_file(FD_WRITER_TEST_FILE,
+            "1970-01-01/12:34:56.123457,FD,INFO,func@log.c:2,This is an info message.\n"
+            "1970-01-01/12:34:56.123457,FD,DEBUG,func@log.c:3,This is a debug message.\n");
+
+quit:
+    logReset();
+
+    if (fp != NULL) { fclose(fp); fp = NULL; }
+    if (fd >= 0)    { close(fd);  fd = -1; }
+
+    if (access(FILE_WRITER_TEST_FILE, F_OK) == 0) {
+        unlink(FILE_WRITER_TEST_FILE);
+    }
+
+    if (access(FP_WRITER_TEST_FILE, F_OK) == 0) {
+        unlink(FP_WRITER_TEST_FILE);
+    }
+
+    if (access(FD_WRITER_TEST_FILE, F_OK) == 0) {
+        unlink(FD_WRITER_TEST_FILE);
+    }
 
     return errors;
 }

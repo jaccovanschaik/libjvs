@@ -2,11 +2,11 @@
 #define LOG_H
 
 /*
- * log.h: XXX
+ * log.h: Provide logging.
  *
  * Copyright: (c) 2019 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2019-07-29
- * Version:   $Id: log.h 336 2019-07-30 12:05:28Z jacco $
+ * Version:   $Id: log.h 337 2019-07-31 08:20:18Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -113,8 +113,11 @@ __attribute__((format (printf, 2, 3)))
 void logWithString(LogWriter *writer, const char *fmt, ...);
 
 /*
- * Separate fields in log messages to <writer> with the separator given by
- * <sep>.
+ * Separate prefixes in log messages to <writer> with the separator given by
+ * <sep>. Separators are *not* written if the prefix before or after it is a
+ * predefined string (added using logWithString). The user may be trying to set
+ * up alternative separators between certain prefixes and we don't want to mess
+ * that up.
  */
 void logWithSeparator(LogWriter *writer, const char *sep);
 
