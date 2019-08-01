@@ -1,7 +1,7 @@
 #ifndef LIBJVS_MDF_H
 #define LIBJVS_MDF_H
 
-/* dp.c: Data parser
+/* mdf: Minimal Data Format reader.
  *
  * A data file consists of a sequence of name/value pairs. Names are unquoted
  * strings, starting with a letter or underscore and followed by any number of
@@ -20,9 +20,9 @@
  * "next" pointer. Contents of the objects are stored in a union based on the
  * type of object described above.
  *
- * Data parser is part of libjvs.
+ * mdf is part of libjvs.
  *
- * Copyright:   (c) 2013 Jacco van Schaik (jacco@jaccovanschaik.net)
+ * Copyright:   (c) 2013-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -40,25 +40,25 @@ typedef struct MDF_Object MDF_Object;
 /* MDF_Object types. */
 
 typedef enum {
-    MDF_STRING,      /* A (double-quoted) string. */
-    MDF_INT,         /* A (long) integer. */
-    MDF_FLOAT,       /* A (double-precision) float. */
-    MDF_CONTAINER    /* A container with more MDF_Objects. */
+    MDF_STRING,             /* A (double-quoted) string. */
+    MDF_INT,                /* A (long) integer. */
+    MDF_FLOAT,              /* A (double-precision) float. */
+    MDF_CONTAINER           /* A container with more MDF_Objects. */
 } MDF_Type;
 
 /* The MDF_Object itself. */
 
 struct MDF_Object {
-    MDF_Object *next;    /* Next object in the sequence. */
-    MDF_Type type;       /* Type of the object. */
-    char *name;         /* Name of the object. */
-    const char *file;   /* File... */
-    int   line;         /* ... and line where the object was found. */
-    union {
-        char      *s;   /* Pointer to a string (if type == MDF_STRING) */
-        long int   i;   /* An integer (if type == MDF_INT) */
-        double     f;   /* A float (if type == MDF_FLOAT) */
-        MDF_Object *c;   /* First in a sub-list of objects (if type == MDF_CONTAINER) */
+    MDF_Object *next;       /* Next object in the sequence. */
+    MDF_Type    type;       /* Type of the object. */
+    char       *name;       /* Name of the object. */
+    const char *file;       /* File... */
+    int         line;       /* ... and line where the object was found. */
+    union {                 /* Type-specific object data. */
+        char       *s;      /* Pointer to a string (if type == MDF_STRING) */
+        long int    i;      /* An integer (if type == MDF_INT) */
+        double      f;      /* A float (if type == MDF_FLOAT) */
+        MDF_Object *c;      /* First in a sub-list of objects (if type == MDF_CONTAINER) */
     } u;
 };
 

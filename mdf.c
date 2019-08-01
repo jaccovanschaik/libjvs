@@ -1,5 +1,5 @@
 /*
- * dp.c: Data parser
+ * mdf: Minimal Data Format reader.
  *
  * A data file consists of a sequence of name/value pairs. Names are unquoted
  * strings, starting with a letter or underscore and followed by any number of
@@ -18,9 +18,9 @@
  * "next" pointer. Contents of the objects are stored in a union based on the
  * type of object described above.
  *
- * Data parser is part of libjvs.
+ * mdf is part of libjvs.
  *
- * Copyright:	(c) 2013 Jacco van Schaik (jacco@jaccovanschaik.net)
+ * Copyright:	(c) 2013-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -79,7 +79,7 @@ struct MDF_Stream {
 /*
  * Push back character <c> onto the input stream.
  */
-static void dp_unget_char(MDF_Stream *stream, int c)
+static void mdf_unget_char(MDF_Stream *stream, int c)
 {
     if (c == EOF) return;
 
@@ -102,7 +102,7 @@ static void dp_unget_char(MDF_Stream *stream, int c)
 /*
  * Get a character from the input stream.
  */
-static int dp_get_char(MDF_Stream *stream)
+static int mdf_get_char(MDF_Stream *stream)
 {
     int c;
 
@@ -121,10 +121,10 @@ static int dp_get_char(MDF_Stream *stream)
     /* Squish any end-of-line sequence into just a line feed. */
 
     if (c == '\r') {
-        int c2 = dp_get_char(stream);
+        int c2 = mdf_get_char(stream);
 
         if (c2 != '\n') {
-            dp_unget_char(stream, c2);
+            mdf_unget_char(stream, c2);
         }
 
         c = '\n';
@@ -138,7 +138,7 @@ static int dp_get_char(MDF_Stream *stream)
 /*
  * Generate an error message about unexpected character <c> (which may be EOF) on <stream>.
  */
-static void dp_unexpected(MDF_Stream *stream, int c)
+static void mdf_unexpected(MDF_Stream *stream, int c)
 {
     bufSetF(&stream->error, "%s:%d: unexpected ", stream->file, stream->line);
 
@@ -153,7 +153,7 @@ static void dp_unexpected(MDF_Stream *stream, int c)
 /*
  * Interpret <value> as a number and update <obj> with what we think it is.
  */
-static int dp_interpret_number(const char *value, MDF_Object *obj)
+static int mdf_interpret_number(const char *value, MDF_Object *obj)
 {
     long i;
     double f;
@@ -184,7 +184,7 @@ static int dp_interpret_number(const char *value, MDF_Object *obj)
 /*
  * Create and return a MDF_Object of type <type>.
  */
-static MDF_Object *dp_new_object(MDF_Type type)
+static MDF_Object *mdf_new_object(MDF_Type type)
 {
     MDF_Object *obj = calloc(1, sizeof(MDF_Object));
 
@@ -198,11 +198,11 @@ static MDF_Object *dp_new_object(MDF_Type type)
  * <root> and <last> are pointers to the addresses of the first and last elements in the list to
  * which the new object must be added.
  */
-static MDF_Object *dp_add_object(MDF_Type type, const Buffer *name,
+static MDF_Object *mdf_add_object(MDF_Type type, const Buffer *name,
                                 const char *file, int line,
                                 MDF_Object **root, MDF_Object **last)
 {
-    MDF_Object *obj = dp_new_object(type);
+    MDF_Object *obj = mdf_new_object(type);
 
     obj->line = line;
     obj->file = file;
@@ -234,14 +234,14 @@ static MDF_Object *dp_add_object(MDF_Type type, const Buffer *name,
  * Parse input stream <stream> and return the first element in the list of objects that was found.
  * <nesting_level> is the nesting level (w.r.t. braces) we're currently at.
  */
-static MDF_Object *dp_parse(MDF_Stream *stream, int nesting_level)
+static MDF_Object *mdf_parse(MDF_Stream *stream, int nesting_level)
 {
     int c;
 
-    MDF_State state = MDF_STATE_NONE;     /* Current parser state. */
+    MDF_State state = MDF_STATE_NONE;   /* Current parser state. */
 
-    MDF_Object *root = NULL;             /* Root (i.e. first) element of current object list. */
-    MDF_Object *last = NULL;             /* Last added element of current object list. */
+    MDF_Object *root = NULL;            /* Root (i.e. first) element of current object list. */
+    MDF_Object *last = NULL;            /* Last added element of current object list. */
 
     Buffer name = { 0 };                /* Name of current object. */
     Buffer value = { 0 };               /* Value of current object. */
@@ -249,7 +249,7 @@ static MDF_Object *dp_parse(MDF_Stream *stream, int nesting_level)
     while (1) {
         if (state == MDF_STATE_ERROR || state == MDF_STATE_END) break;
 
-        c = dp_get_char(stream);
+        c = mdf_get_char(stream);
 
         switch(state) {
         case MDF_STATE_NONE:
@@ -274,9 +274,9 @@ static MDF_Object *dp_parse(MDF_Stream *stream, int nesting_level)
                 /* Parse the remainder of this container, including the closing brace. */
 
                 MDF_Object *obj =
-                    dp_add_object(MDF_CONTAINER, &name, stream->file, stream->line, &root, &last);
+                    mdf_add_object(MDF_CONTAINER, &name, stream->file, stream->line, &root, &last);
 
-                if ((obj->u.c = dp_parse(stream, nesting_level + 1)) == NULL) {
+                if ((obj->u.c = mdf_parse(stream, nesting_level + 1)) == NULL) {
                     state = bufIsEmpty(&stream->error) ?  MDF_STATE_NONE : MDF_STATE_ERROR;
                 }
             }
@@ -293,7 +293,7 @@ static MDF_Object *dp_parse(MDF_Stream *stream, int nesting_level)
                 state = MDF_STATE_END;
             }
             else if (!isspace(c)) {
-                dp_unexpected(stream, c);
+                mdf_unexpected(stream, c);
                 state = MDF_STATE_ERROR;
             }
             else {
@@ -320,11 +320,11 @@ static MDF_Object *dp_parse(MDF_Stream *stream, int nesting_level)
                 bufAddC(&name, c);
             }
             else if (isspace(c) || c == '{' || c == '}') {
-                dp_unget_char(stream, c);
+                mdf_unget_char(stream, c);
                 state = MDF_STATE_NONE;
             }
             else {
-                dp_unexpected(stream, c);
+                mdf_unexpected(stream, c);
                 state = MDF_STATE_ERROR;
             }
             break;
@@ -336,7 +336,7 @@ static MDF_Object *dp_parse(MDF_Stream *stream, int nesting_level)
             }
             else if (c == '"') {
                 MDF_Object *obj =
-                    dp_add_object(MDF_STRING, &name, stream->file, stream->line, &root, &last);
+                    mdf_add_object(MDF_STRING, &name, stream->file, stream->line, &root, &last);
 
                 obj->u.s = strdup(bufGet(&value));
                 state = MDF_STATE_NONE;
@@ -345,7 +345,7 @@ static MDF_Object *dp_parse(MDF_Stream *stream, int nesting_level)
                 bufAddC(&value, c);
             }
             else {
-                dp_unexpected(stream, c);
+                mdf_unexpected(stream, c);
                 state = MDF_STATE_ERROR;
             }
             break;
@@ -384,10 +384,10 @@ static MDF_Object *dp_parse(MDF_Stream *stream, int nesting_level)
             }
             else if (isspace(c) || c == '{' || c == '}' || c == EOF) {
                 MDF_Object *obj =
-                    dp_add_object(MDF_INT, &name, stream->file,
+                    mdf_add_object(MDF_INT, &name, stream->file,
                             c == '\n' ? stream->line - 1 : stream->line, &root, &last);
 
-                if (dp_interpret_number(bufGet(&value), obj) == 0) {
+                if (mdf_interpret_number(bufGet(&value), obj) == 0) {
                     state = MDF_STATE_NONE;
                 }
                 else {
@@ -396,10 +396,10 @@ static MDF_Object *dp_parse(MDF_Stream *stream, int nesting_level)
                     state = MDF_STATE_ERROR;
                 }
 
-                dp_unget_char(stream, c);
+                mdf_unget_char(stream, c);
             }
             else {
-                dp_unexpected(stream, c);
+                mdf_unexpected(stream, c);
                 state = MDF_STATE_ERROR;
             }
             break;
@@ -423,7 +423,7 @@ static MDF_Object *dp_parse(MDF_Stream *stream, int nesting_level)
 /*
  * Create and return a stream of type <type>.
  */
-static MDF_Stream *dp_create_stream(MDF_StreamType type)
+static MDF_Stream *mdf_create_stream(MDF_StreamType type)
 {
     MDF_Stream *stream = calloc(1, sizeof(MDF_Stream));
 
@@ -435,7 +435,7 @@ static MDF_Stream *dp_create_stream(MDF_StreamType type)
 /*
  * Describe the type of stream <stream>.
  */
-static char *dp_describe_stream(MDF_Stream *stream)
+static char *mdf_describe_stream(MDF_Stream *stream)
 {
     struct stat statbuf;
 
@@ -462,7 +462,7 @@ static char *dp_describe_stream(MDF_Stream *stream)
  */
 MDF_Stream *mdfOpenFile(const char *filename)
 {
-    MDF_Stream *stream = dp_create_stream(MDF_ST_FILE);
+    MDF_Stream *stream = mdf_create_stream(MDF_ST_FILE);
 
     if ((stream->u.fp = fopen(filename, "r")) == NULL) {
         mdfClose(stream);
@@ -479,10 +479,10 @@ MDF_Stream *mdfOpenFile(const char *filename)
  */
 MDF_Stream *mdfOpenFP(FILE *fp)
 {
-    MDF_Stream *stream = dp_create_stream(MDF_ST_FP);
+    MDF_Stream *stream = mdf_create_stream(MDF_ST_FP);
 
     stream->u.fp = fp;
-    stream->file = strdup(dp_describe_stream(stream));
+    stream->file = strdup(mdf_describe_stream(stream));
 
     return stream;
 }
@@ -492,14 +492,14 @@ MDF_Stream *mdfOpenFP(FILE *fp)
  */
 MDF_Stream *mdfOpenFD(int fd)
 {
-    MDF_Stream *stream = dp_create_stream(MDF_ST_FD);
+    MDF_Stream *stream = mdf_create_stream(MDF_ST_FD);
 
     if ((stream->u.fp = fdopen(fd, "r")) == NULL) {
         mdfClose(stream);
         return NULL;
     }
 
-    stream->file = strdup(dp_describe_stream(stream));
+    stream->file = strdup(mdf_describe_stream(stream));
 
     return stream;
 }
@@ -509,10 +509,10 @@ MDF_Stream *mdfOpenFD(int fd)
  */
 MDF_Stream *mdfOpenString(const char *string)
 {
-    MDF_Stream *stream = dp_create_stream(MDF_ST_STRING);
+    MDF_Stream *stream = mdf_create_stream(MDF_ST_STRING);
 
     stream->u.str = string;
-    stream->file = strdup(dp_describe_stream(stream));
+    stream->file = strdup(mdf_describe_stream(stream));
 
     return stream;
 }
@@ -526,7 +526,7 @@ MDF_Object *mdfParse(MDF_Stream *stream)
 
     stream->line = 1;
 
-    return dp_parse(stream, 0);
+    return mdf_parse(stream, 0);
 }
 
 /*
