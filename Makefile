@@ -15,7 +15,7 @@ INSTALL_INC = $(HOME)/include/libjvs
 
 CC = gcc
 
-LIBJVS = vector.o buffer.o hash.o list.o hashlist.o dp.o debug.o dis.o utils.o \
+LIBJVS = vector.o buffer.o hash.o list.o hashlist.o mdf.o debug.o dis.o utils.o \
          bitmask.o net.o tcp.o udp.o log.o ns.o pa.o ml.o options.o geo2d.o
 
 CFLAGS = -std=gnu99 -g -fPIC -Wall -pedantic -O3 # -DPARANOID
@@ -63,7 +63,7 @@ bitmask.o: bitmask.c buffer.h bitmask.h utils.h defs.h
 buffer.o: buffer.c buffer.h utils.h defs.h debug.h 
 debug.o: debug.c debug.h utils.h 
 dis.o: dis.c list.h debug.h utils.h dis.h dis-types.h 
-dp.o: dp.c buffer.h dp.h utils.h 
+mdf.o: mdf.c buffer.h mdf.h utils.h 
 geo2d.o: geo2d.c geo2d.h utils.h 
 hash.o: hash.c list.h debug.h utils.h pa.h hash.h 
 hashlist.o: hashlist.c list.h hash.h hashlist.h 

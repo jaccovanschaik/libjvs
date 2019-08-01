@@ -1,5 +1,5 @@
-#ifndef LIBJVS_DP_H
-#define LIBJVS_DP_H
+#ifndef LIBJVS_MDF_H
+#define LIBJVS_MDF_H
 
 /* dp.c: Data parser
  *
@@ -16,7 +16,7 @@
  *
  * Data to be read can be given as a filename, a file descriptor, a FILE pointer
  * or a character string. The first object in the data is returned to the caller
- * as a DP_Object, and the caller can go to subsequent objects by following a
+ * as a MDF_Object, and the caller can go to subsequent objects by following a
  * "next" pointer. Contents of the objects are stored in a union based on the
  * type of object described above.
  *
@@ -34,78 +34,78 @@ extern "C" {
 
 #include <stdio.h>
 
-typedef struct DP_Stream DP_Stream;
-typedef struct DP_Object DP_Object;
+typedef struct MDF_Stream MDF_Stream;
+typedef struct MDF_Object MDF_Object;
 
-/* DP_Object types. */
+/* MDF_Object types. */
 
 typedef enum {
-    DP_STRING,      /* A (double-quoted) string. */
-    DP_INT,         /* A (long) integer. */
-    DP_FLOAT,       /* A (double-precision) float. */
-    DP_CONTAINER    /* A container with more DP_Objects. */
-} DP_Type;
+    MDF_STRING,      /* A (double-quoted) string. */
+    MDF_INT,         /* A (long) integer. */
+    MDF_FLOAT,       /* A (double-precision) float. */
+    MDF_CONTAINER    /* A container with more MDF_Objects. */
+} MDF_Type;
 
-/* The DP_Object itself. */
+/* The MDF_Object itself. */
 
-struct DP_Object {
-    DP_Object *next;    /* Next object in the sequence. */
-    DP_Type type;       /* Type of the object. */
+struct MDF_Object {
+    MDF_Object *next;    /* Next object in the sequence. */
+    MDF_Type type;       /* Type of the object. */
     char *name;         /* Name of the object. */
     const char *file;   /* File... */
     int   line;         /* ... and line where the object was found. */
     union {
-        char      *s;   /* Pointer to a string (if type == DP_STRING) */
-        long int   i;   /* An integer (if type == DP_INT) */
-        double     f;   /* A float (if type == DP_FLOAT) */
-        DP_Object *c;   /* First in a sub-list of objects (if type == DP_CONTAINER) */
+        char      *s;   /* Pointer to a string (if type == MDF_STRING) */
+        long int   i;   /* An integer (if type == MDF_INT) */
+        double     f;   /* A float (if type == MDF_FLOAT) */
+        MDF_Object *c;   /* First in a sub-list of objects (if type == MDF_CONTAINER) */
     } u;
 };
 
 /*
- * Create and return a DP_Stream, using data from file <filename>.
+ * Create and return a MDF_Stream, using data from file <filename>.
  */
-DP_Stream *dpOpenFile(const char *filename);
+MDF_Stream *mdfOpenFile(const char *filename);
 
 /*
- * Create and return a DP_Stream, using data from FILE pointer <fp>.
+ * Create and return a MDF_Stream, using data from FILE pointer <fp>.
  */
-DP_Stream *dpOpenFP(FILE *fp);
+MDF_Stream *mdfOpenFP(FILE *fp);
 
 /*
- * Create and return a DP_Stream, using data from file descriptor <fd>.
+ * Create and return a MDF_Stream, using data from file descriptor <fd>.
  */
-DP_Stream *dpOpenFD(int fd);
+MDF_Stream *mdfOpenFD(int fd);
 
 /*
- * Create and return a DP_Stream, using data from string <string>.
+ * Create and return a MDF_Stream, using data from string <string>.
  */
-DP_Stream *dpOpenString(const char *string);
+MDF_Stream *mdfOpenString(const char *string);
 
 /*
  * Parse <stream>, returning the first of the found objects.
  */
-DP_Object *dpParse(DP_Stream *stream);
+MDF_Object *mdfParse(MDF_Stream *stream);
 
 /*
  * Return type <type> as a string.
  */
-const char *dpTypeName(const DP_Type type);
+const char *mdfTypeName(const MDF_Type type);
 
 /*
  * Retrieve an error text from <stream>, in case any function has returned an error.
  */
-const char *dpError(const DP_Stream *stream);
+const char *mdfError(const MDF_Stream *stream);
 
 /*
  * Free the object list starting at <root>.
  */
-void dpFree(DP_Object *root);
+void mdfFree(MDF_Object *root);
 
 /*
  * Close <stream> and free all its memory.
  */
-void dpClose(DP_Stream *stream);
+void mdfClose(MDF_Stream *stream);
 
 #ifdef __cplusplus
 }
