@@ -4,7 +4,7 @@
  * Part of libjvs.
  *
  * Copyright:	(c) 2013 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:	$Id: dis.c 290 2018-01-07 21:11:05Z jacco $
+ * Version:	$Id: dis.c 340 2019-08-05 13:52:09Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -122,7 +122,7 @@ void disVaPack(Dispatcher *dis, int fd, va_list ap)
 /*
  * Arrange for <cb> to be called at time <t>, which is the (double precision floating point) number
  * of seconds since 00:00:00 UTC on 1970-01-01 (aka. the UNIX epoch). <cb> will be called with the
- * given <dis>, <t> and <udata>. You can get the current time using nowd() from utils.c.
+ * given <dis>, <t> and <udata>. You can get the current time using dnow() from utils.c.
  */
 void disOnTime(Dispatcher *dis, double t, void (*cb)(Dispatcher *dis, double t, void *udata), const void *udata)
 {
@@ -217,13 +217,13 @@ int disPrepareSelect(Dispatcher *dis, int *nfds, fd_set *rfds, fd_set *wfds, str
     P dbgPrint(stderr, "%d pending timers:\n", listLength(&dis->timers));
 
     P for (timer = listHead(&dis->timers); timer; timer = listNext(timer)) {
-        fprintf(stderr, "\t%f seconds\n", timer->t - nowd());
+        fprintf(stderr, "\t%f seconds\n", timer->t - dnow());
     }
 
     if ((timer = listHead(&dis->timers)) == NULL) {
         *tv = NULL;
     }
-    else if ((delta_t = timer->t - nowd()) < 0) {
+    else if ((delta_t = timer->t - dnow()) < 0) {
 #if 0
         P dbgPrint(stderr, "First timer %f seconds ago, return -1\n", -delta_t);
 
@@ -491,7 +491,7 @@ int main(int argc, char *argv[])
     }
 
     disOnData(dis, fd[0], handle_fd0, NULL);
-    disOnTime(dis, nowd() + 0.1, handle_timeout, NULL);
+    disOnTime(dis, dnow() + 0.1, handle_timeout, NULL);
 
     for (i = 0; i < fd[0]; i++) {
         make_sure_that(!disOwnsFd(dis, i));

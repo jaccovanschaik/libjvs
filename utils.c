@@ -17,6 +17,7 @@
 #include <stdint.h>
 #include <ctype.h>
 #include <math.h>
+#include <time.h>
 #include <sys/time.h>
 
 #include "defs.h"
@@ -208,13 +209,77 @@ double tvtod(const struct timeval *tv)
 /*
  * Return the current UTC time (number of seconds since 1970-01-01/00:00:00 UTC) as a double.
  */
-double nowd(void)
+double dnow(void)
 {
     struct timeval tv;
 
     gettimeofday(&tv, NULL);
 
     return tvtod(&tv);
+}
+
+/*
+ * Return the current time as a struct timespec.
+ */
+const struct timespec *tsnow(void)
+{
+    static struct timespec ts;
+
+    clock_gettime(CLOCK_REALTIME, &ts);
+
+    return &ts;
+}
+
+/*
+ * Format the timespec given in <ts> to a string, using the strftime-compatible
+ * format <fmt> and timezone <tz>. If <tz> is NULL, local time (according to the
+ * TZ environment variable) is used. If <digits> is greater than 0, this many
+ * sub-second digits are added to the end of the string.
+ */
+const char *tsformat(const struct timespec *ts, const char *tz, const char *fmt, int digits)
+{
+    static char str[80];
+    char sub[12];
+
+    struct tm tm;
+
+    if (tz == NULL) {
+        localtime_r(&ts->tv_sec, &tm);
+    }
+    else {
+        char *saved_tz;
+
+        if ((saved_tz = getenv("TZ")) != NULL) {
+            saved_tz = strdup(saved_tz);
+        }
+
+        setenv("TZ", tz, 1);
+        tzset();
+
+        localtime_r(&ts->tv_sec, &tm);
+
+        if (saved_tz) {
+            setenv("TZ", tz, 1);
+            free(saved_tz);
+        }
+        else {
+            unsetenv("TZ");
+        }
+
+        tzset();
+    }
+
+    strftime(str, sizeof(str), fmt, &tm);
+
+    size_t len = strlen(str);
+
+    digits = CLAMP(digits, 0, 9);
+
+    snprintf(sub, sizeof(sub), "%.*f", digits, ts->tv_nsec / 1000000000.0);
+
+    strncpy(str + len, sub + 1, sizeof(str) - len);
+
+    return str;
 }
 
 /*
@@ -755,6 +820,22 @@ int main(int argc, char *argv[])
     make_sure_that(strcmp(result, "Testing env_expand: test result") == 0);
 
     free(result);
+
+    struct timespec ts = {  // 12:00:00.123456789 UTC, 1970-01-01
+        .tv_sec = 43200,
+        .tv_nsec = 123456789
+    };
+
+    make_sure_that(strcmp(tsformat(&ts, NULL, "%Y-%m-%d/%H:%M:%S", 0),
+                "1970-01-01/13:00:00") == 0);
+    make_sure_that(strcmp(tsformat(&ts, "UTC", "%Y-%m-%d/%H:%M:%S", 1),
+                "1970-01-01/12:00:00.1") == 0);
+    make_sure_that(strcmp(tsformat(&ts, "Europe/Amsterdam", "%Y-%m-%d/%H:%M:%S", 4),
+                "1970-01-01/13:00:00.1235") == 0);
+    make_sure_that(strcmp(tsformat(&ts, "America/New_York", "%Y-%m-%d/%H:%M:%S", 5),
+                "1970-01-01/07:00:00.12346") == 0);
+    make_sure_that(strcmp(tsformat(&ts, "Asia/Shanghai", "%Y-%m-%d/%H:%M:%S", 9),
+                "1970-01-01/20:00:00.123456789") == 0);
 
     return errors;
 }

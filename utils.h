@@ -47,7 +47,6 @@ enum {
     PACK_RAW
 };
 
-
 /*
  * Return the current stack depth.
  */
@@ -106,7 +105,20 @@ double tvtod(const struct timeval *tv);
 /*
  * Return the current UTC time (number of seconds since 1970-01-01/00:00:00 UTC) as a double.
  */
-double nowd(void);
+double dnow(void);
+
+/*
+ * Return the current time as a struct timespec.
+ */
+const struct timespec *tsnow(void);
+
+/*
+ * Format the timespec given in <ts> to a string, using the strftime-compatible
+ * format <fmt> and timezone <tz>. If <tz> is NULL, local time (according to the
+ * TZ environment variable) is used. If <digits> is greater than 0, this many
+ * sub-second digits are added to the end of the string.
+ */
+const char *tsformat(const struct timespec *ts, const char *tz, const char *fmt, int digits);
 
 /*
  * Pack data from <ap> into <str>, which has size <size>.
@@ -187,9 +199,9 @@ int vstrunpack(const char *str, int size, va_list ap);
 int strunpack(const char *str, int size, ...);
 
 /*
- * Expand environment variables in <text> and return the result. Non-existing 
- * variables are replaced with empty strings. Any dollar sign followed by 0 or 
- * more letters, digits or underscores is assumed to be an environment variable 
+ * Expand environment variables in <text> and return the result. Non-existing
+ * variables are replaced with empty strings. Any dollar sign followed by 0 or
+ * more letters, digits or underscores is assumed to be an environment variable
  * (which is probably more than your shell).
  */
 char *env_expand(const char *text);

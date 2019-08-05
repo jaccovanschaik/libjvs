@@ -4,7 +4,7 @@
  * Part of libjvs.
  *
  * Copyright:	(c) 2013 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:	$Id: ns.c 291 2018-05-07 11:58:12Z jacco $
+ * Version:	$Id: ns.c 340 2019-08-05 13:52:09Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -478,7 +478,7 @@ void tester(uint16_t port)
 
     NS *ns = nsCreate();
 
-    nsOnTime(ns, nowd() + 0.1, on_time, &port);
+    nsOnTime(ns, dnow() + 0.1, on_time, &port);
 
     r = nsRun(ns);
 
