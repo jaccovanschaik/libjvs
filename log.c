@@ -3,7 +3,7 @@
  *
  * Copyright: (c) 2019 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2019-07-29
- * Version:   $Id: log.c 337 2019-07-31 08:20:18Z jacco $
+ * Version:   $Id: log.c 341 2019-08-06 12:39:24Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -73,7 +73,8 @@ typedef enum {
     LOG_OT_TCP,                         // Write on a TCP connection.
     LOG_OT_UDP,                         // Write to a UDP socket.
     LOG_OT_SYSLOG,                      // Write to syslog.
-    LOG_OT_FUNC                         // Write to a handler function.
+    LOG_OT_FUNC,                        // Write to a handler function.
+    LOG_OT_BUFFER                       // Write to a Buffer.
 } LogWriterType;
 
 /*
@@ -92,6 +93,7 @@ struct LogWriter {
     void (*handler)(const char *msg, void *udata);
                                         // Handler function (FUNC).
     void *udata;                        // User data (FUNC).
+    Buffer *buffer;                     // Buffer (BUFFER).
     char *separator;                    // Field separator.
 };
 
@@ -262,6 +264,9 @@ static void log_write(LogWriter *writer, const char *buf)
         break;
     case LOG_OT_FUNC:
         writer->handler(buf, writer->udata);
+        break;
+    case LOG_OT_BUFFER:
+        bufAddS(writer->buffer, buf);
         break;
     }
 }
@@ -507,6 +512,33 @@ static LogWriter *log_add_function_writer(
 }
 
 /*
+ * If there is an existing buffer writer that writes into <buf> return it,
+ * otherwise return NULL.
+ */
+static LogWriter *log_find_buffer_writer(Buffer *buf)
+{
+    LogWriter *writer;
+
+    for (writer = listHead(&writers); writer; writer = listNext(writer)) {
+        if (writer->type == LOG_OT_BUFFER && writer->buffer == buf) break;
+    }
+
+    return writer;
+}
+
+/*
+ * Add a log writer that writes into <buf>.
+ */
+static LogWriter *log_add_buffer_writer(Buffer *buf)
+{
+    LogWriter *writer = log_add_writer(LOG_OT_BUFFER);
+
+    writer->buffer = buf;
+
+    return writer;
+}
+
+/*
  * Close writer <writer>.
  */
 static void log_close_writer(LogWriter *writer)
@@ -683,6 +715,22 @@ LogWriter *logFunctionWriter(void (*handler)(const char *msg, void *udata), void
 
     if ((writer = log_find_function_writer(handler, udata)) == NULL &&
         (writer = log_add_function_writer(handler, udata)) == NULL) {
+        return NULL;
+    }
+    else {
+        return writer;
+    }
+}
+
+/*
+ * Get a log writer that writes into Buffer <buf>.
+ */
+LogWriter *logBufferWriter(Buffer *buf)
+{
+    LogWriter *writer;
+
+    if ((writer = log_find_buffer_writer(buf)) == NULL &&
+        (writer = log_add_buffer_writer(buf)) == NULL) {
         return NULL;
     }
     else {
@@ -1018,6 +1066,7 @@ int main(int argc, char *argv[])
     LogWriter *file_writer;
     LogWriter *fp_writer;
     LogWriter *fd_writer;
+    LogWriter *buf_writer;
 
     errors += test_time_format();
 
@@ -1091,6 +1140,26 @@ int main(int argc, char *argv[])
     logConnect(info_channel, fd_writer);
     logConnect(debug_channel, fd_writer);
 
+    Buffer log_buffer = { 0 };
+
+    if ((buf_writer = logBufferWriter(&log_buffer)) == NULL) {
+        fprintf(stderr, "logBufferWriter returned NULL.\n");
+        errors++;
+        goto quit;
+    }
+
+    logWithUniversalTime(buf_writer, "%Y-%m-%d/%H:%M:%S.%6N");
+    logWithString(buf_writer, " - BUFFER - ");
+    logWithChannel(buf_writer);
+    logWithFunction(buf_writer);
+    logWithString(buf_writer, "@");
+    logWithFile(buf_writer);
+    logWithString(buf_writer, ":");
+    logWithLine(buf_writer);
+    logWithSeparator(buf_writer, " - ");
+
+    logConnect(debug_channel, buf_writer);
+
     _logWrite(err_channel, "log.c", 1, "func", "This is an error.\n");
     _logWrite(info_channel, "log.c", 2, "func", "This is an info message.\n");
     _logWrite(debug_channel, "log.c", 3, "func", "This is a debug message.\n");
@@ -1111,6 +1180,10 @@ int main(int argc, char *argv[])
     errors += compare_file(FD_WRITER_TEST_FILE,
             "1970-01-01/12:34:56.123457,FD,INFO,func@log.c:2,This is an info message.\n"
             "1970-01-01/12:34:56.123457,FD,DEBUG,func@log.c:3,This is a debug message.\n");
+
+    errors += strcmp(bufGet(&log_buffer),
+            "1970-01-01/12:34:56.123457 - BUFFER - DEBUG - "
+            "func@log.c:3 - This is a debug message.\n") != 0;
 
 quit:
     logReset();
