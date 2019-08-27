@@ -1,10 +1,10 @@
 /* ml.c: A package for handling multiple linked lists. Differs from list in that items can be in
  * more than one list at the same time.
  *
- * Part of libjvs.
+ * ml.c is part of libjvs.
  *
- * Copyright:	(c) 2005 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:	$Id: ml.c 277 2016-10-07 08:51:20Z jacco $
+ * Copyright:   (c) 2005-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
+ * Version:     $Id: ml.c 343 2019-08-27 08:39:24Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.

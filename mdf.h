@@ -1,7 +1,7 @@
 #ifndef LIBJVS_MDF_H
 #define LIBJVS_MDF_H
 
-/* mdf: Minimal Data Format reader.
+/* mdf.h: Minimal Data Format reader.
  *
  * A data file consists of a sequence of name/value pairs. Names are unquoted
  * strings, starting with a letter or underscore and followed by any number of
@@ -20,9 +20,10 @@
  * "next" pointer. Contents of the objects are stored in a union based on the
  * type of object described above.
  *
- * mdf is part of libjvs.
+ * mdf.h is part of libjvs.
  *
  * Copyright:   (c) 2013-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
+ * Version:     $Id: mdf.h 343 2019-08-27 08:39:24Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.

@@ -1,9 +1,10 @@
 /*
- * liblist: A package for handling linked lists.
+ * list.c: A package for handling linked lists.
  *
- * Part of libjvs.
+ * list.c is part of libjvs.
  *
- * Copyright: (c) 2004-2005 Jacco van Schaik (jacco@jaccovanschaik.net)
+ * Copyright:   (c) 2004-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
+ * Version:     $Id: list.c 343 2019-08-27 08:39:24Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -54,9 +55,9 @@ void f_listInsertHead(List *list, ListNode *node)
     node->next = list->head;
 
     if (list->head != NULL)
-	list->head->prev = node;
+        list->head->prev = node;
     else
-	list->tail = node;
+        list->tail = node;
 
     list->head = node;
 
@@ -81,9 +82,9 @@ void f_listAppendTail(List *list, ListNode *node)
     node->prev = list->tail;
 
     if (list->tail != NULL)
-	list->tail->next = node;
+        list->tail->next = node;
     else
-	list->head = node;
+        list->head = node;
 
     list->tail = node;
 
@@ -107,12 +108,12 @@ void f_listInsert(List *list, ListNode *node, ListNode *before)
     assert(before == NULL || before->list == list);
 
     if (before == NULL) {
-	f_listAppendTail(list, node);
-	return;
+        f_listAppendTail(list, node);
+        return;
     }
     if (before->prev == NULL) {
-	f_listInsertHead(list, node);
-	return;
+        f_listInsertHead(list, node);
+        return;
     }
 
     node->next = before;
@@ -141,12 +142,12 @@ void f_listAppend(List *list, ListNode *node, ListNode *after)
     assert(after == NULL || after->list == list);
 
     if (after == NULL) {
-	f_listInsertHead(list, node);
-	return;
+        f_listInsertHead(list, node);
+        return;
     }
     if (after->next == NULL) {
-	f_listAppendTail(list, node);
-	return;
+        f_listAppendTail(list, node);
+        return;
     }
 
     node->prev = after;
@@ -171,14 +172,14 @@ void f_listRemove(List *list, ListNode *node)
     assert(node->list == list);
 
     if (node->prev != NULL)
-	node->prev->next = node->next;
+        node->prev->next = node->next;
     else
-	list->head = node->next;
+        list->head = node->next;
 
     if (node->next != NULL)
-	node->next->prev = node->prev;
+        node->next->prev = node->prev;
     else
-	list->tail = node->prev;
+        list->tail = node->prev;
 
     node->next = NULL;
     node->prev = NULL;

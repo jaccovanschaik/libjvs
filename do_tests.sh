@@ -2,10 +2,10 @@
 
 # do_tests.sh: Run all available tests.
 #
-# Author:	Jacco van Schaik (jacco.van.schaik@dnw.aero)
-# Copyright:	(c) 2013 DNW German-Dutch Windtunnels
-# Created:	2013-08-23
-# Version:	$Id: do_tests.sh 192 2013-08-23 07:52:13Z jacco $
+# Author:       Jacco van Schaik (jacco.van.schaik@dnw.aero)
+# Copyright:    (c) 2013 DNW German-Dutch Windtunnels
+# Created:      2013-08-23
+# Version:      $Id: do_tests.sh 343 2019-08-27 08:39:24Z jacco $
 
 errors=0
 

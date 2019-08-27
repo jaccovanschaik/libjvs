@@ -4,9 +4,11 @@
 /*
  * log.h: Provide logging.
  *
- * Copyright: (c) 2019 Jacco van Schaik (jacco@jaccovanschaik.net)
+ * log.h is part of libjvs.
+ *
+ * Copyright: (c) 2019-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2019-07-29
- * Version:   $Id: log.h 341 2019-08-06 12:39:24Z jacco $
+ * Version:   $Id: log.h 343 2019-08-27 08:39:24Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.

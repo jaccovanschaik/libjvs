@@ -4,9 +4,10 @@
 /*
  * net.h: General networking utility functions.
  *
- * Part of libjvs.
+ * net.h is part of libjvs.
  *
- * Copyright:   (c) 2007 Jacco van Schaik (jacco@jaccovanschaik.net)
+ * Copyright:   (c) 2007-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
+ * Version:     $Id: net.h 343 2019-08-27 08:39:24Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.

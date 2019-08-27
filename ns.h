@@ -2,12 +2,12 @@
 #define NS_H
 
 /*
- * Network Server.
+ * ns.h: Network Server.
  *
- * Part of libjvs.
+ * ns.h is part of libjvs.
  *
- * Copyright:	(c) 2013 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:	$Id: ns.h 291 2018-05-07 11:58:12Z jacco $
+ * Copyright:   (c) 2013-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
+ * Version:     $Id: ns.h 343 2019-08-27 08:39:24Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.

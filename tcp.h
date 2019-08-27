@@ -2,11 +2,12 @@
 #define LIBJVS_TCP_H
 
 /*
- * Provides a simplified interface to TCP/IP networking.
+ * tcp.h: provides a simplified interface to TCP/IP networking.
  *
- * Part of libjvs.
+ * tcp.h is part of libjvs.
  *
- * Copyright:   (c) 2007 Jacco van Schaik (jacco@jaccovanschaik.net)
+ * Copyright:   (c) 2007-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
+ * Version:     $Id: tcp.h 343 2019-08-27 08:39:24Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.

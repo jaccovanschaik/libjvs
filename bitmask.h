@@ -4,9 +4,10 @@
 /*
  * bitmask.h: Handle bitmasks of unlimited size.
  *
- * Part of libjvs.
+ * bitmask.h is part of libjvs.
  *
- * Copyright:	(c) 2008 Jacco van Schaik (jacco@jaccovanschaik.net)
+ * Copyright:   (c) 2008-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
+ * Version:     $Id: bitmask.h 343 2019-08-27 08:39:24Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.

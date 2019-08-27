@@ -2,12 +2,12 @@
 #define NS_TYPES_H
 
 /*
- * Network Server.
+ * ns-types.h: types for ns.c
  *
- * Part of libjvs.
+ * ns-types.h is part of libjvs.
  *
- * Copyright:	(c) 2013 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:	$Id: ns-types.h 280 2017-01-17 10:39:36Z jacco $
+ * Copyright:   (c) 2013-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
+ * Version:     $Id: ns-types.h 343 2019-08-27 08:39:24Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.

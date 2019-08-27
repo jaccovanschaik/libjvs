@@ -5,9 +5,11 @@
  * sequential access. But what if you have data in a hash table that you
  * sometimes want to access sequentially? Try the hashlist!
  *
- * Copyright: (c) 2019 Jacco van Schaik (jacco@jaccovanschaik.net)
+ * hashlist.c is part of libjvs.
+ *
+ * Copyright: (c) 2019-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2019-01-22
- * Version:   $Id: hashlist.c 320 2019-01-29 07:01:57Z jacco $
+ * Version:   $Id: hashlist.c 343 2019-08-27 08:39:24Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.

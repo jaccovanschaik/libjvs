@@ -2,11 +2,12 @@
 #define LIBJVS_LIST_H
 
 /*
- * liblist: A package for handling linked lists.
+ * list.h: A package for handling linked lists.
  *
- * Part of libjvs.
+ * list.h is part of libjvs.
  *
- * Copyright: (c) 2004-2005 Jacco van Schaik (jacco@jaccovanschaik.net)
+ * Copyright:   (c) 2004-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
+ * Version:     $Id: list.h 343 2019-08-27 08:39:24Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.

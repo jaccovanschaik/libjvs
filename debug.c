@@ -1,9 +1,10 @@
 /*
- * Functions to assist debugging.
+ * debug.c: functions to assist debugging.
  *
- * Part of libjvs.
+ * debug.c is part of libjvs.
  *
- * Copyright: (c) 2004 Jacco van Schaik (jacco@jaccovanschaik.net)
+ * Copyright:   (c) 2004-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
+ * Version:     $Id: debug.c 343 2019-08-27 08:39:24Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.

@@ -1,9 +1,10 @@
 /*
  * utils.c: Various utility functions.
  *
- * Part of libjvs.
+ * utils.c is part of libjvs.
  *
- * Copyright:   (c) 2012 Jacco van Schaik (jacco@jaccovanschaik.net)
+ * Copyright:   (c) 2012-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
+ * Version:     $Id: utils.c 343 2019-08-27 08:39:24Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -304,15 +305,15 @@ static void pack(void *data, int size, char **dest, int *remaining)
  *
  * type         value           packs
  * ----         -----           -----
- * PACK_INT8	int		1 byte int
- * PACK_INT16	int		2 byte int
- * PACK_INT32	int		4 byte int
- * PACK_INT64	uint64_t	8 byte int
- * PACK_FLOAT	double		4 byte float
- * PACK_DOUBLE	double		8 byte double
- * PACK_STRING	char *		4-byte length (from strlen) followed by as many bytes.
- * PACK_DATA	char *, uint	4-byte length (as given) followed by as many bytes.
- * PACK_RAW	char *, uint	Raw bytes using length as given.
+ * PACK_INT8    int             1 byte int
+ * PACK_INT16   int             2 byte int
+ * PACK_INT32   int             4 byte int
+ * PACK_INT64   uint64_t        8 byte int
+ * PACK_FLOAT   double          4 byte float
+ * PACK_DOUBLE  double          8 byte double
+ * PACK_STRING  char *          4-byte length (from strlen) followed by as many bytes.
+ * PACK_DATA    char *, uint    4-byte length (as given) followed by as many bytes.
+ * PACK_RAW     char *, uint    Raw bytes using length as given.
  *
  * All ints (including the lengths) are packed with big-endian byte order.
  *
@@ -481,15 +482,15 @@ int astrpack(char **str, ...)
  *
  * type         pointer         unpacks
  * ----         -------         -----
- * PACK_INT8	uint8_t *	1 byte int
- * PACK_INT16	uint16_t *	2 byte int
- * PACK_INT32	uint32_t *	4 byte int
- * PACK_INT64	uint64_t *	8 byte int
- * PACK_FLOAT	float *		4 byte float
- * PACK_DOUBLE	double *	8 byte double
- * PACK_STRING	char **		4-byte length, followed by as many bytes.
- * PACK_DATA	char **, uint *	4-byte length, followed by as many bytes.
- * PACK_RAW	char *, uint	As many raw bytes as given.
+ * PACK_INT8    uint8_t *       1 byte int
+ * PACK_INT16   uint16_t *      2 byte int
+ * PACK_INT32   uint32_t *      4 byte int
+ * PACK_INT64   uint64_t *      8 byte int
+ * PACK_FLOAT   float *         4 byte float
+ * PACK_DOUBLE  double *        8 byte double
+ * PACK_STRING  char **         4-byte length, followed by as many bytes.
+ * PACK_DATA    char **, uint * 4-byte length, followed by as many bytes.
+ * PACK_RAW     char *, uint    As many raw bytes as given.
  *
  * Note: PACK_STRING and PACK_DATA allocate space to put the data in, and it is the caller's
  * responsibility to free that space again. PACK_STRING creates a null-terminated string. PACK_DATA

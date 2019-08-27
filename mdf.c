@@ -1,5 +1,5 @@
 /*
- * mdf: Minimal Data Format reader.
+ * mdf.c: Minimal Data Format parser.
  *
  * A data file consists of a sequence of name/value pairs. Names are unquoted
  * strings, starting with a letter or underscore and followed by any number of
@@ -14,13 +14,14 @@
  *
  * Data to be read can be given as a filename, a file descriptor, a FILE pointer
  * or a character string. The first object in the data is returned to the caller
- * as a MDF_Object, and the caller can go to subsequent objects by following a
+ * as an MDF_Object, and the caller can go to subsequent objects by following a
  * "next" pointer. Contents of the objects are stored in a union based on the
  * type of object described above.
  *
- * mdf is part of libjvs.
+ * mdf.c is part of libjvs.
  *
- * Copyright:	(c) 2013-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
+ * Copyright:   (c) 2013-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
+ * Version:     $Id: mdf.c 343 2019-08-27 08:39:24Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -182,7 +183,7 @@ static int mdf_interpret_number(const char *value, MDF_Object *obj)
 }
 
 /*
- * Create and return a MDF_Object of type <type>.
+ * Create and return an MDF_Object of type <type>.
  */
 static MDF_Object *mdf_new_object(MDF_Type type)
 {
@@ -238,10 +239,10 @@ static MDF_Object *mdf_parse(MDF_Stream *stream, int nesting_level)
 {
     int c;
 
-    MDF_State state = MDF_STATE_NONE;   /* Current parser state. */
+    MDF_State state = MDF_STATE_NONE;     /* Current parser state. */
 
-    MDF_Object *root = NULL;            /* Root (i.e. first) element of current object list. */
-    MDF_Object *last = NULL;            /* Last added element of current object list. */
+    MDF_Object *root = NULL;             /* Root (i.e. first) element of current object list. */
+    MDF_Object *last = NULL;             /* Last added element of current object list. */
 
     Buffer name = { 0 };                /* Name of current object. */
     Buffer value = { 0 };               /* Value of current object. */
@@ -364,6 +365,10 @@ static MDF_Object *mdf_parse(MDF_Stream *stream, int nesting_level)
                 bufAddC(&value, '\n');
                 state = MDF_STATE_STRING;
             }
+            else if (c == '"') {
+                bufAddC(&value, '"');
+                state = MDF_STATE_STRING;
+            }
             else if (c == '\\') {
                 bufAddC(&value, '\\');
                 state = MDF_STATE_STRING;
@@ -458,7 +463,7 @@ static char *mdf_describe_stream(MDF_Stream *stream)
 }
 
 /*
- * Create and return a MDF_Stream, using data from file <filename>.
+ * Create and return an MDF_Stream, using data from file <filename>.
  */
 MDF_Stream *mdfOpenFile(const char *filename)
 {
@@ -475,7 +480,7 @@ MDF_Stream *mdfOpenFile(const char *filename)
 }
 
 /*
- * Create and return a MDF_Stream, using data from FILE pointer <fp>.
+ * Create and return an MDF_Stream, using data from FILE pointer <fp>.
  */
 MDF_Stream *mdfOpenFP(FILE *fp)
 {
@@ -488,7 +493,7 @@ MDF_Stream *mdfOpenFP(FILE *fp)
 }
 
 /*
- * Create and return a MDF_Stream, using data from file descriptor <fd>.
+ * Create and return an MDF_Stream, using data from file descriptor <fd>.
  */
 MDF_Stream *mdfOpenFD(int fd)
 {
@@ -505,7 +510,7 @@ MDF_Stream *mdfOpenFD(int fd)
 }
 
 /*
- * Create and return a MDF_Stream, using data from string <string>.
+ * Create and return an MDF_Stream, using data from string <string>.
  */
 MDF_Stream *mdfOpenString(const char *string)
 {
