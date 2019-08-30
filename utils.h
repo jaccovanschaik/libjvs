@@ -7,7 +7,7 @@
  * utils.h is part of libjvs.
  *
  * Copyright:   (c) 2012-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: utils.h 343 2019-08-27 08:39:24Z jacco $
+ * Version:     $Id: utils.h 347 2019-08-28 12:14:25Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -206,6 +206,11 @@ int strunpack(const char *str, int size, ...);
  * (which is probably more than your shell).
  */
 char *env_expand(const char *text);
+
+/*
+ * See if <actual> is "close to" (in the floating point sense) <expected>.
+ */
+int close_to(double actual, double expected);
 
 /*
  * Test <val>. If it is FALSE, print that fact, along with the textual representation of <val> which

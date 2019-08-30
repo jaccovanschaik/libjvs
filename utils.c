@@ -4,7 +4,7 @@
  * utils.c is part of libjvs.
  *
  * Copyright:   (c) 2012-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: utils.c 343 2019-08-27 08:39:24Z jacco $
+ * Version:     $Id: utils.c 347 2019-08-28 12:14:25Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -672,6 +672,42 @@ char *env_expand(const char *text)
     bufDestroy(varname);
 
     return bufFinish(result);
+}
+
+/*
+ * From:
+ * https://github.com/elliotchance/c2go/blob/4ecf1a1adaafea18d7f23ab5632e67357fb2f56e/tests/tests.h
+ *
+ * This will strictly not handle any input value that is infinite or NaN.
+ * It will always return false, even if the values are exactly equal. This is to
+ * force you to use the correct matcher (ie. is_inf()) instead of relying on
+ * comparisons which might not work.
+ */
+int close_to(double actual, double expected)
+{
+    const int bits = 48;
+
+    // We do not handle infinities or NaN.
+    if (isinf(actual) || isinf(expected) || isnan(actual) || isnan(expected)) {
+        return 0;
+    }
+
+    // If we expect zero (a common case) we have a fixed epsilon from actual. If
+    // allowed to continue the epsilon calculated would be zero and we would be
+    // doing an exact match which is what we want to avoid.
+    if (expected == 0.0) {
+        return fabs(actual) < (1 / pow(2, bits));
+    }
+
+    // The epsilon is calculated based on significant bits of the actual value.
+    // The amount of bits used depends on the original size of the float (in
+    // terms of bits) subtracting a few to allow for very slight rounding
+    // errors.
+    double epsilon = fabs(expected / pow(2, bits));
+
+    // The numbers are considered equal if the absolute difference between them
+    // is less than the relative epsilon.
+    return fabs(actual - expected) <= epsilon;
 }
 
 /*

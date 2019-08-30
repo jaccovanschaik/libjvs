@@ -1,9 +1,11 @@
 /*
  * vector3.c: Handles 3d vectors.
  *
+ * vector3.c is part of libjvs.
+ *
  * Copyright: (c) 2019 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2019-08-27
- * Version:   $Id: vector3.c 344 2019-08-27 19:30:24Z jacco $
+ * Version:   $Id: vector3.c 349 2019-08-30 12:06:55Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -157,3 +159,79 @@ Vector3 v3Cross(Vector3 v1, Vector3 v2)
             v1.r[2] * v2.r[0] - v1.r[0] * v2.r[2],
             v1.r[0] * v2.r[1] - v1.r[1] * v2.r[0]);
 }
+
+#ifdef TEST
+#include "utils.h"
+
+static int errors = 0;
+
+int main(int argc, char *argv[])
+{
+    Vector3 v1 = v3New();
+
+    make_sure_that(v1.r[0] == 0);
+    make_sure_that(v1.r[1] == 0);
+    make_sure_that(v1.r[2] == 0);
+
+    Vector3 v2 = v3Make(1, 2, 3);
+
+    make_sure_that(v2.r[0] == 1);
+    make_sure_that(v2.r[1] == 2);
+    make_sure_that(v2.r[2] == 3);
+
+    v3Set(&v1, 4, 5, 6);
+
+    make_sure_that(v1.r[0] == 4);
+    make_sure_that(v1.r[1] == 5);
+    make_sure_that(v1.r[2] == 6);
+
+    Vector3 v3 = v3Sum(v1, v2);
+
+    make_sure_that(v3.r[0] == 5);
+    make_sure_that(v3.r[1] == 7);
+    make_sure_that(v3.r[2] == 9);
+
+    v3Add(&v3, v1);
+
+    make_sure_that(v3.r[0] == 9);
+    make_sure_that(v3.r[1] == 12);
+    make_sure_that(v3.r[2] == 15);
+
+    v1 = v3Diff(v3, v2);
+
+    make_sure_that(v1.r[0] == 8);
+    make_sure_that(v1.r[1] == 10);
+    make_sure_that(v1.r[2] == 12);
+
+    v3Sub(&v1, v2);
+
+    make_sure_that(v1.r[0] == 7);
+    make_sure_that(v1.r[1] == 8);
+    make_sure_that(v1.r[2] == 9);
+
+    v3Set(&v1, 1, 2, 3);
+
+    make_sure_that(close_to(v3Len(v1), sqrt(14)));
+
+    v2 = v3Scaled(v1, 2);
+
+    make_sure_that(v2.r[0] == 2);
+    make_sure_that(v2.r[1] == 4);
+    make_sure_that(v2.r[2] == 6);
+
+    v3Scale(&v1, 3);
+
+    make_sure_that(v1.r[0] == 3);
+    make_sure_that(v1.r[1] == 6);
+    make_sure_that(v1.r[2] == 9);
+
+// void v3Normalize(Vector3 *v);
+// Vector3 v3Normalized(Vector3 v);
+// double v3Dot(Vector3 v1, Vector3 v2);
+// double v3Cos(Vector3 v1, Vector3 v2);
+// double v3Angle(Vector3 v1, Vector3 v2);
+// Vector3 v3Cross(Vector3 v1, Vector3 v2);
+
+    return errors;
+}
+#endif

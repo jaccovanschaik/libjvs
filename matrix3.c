@@ -1,9 +1,11 @@
 /*
  * matrix3.c: Handles 3x3 matrices.
  *
+ * matrix3.c is part of libjvs.
+ *
  * Copyright: (c) 2019 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2019-08-27
- * Version:   $Id: matrix3.c 344 2019-08-27 19:30:24Z jacco $
+ * Version:   $Id: matrix3.c 346 2019-08-28 07:38:39Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -118,9 +120,9 @@ Matrix2 m3Minor(Matrix3 m, int row, int col)
  */
 Vector3 m3Row(Matrix3 m, int row)
 {
-    assert(row >= 0 && row <= 2);
+    assert(row >= 0 && row < 3);
 
-    return v3Make(m.c[0].r[0], m.c[1].r[0], m.c[2].r[0]);
+    return v3Make(m.c[0].r[row], m.c[1].r[row], m.c[2].r[row]);
 }
 
 /*
@@ -133,6 +135,32 @@ double m3Det(Matrix3 m)
     double d02 = m2Det(m3Minor(m, 0, 2));
 
     return m.c[0].r[0] * d00 - m.c[1].r[0] * d01 + m.c[1].r[0] * d02;
+}
+
+/*
+ * Return a version of <m> where each coefficient is scaled by <factor>.
+ */
+Matrix3 m3Scaled(Matrix3 m, double factor)
+{
+    Matrix3 s;
+
+    int row, col;
+
+    for (row = 0; row < 3; row++) {
+        for (col = 0; col < 3; col++) {
+            s.c[col].r[row] = m.c[col].r[row] * factor;
+        }
+    }
+
+    return s;
+}
+
+/*
+ * Scale the matrix indicated by <m> by <factor>.
+ */
+void m3Scale(Matrix3 *m, double factor)
+{
+    *m = m3Scaled(*m, factor);
 }
 
 /*

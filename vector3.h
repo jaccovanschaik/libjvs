@@ -4,9 +4,11 @@
 /*
  * vector3.h: Handles 3d vectors.
  *
+ * vector3.h is part of libjvs.
+ *
  * Copyright: (c) 2019 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2019-08-27
- * Version:   $Id: vector3.h 344 2019-08-27 19:30:24Z jacco $
+ * Version:   $Id: vector3.h 346 2019-08-28 07:38:39Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
