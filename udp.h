@@ -7,7 +7,7 @@
  * udp.h is part of libjvs.
  *
  * Copyright:   (c) 2007-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: udp.h 343 2019-08-27 08:39:24Z jacco $
+ * Version:     $Id: udp.h 352 2019-10-14 12:03:38Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -26,9 +26,10 @@ extern "C" {
 int udpSocket(void);
 
 /*
- * Send <data> with size <size> via <fd> to <host>, <port>. Note that this function does a hostname
- * lookup for every call, which can be slow. If possible, use netConnect() to set a default address,
- * after which you can simply write() to the socket without incurring this overhead.
+ * Send <data> with size <size> via <fd> to <host>, <port>. Note that this
+ * function does a hostname lookup for every call, which can be slow. If
+ * possible, use netConnect() to set a default address, after which you can
+ * simply write() to the socket without incurring this overhead.
  */
 int udpSend(int fd, const char *host, uint16_t port, const char *data, size_t size);
 

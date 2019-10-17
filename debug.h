@@ -7,7 +7,7 @@
  * debug.h is part of libjvs.
  *
  * Copyright:   (c) 2004-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: debug.h 343 2019-08-27 08:39:24Z jacco $
+ * Version:     $Id: debug.h 352 2019-10-14 12:03:38Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -32,7 +32,6 @@ static char *__func__ = NULL;
 #define dbgPrint(fp, ...)  _dbgPrint(fp,  __FILE__, __LINE__, __func__, __VA_ARGS__)
 #define dbgError(fp, ...)  _dbgError(fp,  __FILE__, __LINE__, __func__, __VA_ARGS__)
 #define dbgAssert(fp, cond, ...) _dbgAssert(fp, cond, __FILE__, __LINE__, __func__, __VA_ARGS__)
-
 
 /*
  * Print the given debugging message, indented to the current stack depth/

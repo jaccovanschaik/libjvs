@@ -5,7 +5,7 @@
  *
  * Copyright: (c) 2019 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2019-08-27
- * Version:   $Id: matrix2.c 350 2019-08-30 12:07:22Z jacco $
+ * Version:   $Id: matrix2.c 353 2019-10-14 12:25:35Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -164,12 +164,14 @@ Matrix2 m2Adjugate(Matrix2 m)
 {
     Matrix2 A;
 
-    int row, col, sign = 1;
+    int row, col;
 
     for (row = 0; row < 2; row++) {
         for (col = 0; col < 2; col++) {
-            A.c[col].r[row] = sign * m.c[col].r[row];
-            sign = -sign;
+            if (((row + col) % 2) == 0)
+                A.c[col].r[row] =  m.c[col].r[row];
+            else
+                A.c[col].r[row] = -m.c[col].r[row];
         }
     }
 
@@ -365,12 +367,13 @@ int main(int argc, char *argv[])
     make_sure_that(m1.c[1].r[0] == 0);
     make_sure_that(m1.c[1].r[1] == 1);
 
+    m1 = m2Make(1, 1, 1, 1);
     m2 = m2Adjugate(m1);
 
     make_sure_that(m2.c[0].r[0] ==  1);
-    make_sure_that(m2.c[0].r[1] ==  0);
-    make_sure_that(m2.c[1].r[0] ==  0);
-    make_sure_that(m2.c[1].r[1] == -1);
+    make_sure_that(m2.c[1].r[0] == -1);
+    make_sure_that(m2.c[0].r[1] == -1);
+    make_sure_that(m2.c[1].r[1] ==  1);
 
     m = m2Make(1, 2,            // Non-invertible matrix
                1, 2);
