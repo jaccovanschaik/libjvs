@@ -8,7 +8,7 @@
  *
  * Copyright: (c) 2019-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2019-07-29
- * Version:   $Id: log.h 343 2019-08-27 08:39:24Z jacco $
+ * Version:   $Id: log.h 355 2019-10-18 09:05:51Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -16,6 +16,7 @@
 
 #include <stdio.h>
 #include <stdint.h>
+#include <syslog.h>
 
 #include "buffer.h"
 
@@ -23,11 +24,49 @@
 extern "C" {
 #endif
 
+/*
+ * This log package works with log "channels", which are connected to log
+ * "writers". You write log messages to one or more channels, and the connected
+ * log writers take care of writing them, with any number of prefixes of your
+ * choosing, to your chosen destination.
+ *
+ * A log channel identifier is a single bit in a 64-bit bitmask (which means
+ * there are 64 channels in total). If a function has "uint64_t channels" as a
+ * parameter you can pass in a bitmask with multiple bits set, and the function
+ * will apply to all the associated channels.
+ *
+ * Log writers take care of writing the log messages to a given destination.
+ * There are log writers that write to files, file pointers, file descriptors,
+ * Buffers (see buf.h) and the syslog facility. There is also a log writer that
+ * calls a user-supplied function for each log message.
+ *
+ * Each log writer can have a number of associated prefixes that are written out
+ * before the actual log message (in the order in which they were requested).
+ * You can have the current date and time, the file, line and function from
+ * which the log message was written, and also any fixed string. You can also
+ * set a separator between the fields of the log message.
+ */
+
+/*
+ * These are some predefined channel masks, based on the log levels in syslog.h.
+ * You can use these, or you can define your own. It's entirely up to you.
+ */
+
+enum {
+    CH_EMERG   = 1 << LOG_EMERG,    /* system is unusable */
+    CH_ALERT   = 1 << LOG_ALERT,    /* action must be taken immediately */
+    CH_CRIT    = 1 << LOG_CRIT,     /* critical conditions */
+    CH_ERR     = 1 << LOG_ERR,	    /* error conditions */
+    CH_WARNING = 1 << LOG_WARNING,  /* warning conditions */
+    CH_NOTICE  = 1 << LOG_NOTICE,   /* normal but significant condition */
+    CH_INFO    = 1 << LOG_INFO,     /* informational */
+    CH_DEBUG   = 1 << LOG_DEBUG,    /* debug-level messages */
+};
+
 #define logWrite(channels, ...) \
     _logWrite(channels, __FILE__, __LINE__, __func__, __VA_ARGS__)
 
 typedef struct LogWriter LogWriter;
-typedef struct LogChannel LogChannel;
 
 /*
  * Get a log writer that writes to the file whose name is given by <fmt> and the
@@ -109,12 +148,6 @@ void logWithLine(LogWriter *writer);
 void logWithFunction(LogWriter *writer);
 
 /*
- * Prefix log messages to <writer> with the name of the channel through which
- * the message is sent.
- */
-void logWithChannel(LogWriter *writer);
-
-/*
  * Prefix log messages to <writer> with the string defined by the
  * printf-compatible format string <fmt> and the subsequent parameters.
  */
@@ -124,24 +157,19 @@ void logWithString(LogWriter *writer, const char *fmt, ...);
 /*
  * Separate prefixes in log messages to <writer> with the separator given by
  * <sep>. Separators are *not* written if the prefix before or after it is a
- * predefined string (added using logWithString). The user may be trying to set
+ * string prefix (added using logWithString). The user is probably trying to set
  * up alternative separators between certain prefixes and we don't want to mess
- * that up.
+ * that up. The default separator is a single space.
  */
 void logWithSeparator(LogWriter *writer, const char *sep);
 
 /*
- * Create a new log channel with the name <name>.
+ * Connect the log channels in <channels> to writer <writer>.
  */
-LogChannel *logChannel(const char *name);
+void logConnect(uint64_t channels, LogWriter *writer);
 
 /*
- * Connect log channel <chan> to writer <writer>.
- */
-void logConnect(LogChannel *chan, LogWriter *writer);
-
-/*
- * Write a log message to channel <chan>, defined by the printf-compatible
+ * Write a log message to <channels>, defined by the printf-compatible
  * format string <fmt> and the subsequent parameters. If necessary, <file>,
  * <line> and <func> will be used to fill the appropriate prefixes.
  *
@@ -149,7 +177,7 @@ void logConnect(LogChannel *chan, LogWriter *writer);
  * <line> and <func> for you.
  */
 __attribute__((format (printf, 5, 6)))
-void _logWrite(LogChannel *chan,
+void _logWrite(uint64_t channels,
         const char *file, int line, const char *func,
         const char *fmt, ...);
 
@@ -158,7 +186,7 @@ void _logWrite(LogChannel *chan,
  * <fmt> and the subsequent parameters.
  */
 __attribute__((format (printf, 2, 3)))
-void logContinue(LogChannel *chan, const char *fmt, ...);
+void logContinue(uint64_t channels, const char *fmt, ...);
 
 /*
  * Reset all logging. Deletes all created channels and writers.

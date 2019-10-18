@@ -5,7 +5,7 @@
  *
  * Copyright: (c) 2019-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2019-07-29
- * Version:   $Id: log.c 343 2019-08-27 08:39:24Z jacco $
+ * Version:   $Id: log.c 355 2019-10-18 09:05:51Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -15,13 +15,13 @@
 
 #include "log.h"
 
+#include "list.h"
+#include "pa.h"
 #include "net.h"
 #include "tcp.h"
 #include "udp.h"
-#include "list.h"
 #include "buffer.h"
 #include "defs.h"
-#include "utils.h"
 
 #include <stdio.h>
 #include <stdint.h>
@@ -43,7 +43,6 @@ typedef enum {
     LOG_PT_FILE,                        // File where logWrite was called.
     LOG_PT_LINE,                        // Line where logWrite was called.
     LOG_PT_FUNC,                        // Function where logWrite was called.
-    LOG_PT_CHAN,                        // Name of log channel.
     LOG_PT_STR                          // Fixed string.
 } LogPrefixType;
 
@@ -55,15 +54,6 @@ typedef struct {
     LogPrefixType type;                 // Prefix type.
     char *str;                          // String (for UTIME, LTIME and STR).
 } LogPrefix;
-
-/*
- * A log channel.
- */
-struct LogChannel {
-    ListNode _node;                     // Make it listable.
-    char *name;                         // Name of the channel.
-    List writer_refs;                   // List of writer references.
-};
 
 /*
  * Types of writers.
@@ -95,7 +85,7 @@ struct LogWriter {
     void (*handler)(const char *msg, void *udata);
                                         // Handler function (FUNC).
     void *udata;                        // User data (FUNC).
-    Buffer *buffer;                     // Buffer (BUFFER).
+    Buffer *buffer;                     // Buffer (BUF).
     char *separator;                    // Field separator.
 };
 
@@ -107,8 +97,17 @@ typedef struct {
     LogWriter *writer;                  // Pointer to the writer.
 } LogWriterRef;
 
-static List channels = { 0 };           // The channels we know.
-static List writers = { 0 };            // The writers we know.
+/*
+ * Data for a log channel.
+ */
+typedef struct {
+    List writer_refs;
+} LogChannel;
+
+static PointerArray log_channels = { 0 };   // The channels (max. 64) we know.
+static List log_writers = { 0 };            // The writers we know.
+
+static const int max_channels = 8 * sizeof(uint64_t);
 
 /*
  * Get the current timestamp in <ts>. In case we're running tests return a fixed
@@ -187,7 +186,7 @@ static void log_add_time(Buffer *buf, struct tm *tm, struct timespec *ts, const 
  * <chan>, <file>, <line>, <func> as values.
  */
 static void log_add_prefixes(List *prefixes, Buffer *buf,
-        const char *separator, const char *chan, const char *file, int line, const char *func)
+        const char *separator, const char *file, int line, const char *func)
 {
     struct tm tm_local = { 0 }, tm_utc = { 0 };
     static struct timespec ts = { 0 };
@@ -225,9 +224,6 @@ static void log_add_prefixes(List *prefixes, Buffer *buf,
         case LOG_PT_FUNC:
             bufAddF(buf, "%s", func);
             break;
-        case LOG_PT_CHAN:
-            bufAddF(buf, "%s", chan);
-            break;
         case LOG_PT_STR:
             bufAddF(buf, "%s", pfx->str);
             break;
@@ -260,6 +256,7 @@ static void log_write(LogWriter *writer, const char *buf)
     case LOG_OT_FILE:
     case LOG_OT_FP:
         fwrite(buf, len, 1, writer->fp);
+        fflush(writer->fp);
         break;
     case LOG_OT_SYSLOG:
         syslog(writer->priority, "%s", buf);
@@ -307,7 +304,7 @@ static LogWriter *log_find_file_writer(const char *filename)
 {
     LogWriter *writer;
 
-    for (writer = listHead(&writers); writer; writer = listNext(writer)) {
+    for (writer = listHead(&log_writers); writer; writer = listNext(writer)) {
         if (writer->type == LOG_OT_FILE && strcmp(writer->file, filename) == 0) break;
     }
 
@@ -341,7 +338,7 @@ static LogWriter *log_find_fp_writer(FILE *fp)
 {
     LogWriter *writer;
 
-    for (writer = listHead(&writers); writer; writer = listNext(writer)) {
+    for (writer = listHead(&log_writers); writer; writer = listNext(writer)) {
         if (writer->type == LOG_OT_FP && writer->fp == fp) break;
     }
 
@@ -368,7 +365,7 @@ static LogWriter *log_find_fd_writer(int fd)
 {
     LogWriter *writer;
 
-    for (writer = listHead(&writers); writer; writer = listNext(writer)) {
+    for (writer = listHead(&log_writers); writer; writer = listNext(writer)) {
         if (writer->type == LOG_OT_FD && writer->fd == fd) break;
     }
 
@@ -411,7 +408,7 @@ static LogWriter *log_find_udp_writer(const char *host, uint16_t port)
 {
     LogWriter *writer;
 
-    for (writer = listHead(&writers); writer; writer = listNext(writer)) {
+    for (writer = listHead(&log_writers); writer; writer = listNext(writer)) {
         if (writer->type == LOG_OT_UDP &&
             strcmp(writer->host, host) == 0 &&
             writer->port == port) break;
@@ -448,7 +445,7 @@ static LogWriter *log_find_tcp_writer(const char *host, uint16_t port)
 {
     LogWriter *writer;
 
-    for (writer = listHead(&writers); writer; writer = listNext(writer)) {
+    for (writer = listHead(&log_writers); writer; writer = listNext(writer)) {
         if (writer->type == LOG_OT_TCP &&
             strcmp(writer->host, host) == 0 &&
             writer->port == port) break;
@@ -488,7 +485,7 @@ static LogWriter *log_find_function_writer(
 {
     LogWriter *writer;
 
-    for (writer = listHead(&writers); writer; writer = listNext(writer)) {
+    for (writer = listHead(&log_writers); writer; writer = listNext(writer)) {
         if (writer->type == LOG_OT_FUNC &&
             writer->handler == handler &&
             writer->udata == udata) break;
@@ -521,7 +518,7 @@ static LogWriter *log_find_buffer_writer(Buffer *buf)
 {
     LogWriter *writer;
 
-    for (writer = listHead(&writers); writer; writer = listNext(writer)) {
+    for (writer = listHead(&log_writers); writer; writer = listNext(writer)) {
         if (writer->type == LOG_OT_BUFFER && writer->buffer == buf) break;
     }
 
@@ -545,10 +542,14 @@ static LogWriter *log_add_buffer_writer(Buffer *buf)
  */
 static void log_close_writer(LogWriter *writer)
 {
-    for (LogChannel *chan = listHead(&channels); chan; chan = listNext(chan)) {
-        LogWriterRef *next_ref;
+    // First remove it from all channels that write to it.
+    for (int i = 0; i < max_channels; i++) {
+        LogWriterRef *ref, *next_ref;
+        LogChannel *chan;
 
-        for (LogWriterRef *ref = listHead(&chan->writer_refs); ref; ref = next_ref) {
+        if ((chan = paGet(&log_channels, i)) == NULL) continue;
+
+        for (ref = listHead(&chan->writer_refs); ref; ref = next_ref) {
             next_ref = listNext(ref);
 
             if (ref->writer == writer) {
@@ -589,22 +590,6 @@ static void log_close_writer(LogWriter *writer)
     free(writer->separator);
 
     free(writer);
-}
-
-/*
- * Close channel <chan>.
- */
-static void log_close_channel(LogChannel *chan)
-{
-    LogWriterRef *ref;
-
-    listRemove(&channels, chan);
-
-    while ((ref = listRemoveHead(&chan->writer_refs)) != NULL) {
-        free(ref);
-    }
-
-    free(chan);
 }
 
 /*
@@ -795,15 +780,6 @@ void logWithFunction(LogWriter *writer)
 }
 
 /*
- * Prefix log messages to <writer> with the name of the channel through which
- * the message is sent.
- */
-void logWithChannel(LogWriter *writer)
-{
-    log_add_prefix(writer, LOG_PT_CHAN);
-}
-
-/*
  * Prefix log messages to <writer> with the string defined by the
  * printf-compatible format string <fmt> and the subsequent parameters.
  */
@@ -827,9 +803,9 @@ void logWithString(LogWriter *writer, const char *fmt, ...)
 /*
  * Separate prefixes in log messages to <writer> with the separator given by
  * <sep>. Separators are *not* written if the prefix before or after it is a
- * predefined string (added using logWithString). The user may be trying to set
+ * string prefix (added using logWithString). The user is probably trying to set
  * up alternative separators between certain prefixes and we don't want to mess
- * that up.
+ * that up. The default separator is a single space.
  */
 void logWithSeparator(LogWriter *writer, const char *sep)
 {
@@ -839,31 +815,29 @@ void logWithSeparator(LogWriter *writer, const char *sep)
 }
 
 /*
- * Create a new log channel with the name <name>.
+ * Connect the log channels in <channels> to writer <writer>.
  */
-LogChannel *logChannel(const char *name)
+void logConnect(uint64_t channels, LogWriter *writer)
 {
-    LogChannel *chan = calloc(1, sizeof(*chan));
+    for (int i = 0; i < max_channels; i++) {
+        if ((channels & (1ULL << i)) == 0) continue;
 
-    chan->name = strdup(name);
+        LogChannel *chan = paGet(&log_channels, i);
+        LogWriterRef *ref = calloc(1, sizeof(*ref));
 
-    return chan;
+        ref->writer = writer;
+
+        if (chan == NULL) {
+            chan = calloc(1, sizeof(*chan));
+            paSet(&log_channels, i, chan);
+        }
+
+        listAppendTail(&chan->writer_refs, ref);
+    }
 }
 
 /*
- * Connect log channel <chan> to writer <writer>.
- */
-void logConnect(LogChannel *chan, LogWriter *writer)
-{
-    LogWriterRef *ref = calloc(1, sizeof(*ref));
-
-    ref->writer = writer;
-
-    listAppendTail(&chan->writer_refs, ref);
-}
-
-/*
- * Write a log message to channel <chan>, defined by the printf-compatible
+ * Write a log message to <channels>, defined by the printf-compatible
  * format string <fmt> and the subsequent parameters. If necessary, <file>,
  * <line> and <func> will be used to fill the appropriate prefixes.
  *
@@ -871,7 +845,7 @@ void logConnect(LogChannel *chan, LogWriter *writer)
  * <line> and <func> for you.
  */
 __attribute__((format (printf, 5, 6)))
-void _logWrite(LogChannel *chan,
+void _logWrite(uint64_t channels,
         const char *file, int line, const char *func,
         const char *fmt, ...)
 {
@@ -883,18 +857,26 @@ void _logWrite(LogChannel *chan,
     bufAddV(&msg, fmt, ap);
     va_end(ap);
 
-    for (LogWriterRef *ref = listHead(&chan->writer_refs); ref; ref = listNext(ref)) {
-        LogWriter *writer = ref->writer;
+    for (int i = 0; i < max_channels; i++) {
+        if (((1ULL << i) & channels) == 0) continue;    // Not writing to this channel.
 
-        Buffer str = { 0 };
+        LogChannel *chan = paGet(&log_channels, i);
 
-        log_add_prefixes(&writer->prefixes, &str, writer->separator, chan->name, file, line, func);
+        if (chan == NULL) continue;                     // Channel isn't connected.
 
-        bufAdd(&str, bufGet(&msg), bufLen(&msg));
+        for (LogWriterRef *ref = listHead(&chan->writer_refs); ref; ref = listNext(ref)) {
+            LogWriter *writer = ref->writer;
 
-        log_write(writer, bufGet(&str));
+            Buffer str = { 0 };
 
-        bufClear(&str);
+            log_add_prefixes(&writer->prefixes, &str, writer->separator, file, line, func);
+
+            bufAdd(&str, bufGet(&msg), bufLen(&msg));
+
+            log_write(writer, bufGet(&str));
+
+            bufClear(&str);
+        }
     }
 
     bufClear(&msg);
@@ -905,7 +887,7 @@ void _logWrite(LogChannel *chan,
  * <fmt> and the subsequent parameters.
  */
 __attribute__((format (printf, 2, 3)))
-void logContinue(LogChannel *chan, const char *fmt, ...)
+void logContinue(uint64_t channels, const char *fmt, ...)
 {
     Buffer msg = { 0 };
 
@@ -915,10 +897,16 @@ void logContinue(LogChannel *chan, const char *fmt, ...)
     bufAddV(&msg, fmt, ap);
     va_end(ap);
 
-    for (LogWriterRef *ref = listHead(&chan->writer_refs); ref; ref = listNext(ref)) {
-        LogWriter *writer = ref->writer;
+    for (int i = 0; i < max_channels; i++) {
+        LogChannel *chan = paGet(&log_channels, i);
 
-        log_write(writer, bufGet(&msg));
+        if (chan == NULL) continue;
+
+        for (LogWriterRef *ref = listHead(&chan->writer_refs); ref; ref = listNext(ref)) {
+            LogWriter *writer = ref->writer;
+
+            log_write(writer, bufGet(&msg));
+        }
     }
 
     bufClear(&msg);
@@ -929,29 +917,37 @@ void logContinue(LogChannel *chan, const char *fmt, ...)
  */
 void logReset(void)
 {
-    LogChannel *chan, *next_chan;
     LogWriter *writer, *next_writer;
 
-    for (chan = listHead(&channels); chan; chan = next_chan) {
-        next_chan = listNext(chan);
-
-        log_close_channel(chan);
-    }
-
-    for (writer = listHead(&writers); writer; writer = next_writer) {
+    for (writer = listHead(&log_writers); writer; writer = next_writer) {
         next_writer = listNext(writer);
 
         log_close_writer(writer);
     }
+
+    for (int i = 0; i < max_channels; i++) {
+        LogChannel *chan = paGet(&log_channels, i);
+
+        if (chan) {
+            paDrop(&log_channels, i);
+
+            free(chan);
+        }
+    }
 }
 
 #ifdef TEST
+#include "utils.h"
+
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 
 static int errors = 0;
 
+/*
+ * Test the extended time format.
+ */
 static int test_time_format(void)
 {
     struct tm tm_local = { 0 };
@@ -1026,7 +1022,11 @@ static int test_time_format(void)
 #define FP_WRITER_TEST_FILE "/tmp/test_log_to_fp.log"
 #define FD_WRITER_TEST_FILE "/tmp/test_log_to_fd.log"
 
-static int compare_file(const char *filename, const char *text)
+/*
+ * Check that the file with <filename> contains exactly <text>. Complain and
+ * return 1 if it doesn't, otherwise return 0.
+ */
+static int check_file(const char *filename, const char *text)
 {
     int fd = open(filename, O_RDONLY);
 
@@ -1061,39 +1061,65 @@ static int compare_file(const char *filename, const char *text)
     return r == 0 ? 0 : 1;
 }
 
+/*
+ * Check that strings <s1> and <s2> are identical. Complain and return 1 if they
+ * don't, otherwise return 0.
+ */
+static int check_string(const char *s1, const char *s2)
+{
+    if (strcmp(s1, s2) != 0) {
+        fprintf(stderr, "String does not match expectation.\n");
+        fprintf(stderr, "Expected:\n");
+        fputs(s1, stderr);
+        fprintf(stderr, "Actual:\n");
+        fputs(s2, stderr);
+
+        return 1;
+    }
+
+    return 0;
+}
+
 int main(int argc, char *argv[])
 {
     FILE *fp = NULL;
     int   fd = -1;
+
     LogWriter *file_writer;
     LogWriter *fp_writer;
     LogWriter *fd_writer;
     LogWriter *buf_writer;
 
+    // First test the extended time format.
     errors += test_time_format();
 
-    LogChannel *err_channel = logChannel("ERROR");
-    LogChannel *info_channel = logChannel("INFO");
-    LogChannel *debug_channel = logChannel("DEBUG");
-
+    // Open a writer to file FILE_WRITER_TEST_FILE...
     if ((file_writer = logFileWriter(FILE_WRITER_TEST_FILE)) == NULL) {
         fprintf(stderr, "Couldn't open %s.\n", FILE_WRITER_TEST_FILE);
         errors++;
         goto quit;
     }
 
+    // Set some attributes for this writer...
     logWithUniversalTime(file_writer, "%Y-%m-%d/%H:%M:%S.%6N");
     logWithString(file_writer, " FILE ");
-    logWithChannel(file_writer);
     logWithFunction(file_writer);
     logWithString(file_writer, "@");
     logWithFile(file_writer);
     logWithString(file_writer, ":");
     logWithLine(file_writer);
 
-    logConnect(err_channel, file_writer);
-    logConnect(info_channel, file_writer);
+    // Connect channel CH_ERR to it...
+    logConnect(CH_ERR, file_writer);
 
+    // And write a log message to CH_ERR.
+    _logWrite(CH_ERR, "log.c", 1, "func", "This is an error.\n");
+
+    // Check that the correct entry was made in the log file.
+    errors += check_file(FILE_WRITER_TEST_FILE,
+            "1970-01-01/12:34:56.123457 FILE func@log.c:1 This is an error.\n");
+
+    // Open a file, and create a writer to the associated FILE pointer.
     if ((fp = fopen(FP_WRITER_TEST_FILE, "w")) == NULL) {
         fprintf(stderr, "Couldn't open %s.\n", FP_WRITER_TEST_FILE);
         errors++;
@@ -1105,9 +1131,9 @@ int main(int argc, char *argv[])
         goto quit;
     }
 
+    // Attributes...
     logWithUniversalTime(fp_writer, "%Y-%m-%d/%H:%M:%S.%6N");
     logWithString(fp_writer, "\tFP\t");
-    logWithChannel(fp_writer);
     logWithFunction(fp_writer);
     logWithString(fp_writer, "@");
     logWithFile(fp_writer);
@@ -1115,9 +1141,21 @@ int main(int argc, char *argv[])
     logWithLine(fp_writer);
     logWithSeparator(fp_writer, "\t");
 
-    logConnect(err_channel, fp_writer);
-    logConnect(debug_channel, fp_writer);
+    // Connect CH_INFO...
+    logConnect(CH_INFO, fp_writer);
 
+    // And write a message.
+    _logWrite(CH_INFO, "log.c", 2, "func", "This is an info message.\n");
+
+    // Make sure the correct message was written, and that the earlier log file
+    // hasn't changed.
+    errors += check_file(FP_WRITER_TEST_FILE,
+            "1970-01-01/12:34:56.123457\tFP\tfunc@log.c:2\tThis is an info message.\n");
+
+    errors += check_file(FILE_WRITER_TEST_FILE,
+            "1970-01-01/12:34:56.123457 FILE func@log.c:1 This is an error.\n");
+
+    // Same thing for a writer to a file descriptor.
     if ((fd = creat(FD_WRITER_TEST_FILE, 0666)) == -1) {
         fprintf(stderr, "Couldn't open %s.\n", FD_WRITER_TEST_FILE);
         errors++;
@@ -1131,7 +1169,6 @@ int main(int argc, char *argv[])
 
     logWithUniversalTime(fd_writer, "%Y-%m-%d/%H:%M:%S.%6N");
     logWithString(fd_writer, ",FD,");
-    logWithChannel(fd_writer);
     logWithFunction(fd_writer);
     logWithString(fd_writer, "@");
     logWithFile(fd_writer);
@@ -1139,9 +1176,21 @@ int main(int argc, char *argv[])
     logWithLine(fd_writer);
     logWithSeparator(fd_writer, ",");
 
-    logConnect(info_channel, fd_writer);
-    logConnect(debug_channel, fd_writer);
+    logConnect(CH_DEBUG, fd_writer);
 
+    _logWrite(CH_DEBUG, "log.c", 3, "func", "This is a debug message.\n");
+
+    // Again, check the log file we just made and the earlier ones.
+    errors += check_file(FD_WRITER_TEST_FILE,
+            "1970-01-01/12:34:56.123457,FD,func@log.c:3,This is a debug message.\n");
+
+    errors += check_file(FP_WRITER_TEST_FILE,
+            "1970-01-01/12:34:56.123457\tFP\tfunc@log.c:2\tThis is an info message.\n");
+
+    errors += check_file(FILE_WRITER_TEST_FILE,
+            "1970-01-01/12:34:56.123457 FILE func@log.c:1 This is an error.\n");
+
+    // Finally create a writer to a Buffer.
     Buffer log_buffer = { 0 };
 
     if ((buf_writer = logBufferWriter(&log_buffer)) == NULL) {
@@ -1150,42 +1199,31 @@ int main(int argc, char *argv[])
         goto quit;
     }
 
-    logWithUniversalTime(buf_writer, "%Y-%m-%d/%H:%M:%S.%6N");
-    logWithString(buf_writer, " - BUFFER - ");
-    logWithChannel(buf_writer);
-    logWithFunction(buf_writer);
-    logWithString(buf_writer, "@");
-    logWithFile(buf_writer);
-    logWithString(buf_writer, ":");
-    logWithLine(buf_writer);
-    logWithSeparator(buf_writer, " - ");
+    // We'll keep this one simple. Just a prefix.
+    logWithString(buf_writer, "DEBUG: ");
 
-    logConnect(debug_channel, buf_writer);
+    // Connect it to CH_DEBUG, which means this channel is now connected to this
+    // writer and also to the earlier FD writer!
+    logConnect(CH_DEBUG, buf_writer);
 
-    _logWrite(err_channel, "log.c", 1, "func", "This is an error.\n");
-    _logWrite(info_channel, "log.c", 2, "func", "This is an info message.\n");
-    _logWrite(debug_channel, "log.c", 3, "func", "This is a debug message.\n");
+    // Write a message to CH_DEBUG...
+    _logWrite(CH_DEBUG, "log.c", 4, "func", "This is another debug message.\n");
 
-    logReset();
+    // Make sure it ended up in the log buffer...
+    errors += check_string(bufGet(&log_buffer),
+            "DEBUG: This is another debug message.\n");
 
-    if (fp != NULL) { fclose(fp); fp = NULL; }
-    if (fd >= 0)    { close(fd);  fd = -1; }
+    // And also in the FD writer.
+    errors += check_file(FD_WRITER_TEST_FILE,
+            "1970-01-01/12:34:56.123457,FD,func@log.c:3,This is a debug message.\n"
+            "1970-01-01/12:34:56.123457,FD,func@log.c:4,This is another debug message.\n");
 
-    errors += compare_file(FILE_WRITER_TEST_FILE,
-            "1970-01-01/12:34:56.123457 FILE ERROR func@log.c:1 This is an error.\n"
-            "1970-01-01/12:34:56.123457 FILE INFO func@log.c:2 This is an info message.\n");
+    // And make sure the others haven't changed.
+    errors += check_file(FP_WRITER_TEST_FILE,
+            "1970-01-01/12:34:56.123457\tFP\tfunc@log.c:2\tThis is an info message.\n");
 
-    errors += compare_file(FP_WRITER_TEST_FILE,
-            "1970-01-01/12:34:56.123457\tFP\tERROR\tfunc@log.c:1\tThis is an error.\n"
-            "1970-01-01/12:34:56.123457\tFP\tDEBUG\tfunc@log.c:3\tThis is a debug message.\n");
-
-    errors += compare_file(FD_WRITER_TEST_FILE,
-            "1970-01-01/12:34:56.123457,FD,INFO,func@log.c:2,This is an info message.\n"
-            "1970-01-01/12:34:56.123457,FD,DEBUG,func@log.c:3,This is a debug message.\n");
-
-    errors += strcmp(bufGet(&log_buffer),
-            "1970-01-01/12:34:56.123457 - BUFFER - DEBUG - "
-            "func@log.c:3 - This is a debug message.\n") != 0;
+    errors += check_file(FILE_WRITER_TEST_FILE,
+            "1970-01-01/12:34:56.123457 FILE func@log.c:1 This is an error.\n");
 
 quit:
     logReset();
