@@ -5,7 +5,7 @@
  *
  * Copyright: (c) 2019-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2019-07-29
- * Version:   $Id: log.c 355 2019-10-18 09:05:51Z jacco $
+ * Version:   $Id: log.c 356 2019-10-19 14:34:56Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -898,6 +898,8 @@ void logContinue(uint64_t channels, const char *fmt, ...)
     va_end(ap);
 
     for (int i = 0; i < max_channels; i++) {
+        if (((1ULL << i) & channels) == 0) continue;    // Not writing to this channel.
+
         LogChannel *chan = paGet(&log_channels, i);
 
         if (chan == NULL) continue;
