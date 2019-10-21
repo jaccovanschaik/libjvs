@@ -4,7 +4,7 @@
  * udp.c is part of libjvs.
  *
  * Copyright:   (c) 2007-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: udp.c 343 2019-08-27 08:39:24Z jacco $
+ * Version:     $Id: udp.c 357 2019-10-21 13:46:41Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -91,20 +91,44 @@ int main(int argc, char *argv[])
     int r;
     char buffer[16];
 
+    uint16_t recv_port = 1234;
+
     int recv_fd = udpSocket();
     int send_fd = udpSocket();
 
-    netBind(recv_fd, "localhost", 1234);
-    netConnect(send_fd, "localhost", 1234);
+    // Simple test: bind receiving socket, send from sending socket.
 
-    r = write(send_fd, "Hoi!", 4);  /* Fixes warning about not using return code. */
+    netBind(recv_fd, "localhost", recv_port);
+
+    udpSend(send_fd, "localhost", recv_port, "Hallo!", 6);
     r = read(recv_fd, buffer, sizeof(buffer));
 
-    make_sure_that(r == 4);
-    make_sure_that(strncmp(buffer, "Hoi!", 4) == 0);
+    make_sure_that(r == 6);
+    make_sure_that(strncmp(buffer, "Hallo!", 6) == 0);
 
-    udpSend(send_fd, "localhost", 1234, "Hallo!", 6);
+    close(recv_fd);
+    close(send_fd);
+
+    // Bind both sending and receiving socket, send from sending socket.
+
+    uint16_t send_port = 1235;
+
+    recv_fd = udpSocket();
+    send_fd = udpSocket();
+
+    netBind(send_fd, "localhost", send_port);
+    netBind(recv_fd, "localhost", recv_port);
+
+    udpSend(send_fd, "localhost", recv_port, "Hallo!", 6);
     r = read(recv_fd, buffer, sizeof(buffer));
+
+    make_sure_that(r == 6);
+    make_sure_that(strncmp(buffer, "Hallo!", 6) == 0);
+
+    // Also try reverse: send from receive socket, receive on send socket.
+
+    udpSend(recv_fd, "localhost", send_port, "Hallo!", 6);
+    r = read(send_fd, buffer, sizeof(buffer));
 
     make_sure_that(r == 6);
     make_sure_that(strncmp(buffer, "Hallo!", 6) == 0);
