@@ -1,9 +1,9 @@
 /*
- * geometry2.c: XXX
+ * geometry2.h: 2-dimensional geometry.
  *
  * Copyright: (c) 2019 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2019-10-14
- * Version:   $Id: geometry2.c 358 2019-10-25 12:29:14Z jacco $
+ * Version:   $Id: geometry2.c 360 2019-11-01 13:13:26Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.

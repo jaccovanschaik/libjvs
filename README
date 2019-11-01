@@ -59,9 +59,6 @@ bitmask.c, bitmask.h
 buffer.c, buffer.h
     Provides growing byte buffers.
 
-const.h
-    Useful constants.
-    
 debug.c, debug.h
     Functions to assist in debugging.
 
@@ -71,20 +68,34 @@ defs.h
 dis.h, dis.h, dis-types.h
     Network dispatcher.
 
-dp.c, dp.h
-    Data parser.
+geo2d.c, geo2d.h
+    2-D geometry calculations. Obsolescent, due to:
+
+geometry2.c, geometry2.h
+    2-D vectors and calculations. The new hotness!
 
 hash.c, hash.h
     Provides hash tables.
 
+hashlist.c, hashlist.h
+    Combines the best bits of lists and hash tables.
+
 list.c, list.h
-    Provides linked lists.
+    Provides doubly-linked lists.
 
 log.c, log.h
     Provides logging functions.
 
+matrix2.c, matrix2.h, matrix3.c, matrix3.h
+    Provides calculations with 2x2 and 3x3 matrices.
+
+mdf.c, mdf.h
+    Minimal Data Format parser.
+
 ml.c, ml.h
-    Multi-list
+    Multi-list. Lists where items can be in multiple lists at the same
+    time. However, a consequence is that it doesn't have the same level
+    of checks.
 
 net.c, net.h
     Provides general networking utilities.
@@ -110,5 +121,5 @@ units.h
 utils.c, utils.h
     General utilities.
 
-vector.c, vector.h
-    Provides some functions to work with arbitrary-size vectors.
+vector2.c, vector2.h, vector3.c, vector3.h
+    Provides calculations with 2D and 3D vectors.

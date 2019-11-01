@@ -12,7 +12,7 @@
  *
  * Copyright: (c) 2019-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2019-01-22
- * Version:   $Id: hashlist.h 343 2019-08-27 08:39:24Z jacco $
+ * Version:   $Id: hashlist.h 359 2019-11-01 13:12:31Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -26,10 +26,10 @@ typedef struct {
     HashTable hash;
 } HashList;
 
-#define hlAdd(hl, n, key, len)  f_hlAdd((hl), &(n)->_node, key, len)
-#define hlSet(hl, n, key, len)  f_hlSet((hl), &(n)->_node, key, len)
-#define hlNext(n)               f_hlNext(&(n)->_node)
-#define hlPrev(n)               f_hlPrev(&(n)->_node)
+#define hlAdd(hl, n, key, len)  _hlAdd((hl), &(n)->_node, key, len)
+#define hlSet(hl, n, key, len)  _hlSet((hl), &(n)->_node, key, len)
+#define hlNext(n)               _hlNext(&(n)->_node)
+#define hlPrev(n)               _hlPrev(&(n)->_node)
 
 /*
  * Create a new, empty hashlist.
@@ -48,14 +48,14 @@ void hlInitialize(HashList *hashlist);
  * exists this function calls abort(). The node is added to the end of the
  * embedded list.
  */
-void f_hlAdd(HashList *hashlist, ListNode *node, const void *key, int key_len);
+void _hlAdd(HashList *hashlist, ListNode *node, const void *key, int key_len);
 
 /*
  * Set the existing entry in <hashlist> for <key>, whose length is <key_len>, to
  * <node>. <hashlist>, <node> and <key> must not be NULL, <key_len> must be
  * greater than 0. If no such entry exists this function calls abort().
  */
-void f_hlSet(HashList *hashlist, ListNode *node, const void *key, int key_len);
+void _hlSet(HashList *hashlist, ListNode *node, const void *key, int key_len);
 
 /*
  * Return TRUE if <hashlist> has an entry for <key> with length <key_len>, FALSE
@@ -91,12 +91,12 @@ void *hlTail(const HashList *hashlist);
 /*
  * Return the node before <node>.
  */
-void *f_hlPrev(const ListNode *node);
+void *_hlPrev(const ListNode *node);
 
 /*
  * Return the node following <node>.
  */
-void *f_hlNext(const ListNode *node);
+void *_hlNext(const ListNode *node);
 
 /*
  * Return TRUE if <hashlist> is empty.

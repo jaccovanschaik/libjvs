@@ -9,7 +9,7 @@
  *
  * Copyright: (c) 2019-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2019-01-22
- * Version:   $Id: hashlist.c 343 2019-08-27 08:39:24Z jacco $
+ * Version:   $Id: hashlist.c 359 2019-11-01 13:12:31Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -47,11 +47,11 @@ void hlInitialize(HashList *hashlist)
  * exists this function calls abort(). The node is added to the end of the
  * embedded list.
  */
-void f_hlAdd(HashList *hashlist, ListNode *node, const void *key, int key_len)
+void _hlAdd(HashList *hashlist, ListNode *node, const void *key, int key_len)
 {
     hashAdd(&hashlist->hash, node, key, key_len);
 
-    f_listAppendTail(&hashlist->list, node);
+    _listAppendTail(&hashlist->list, node);
 }
 
 /*
@@ -59,7 +59,7 @@ void f_hlAdd(HashList *hashlist, ListNode *node, const void *key, int key_len)
  * <node>. <hashlist>, <node> and <key> must not be NULL, <key_len> must be
  * greater than 0. If no such entry exists this function calls abort().
  */
-void f_hlSet(HashList *hashlist, ListNode *node, const void *key, int key_len)
+void _hlSet(HashList *hashlist, ListNode *node, const void *key, int key_len)
 {
     hashSet(&hashlist->hash, node, key, key_len);
 }
@@ -97,7 +97,7 @@ void hlDel(HashList *hashlist, const void *key, int key_len)
 
     hashDel(&hashlist->hash, key, key_len);
 
-    f_listRemove(&hashlist->list, node);
+    _listRemove(&hashlist->list, node);
 }
 
 /*
@@ -119,17 +119,17 @@ void *hlTail(const HashList *hashlist)
 /*
  * Return the node before <node>.
  */
-void *f_hlPrev(const ListNode *node)
+void *_hlPrev(const ListNode *node)
 {
-    return f_listPrev(node);
+    return _listPrev(node);
 }
 
 /*
  * Return the node following <node>.
  */
-void *f_hlNext(const ListNode *node)
+void *_hlNext(const ListNode *node)
 {
-    return f_listNext(node);
+    return _listNext(node);
 }
 
 /*

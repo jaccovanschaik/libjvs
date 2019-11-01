@@ -4,7 +4,7 @@
  * list.c is part of libjvs.
  *
  * Copyright:   (c) 2004-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: list.c 343 2019-08-27 08:39:24Z jacco $
+ * Version:     $Id: list.c 359 2019-11-01 13:12:31Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -42,7 +42,7 @@ void listInitialize(List *list)
 /*
  * Insert <node> at the head of list <list>.
  */
-void f_listInsertHead(List *list, ListNode *node)
+void _listInsertHead(List *list, ListNode *node)
 {
     assert(list != NULL);
     assert(node != NULL);
@@ -69,7 +69,7 @@ void f_listInsertHead(List *list, ListNode *node)
 /*
  * Append <node> to the tail of list <list>.
  */
-void f_listAppendTail(List *list, ListNode *node)
+void _listAppendTail(List *list, ListNode *node)
 {
     assert(list != NULL);
     assert(node != NULL);
@@ -96,7 +96,7 @@ void f_listAppendTail(List *list, ListNode *node)
 /*
  * Insert <node> just before <before> in list <list>.
  */
-void f_listInsert(List *list, ListNode *node, ListNode *before)
+void _listInsert(List *list, ListNode *node, ListNode *before)
 {
     assert(list != NULL);
     assert(node != NULL);
@@ -108,11 +108,11 @@ void f_listInsert(List *list, ListNode *node, ListNode *before)
     assert(before == NULL || before->list == list);
 
     if (before == NULL) {
-        f_listAppendTail(list, node);
+        _listAppendTail(list, node);
         return;
     }
     if (before->prev == NULL) {
-        f_listInsertHead(list, node);
+        _listInsertHead(list, node);
         return;
     }
 
@@ -130,7 +130,7 @@ void f_listInsert(List *list, ListNode *node, ListNode *before)
 /*
  * Append <node> to <after> in list <list>.
  */
-void f_listAppend(List *list, ListNode *node, ListNode *after)
+void _listAppend(List *list, ListNode *node, ListNode *after)
 {
     assert(list != NULL);
     assert(node != NULL);
@@ -142,11 +142,11 @@ void f_listAppend(List *list, ListNode *node, ListNode *after)
     assert(after == NULL || after->list == list);
 
     if (after == NULL) {
-        f_listInsertHead(list, node);
+        _listInsertHead(list, node);
         return;
     }
     if (after->next == NULL) {
-        f_listAppendTail(list, node);
+        _listAppendTail(list, node);
         return;
     }
 
@@ -164,7 +164,7 @@ void f_listAppend(List *list, ListNode *node, ListNode *after)
 /*
  * Remove <node> from list <list>.
  */
-void f_listRemove(List *list, ListNode *node)
+void _listRemove(List *list, ListNode *node)
 {
     assert(list != NULL);
     assert(node != NULL);
@@ -192,7 +192,7 @@ void f_listRemove(List *list, ListNode *node)
 /*
  * Return the node before <node>.
  */
-void *f_listPrev(const ListNode *node)
+void *_listPrev(const ListNode *node)
 {
     return(node->prev);
 }
@@ -200,7 +200,7 @@ void *f_listPrev(const ListNode *node)
 /*
  * Return the node following <node>.
  */
-void *f_listNext(const ListNode *node)
+void *_listNext(const ListNode *node)
 {
     return(node->next);
 }
@@ -234,7 +234,7 @@ void *listRemoveHead(List *list)
 
     node = list->head;
 
-    f_listRemove(list, node);
+    _listRemove(list, node);
 
     return(node);
 }
@@ -252,7 +252,7 @@ void *listRemoveTail(List *list)
 
     node = list->tail;
 
-    f_listRemove(list, node);
+    _listRemove(list, node);
 
     return(node);
 }
@@ -280,7 +280,7 @@ int listIsEmpty(const List *list)
 /*
  * Return the list that contains <node>, or NULL if <node> is not contained in a list.
  */
-List *f_listContaining(ListNode *node)
+List *_listContaining(ListNode *node)
 {
     return node->list;
 }
@@ -335,12 +335,12 @@ void listSort(List *list, int(*cmp)(const void *, const void *))
     while (l) {
         /* If we reached the end of <list> *or* <l> should be left of <r>... */
         if (r == NULL || cmp(l, r) <= 0) {
-            f_listRemove(&left, l);      /* Remove <l> from <left>... */
-            f_listInsert(list, l, r);    /* Put <l> into <list>, before <r>. */
+            _listRemove(&left, l);      /* Remove <l> from <left>... */
+            _listInsert(list, l, r);    /* Put <l> into <list>, before <r>. */
             l = listHead(&left);         /* Get the next <l>. */
         }
         else {
-            r = f_listNext(r);           /* Move onto the next <r>. */
+            r = _listNext(r);           /* Move onto the next <r>. */
         }
     }
 }

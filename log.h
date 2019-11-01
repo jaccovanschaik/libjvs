@@ -8,7 +8,7 @@
  *
  * Copyright: (c) 2019-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2019-07-29
- * Version:   $Id: log.h 355 2019-10-18 09:05:51Z jacco $
+ * Version:   $Id: log.h 360 2019-11-01 13:13:26Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -28,7 +28,9 @@ extern "C" {
  * This log package works with log "channels", which are connected to log
  * "writers". You write log messages to one or more channels, and the connected
  * log writers take care of writing them, with any number of prefixes of your
- * choosing, to your chosen destination.
+ * choosing, to your chosen destination. Writing to a channel that is not
+ * connected to a writer is effectively a no-op: the log message will disappear
+ * into the void.
  *
  * A log channel identifier is a single bit in a 64-bit bitmask (which means
  * there are 64 channels in total). If a function has "uint64_t channels" as a
@@ -189,7 +191,7 @@ __attribute__((format (printf, 2, 3)))
 void logContinue(uint64_t channels, const char *fmt, ...);
 
 /*
- * Reset all logging. Deletes all created channels and writers.
+ * Reset all logging. Disconnects all channels and deletes all writers.
  */
 void logReset(void);
 

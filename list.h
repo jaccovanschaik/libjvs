@@ -7,7 +7,7 @@
  * list.h is part of libjvs.
  *
  * Copyright:   (c) 2004-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: list.h 343 2019-08-27 08:39:24Z jacco $
+ * Version:     $Id: list.h 359 2019-11-01 13:12:31Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -32,66 +32,98 @@ struct List {
   int length;
 };
 
-#define listInsertHead(l, n) f_listInsertHead((l), &(n)->_node)
-#define listAppendTail(l, n) f_listAppendTail((l), &(n)->_node)
-#define listInsert(l, n, b)  f_listInsert((l), &(n)->_node, &(b)->_node)
-#define listAppend(l, n, a)  f_listAppend((l), &(n)->_node, &(a)->_node)
-#define listNext(n)          f_listNext(&(n)->_node)
-#define listPrev(n)          f_listPrev(&(n)->_node)
-#define listRemove(l, n)     f_listRemove((l), &(n)->_node)
-#define listContaining(n)    f_listContaining(&(n)->_node)
+#define listInsertHead(l, n) _listInsertHead((l), &(n)->_node)
+#define listAppendTail(l, n) _listAppendTail((l), &(n)->_node)
+#define listInsert(l, n, b)  _listInsert((l), &(n)->_node, &(b)->_node)
+#define listAppend(l, n, a)  _listAppend((l), &(n)->_node, &(a)->_node)
+#define listNext(n)          _listNext(&(n)->_node)
+#define listPrev(n)          _listPrev(&(n)->_node)
+#define listRemove(l, n)     _listRemove((l), &(n)->_node)
+#define listContaining(n)    _listContaining(&(n)->_node)
 
-/* Create a new, empty list. */
+/*
+ * Create a new, empty list.
+ */
 List *listCreate(void);
 
-/* Initialize the list specified by <list>. */
+/*
+ * Initialize the list specified by <list>.
+ */
 void listInitialize(List *list);
 
-/* Insert <node> at the head of list <list>. */
-void f_listInsertHead(List *list, ListNode *node);
+/*
+ * Insert <node> at the head of list <list>.
+ */
+void _listInsertHead(List *list, ListNode *node);
 
-/* Append <node> to the tail of list <list>. */
-void f_listAppendTail(List *list, ListNode *node);
+/*
+ * Append <node> to the tail of list <list>.
+ */
+void _listAppendTail(List *list, ListNode *node);
 
-/* Insert <node> just before <before> in list <list>. */
-void f_listInsert(List *list, ListNode *node, ListNode *before);
+/*
+ * Insert <node> just before <before> in list <list>.
+ */
+void _listInsert(List *list, ListNode *node, ListNode *before);
 
-/* Append <node> to <after> in list <list>. */
-void f_listAppend(List *list, ListNode *node, ListNode *after);
+/*
+ * Append <node> to <after> in list <list>.
+ */
+void _listAppend(List *list, ListNode *node, ListNode *after);
 
-/* Remove <node> from list <list>. */
-void f_listRemove(List *list, ListNode *node);
+/*
+ * Remove <node> from list <list>.
+ */
+void _listRemove(List *list, ListNode *node);
 
-/* Return the node before <node>. */
-void *f_listPrev(const ListNode *node);
+/*
+ * Return the node before <node>.
+ */
+void *_listPrev(const ListNode *node);
 
-/* Return the node following <node>. */
-void *f_listNext(const ListNode *node);
+/*
+ * Return the node following <node>.
+ */
+void *_listNext(const ListNode *node);
 
-/* Return the node at the head of <list>. */
+/*
+ * Return the node at the head of <list>.
+ */
 void *listHead(const List *list);
 
-/* Return the node at the end of <list>. */
+/*
+ * Return the node at the end of <list>.
+ */
 void *listTail(const List *list);
 
-/* Remove the first node in list <list> and return a pointer to it. */
+/*
+ * Remove the first node in list <list> and return a pointer to it.
+ */
 void *listRemoveHead(List *list);
 
-/* Remove the last node in list <list> and return a pointer to it. */
+/*
+ * Remove the last node in list <list> and return a pointer to it.
+ */
 void *listRemoveTail(List *list);
 
-/* Return the number of nodes in list <list>. */
+/*
+ * Return the number of nodes in list <list>.
+ */
 int listLength(const List *list);
 
-/* Return TRUE if <list> is empty. */
+/*
+ * Return TRUE if <list> is empty.
+ */
 int listIsEmpty(const List *list);
 
 /*
  * Return the list that contains <node>, or NULL if <node> is not contained in a list.
  */
-List *f_listContaining(ListNode *node);
+List *_listContaining(ListNode *node);
 
-/* Sort <list> using comparison function <cmp>. */
+/*
+ * Sort <list> using comparison function <cmp>.
+ */
 void listSort(List *list, int(*cmp)(const void *, const void *));
 
 #ifdef __cplusplus

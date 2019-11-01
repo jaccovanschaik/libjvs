@@ -7,7 +7,7 @@
  * defs.h is part of libjvs.
  *
  * Copyright:   (c) 2007-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: defs.h 343 2019-08-27 08:39:24Z jacco $
+ * Version:     $Id: defs.h 361 2019-11-01 13:21:24Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -43,6 +43,22 @@ extern "C" {
 
 #ifndef TRUE
 #define TRUE (!FALSE)
+#endif
+
+#ifndef ON
+#define ON      TRUE
+#endif
+
+#ifndef OFF
+#define OFF     FALSE
+#endif
+
+#ifndef YES
+#define YES     TRUE
+#endif
+
+#ifndef NO
+#define NO      FALSE
 #endif
 
 #ifndef NULL
