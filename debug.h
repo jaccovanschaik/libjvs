@@ -7,7 +7,7 @@
  * debug.h is part of libjvs.
  *
  * Copyright:   (c) 2004-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: debug.h 352 2019-10-14 12:03:38Z jacco $
+ * Version:     $Id: debug.h 364 2019-11-08 12:30:12Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -36,26 +36,35 @@ static char *__func__ = NULL;
 /*
  * Print the given debugging message, indented to the current stack depth/
  */
-void _dbgTrace(FILE *fp, const char *file, int line, const char *func, const char *fmt, ...)
-    __attribute__((format (printf, 5, 6)));
+__attribute__((format (printf, 5, 6)))
+void _dbgTrace(FILE *fp, const char *file, int line, const char *func, const char *fmt, ...);
 
-/* Call abort(), preceded with the given message. */
-void _dbgAbort(FILE *fp, const char *file, int line, const char *func, const char *fmt, ...)
-    __attribute__((format (printf, 5, 6)));
+/*
+ * Call abort(), preceded with the given message.
+ */
+__attribute__ ((noreturn))
+__attribute__((format (printf, 5, 6)))
+void _dbgAbort(FILE *fp, const char *file, int line, const char *func, const char *fmt, ...);
 
-/* Print the given debugging message on <fp>. */
-void _dbgPrint(FILE *fp, const char *file, int line, const char *func, const char *fmt, ...)
-    __attribute__((format (printf, 5, 6)));
+/*
+ * Print the given debugging message on <fp>.
+ */
+__attribute__((format (printf, 5, 6)))
+void _dbgPrint(FILE *fp, const char *file, int line, const char *func, const char *fmt, ...);
 
-/* Check <cond> and, if false, print the given message and call abort(). */
-void _dbgAssert(FILE *fp, int cond,
-        const char *file, int line, const char *func, const char *fmt, ...)
-    __attribute__((format (printf, 6, 7)));
+/*
+ * Check <cond> and, if false, print the given message and call abort().
+ */
+__attribute__((format (printf, 6, 7)))
+void _dbgAssert(FILE *fp, int cond, const char *file, int line, const char *func,
+        const char *fmt, ...);
 
-/* Print the given debugging message on <fp>, followed by the error
- * message associated with the current value of errno. */
-void _dbgError(FILE *fp, const char *file, int line, const char *func, const char *fmt, ...)
-    __attribute__((format (printf, 5, 6)));
+/*
+ * Print the given debugging message on <fp>, followed by the error
+ * message associated with the current value of errno.
+ */
+__attribute__((format (printf, 5, 6)))
+void _dbgError(FILE *fp, const char *file, int line, const char *func, const char *fmt, ...);
 
 #ifdef __cplusplus
 }

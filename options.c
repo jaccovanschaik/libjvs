@@ -4,7 +4,7 @@
  * options.c is part of libjvs.
  *
  * Copyright:   (c) 2013-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: options.c 343 2019-08-27 08:39:24Z jacco $
+ * Version:     $Id: options.c 364 2019-11-08 12:30:12Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -21,6 +21,7 @@
 #include "hash.h"
 #include "buffer.h"
 #include "utils.h"
+#include "debug.h"
 
 #include "options.h"
 
@@ -41,6 +42,17 @@ struct Options {
     HashList results;
     Buffer errors;
 };
+
+#if 0
+static void dump_args(FILE *fp, const char *msg, int argc, char *argv[])
+{
+    fprintf(fp, "%s\n", msg);
+
+    for (int i = 0; i < argc; i++) {
+        fprintf(fp, "arg %d: \"%s\"\n", i, argv[i]);
+    }
+}
+#endif
 
 /*
  * Find the option with short name <short_name> in options and return it, or return NULL if it
@@ -120,9 +132,11 @@ void optAdd(Options *options, const char *long_name, char short_name, OPT_Argume
 }
 
 /*
- * Parse <argc> and <argv> and add the found options to <options>. Shuffles <argv> so that
- * non-option arguments are moved to the back, and returns the index of the first non-option
- * argument.
+ * Parse <argc> and <argv> and add the found options to <options>. If no errors
+ * occurred, <argv> will be shuffled so that non-option arguments are moved to
+ * the back, and the index of the first non-option is returned. Otherwise
+ * returns -1 if an unknown option was found, or -2 if no argument was found for
+ * an option that requires one.
  */
 int optParse(Options *options, int argc, char *argv[])
 {
@@ -130,6 +144,8 @@ int optParse(Options *options, int argc, char *argv[])
     int i, c;
 
     struct option *long_options = calloc(paCount(&options->options) + 1, sizeof(struct option));
+
+    bufAddC(&opt_string, ':');
 
     for (i = 0; i < paCount(&options->options); i++ ) {
         Option *opt = paGet(&options->options, i);
@@ -161,7 +177,15 @@ int optParse(Options *options, int argc, char *argv[])
 
         c = getopt_long(argc, argv, bufGet(&opt_string), long_options, &option_index);
 
-        if (c == -1 || c == '?') {
+        if (c == -1) {
+            break;
+        }
+        else if (c == '?') {
+            bufAddF(&options->errors, "Unknown option or argument in \"%s\".\n", argv[optind - 1]);
+            break;
+        }
+        else if (c == ':') {
+            bufAddF(&options->errors, "Missing argument for \"%s\".\n", argv[optind - 1]);
             break;
         }
         else if (c == 0) {
@@ -170,21 +194,35 @@ int optParse(Options *options, int argc, char *argv[])
         }
         else {
             opt = opt_find_short(options, c);
-
             opt_add_result(options, argv[0], opt, optarg);
         }
     }
 
-    bufReset(&opt_string);
+    bufClear(&opt_string);
     free(long_options);
 
-    return c == -1 ? optind : -1;
+    if (c == -1)
+        return optind;
+    else if (c == '?')
+        return -1;
+    else if (c == ':')
+        return -2;
+    else
+        dbgAbort(stderr, "Unexpected return value for getopt_long.\n");
+}
+
+/*
+ * Return the error encountered by optParse after it returned -1 or -2.
+ */
+const char *optErrors(const Options *options)
+{
+    return bufGet(&options->errors);
 }
 
 /*
  * Return TRUE if the option with <long_name> was set on the command line.
  */
-int optIsSet(Options *options, const char *long_name)
+int optIsSet(const Options *options, const char *long_name)
 {
     return hlContains(&options->results, HASH_STRING(long_name));
 }
@@ -225,7 +263,6 @@ void optClear(Options *options)
     }
 
     paClear(&options->options);
-    bufReset(&options->errors);
 }
 
 /*
@@ -241,7 +278,10 @@ void optDestroy(Options *options)
 #ifdef TEST
 int errors = 0;
 
-void test1(void)
+/*
+ * Test a single short option without an argument.
+ */
+static void test1(void)
 {
     Options *opts = optCreate();
 
@@ -260,7 +300,10 @@ void test1(void)
     optDestroy(opts);
 }
 
-void test2(void)
+/*
+ * Test a single long option without an argument.
+ */
+static void test2(void)
 {
     Options *opts = optCreate();
 
@@ -279,7 +322,10 @@ void test2(void)
     optDestroy(opts);
 }
 
-void test3(void)
+/*
+ * Test short options with and without arguments.
+ */
+static void test3(void)
 {
     Options *opts = optCreate();
 
@@ -301,7 +347,10 @@ void test3(void)
     optDestroy(opts);
 }
 
-void test4(void)
+/*
+ * Test long options with and without arguments.
+ */
+static void test4(void)
 {
     Options *opts = optCreate();
 
@@ -323,7 +372,10 @@ void test4(void)
     optDestroy(opts);
 }
 
-void test5(void)
+/*
+ * Test combined short options with and without arguments.
+ */
+static void test5(void)
 {
     Options *opts = optCreate();
 
@@ -345,7 +397,10 @@ void test5(void)
     optDestroy(opts);
 }
 
-void test6(void)
+/*
+ * Test error on unexpected option.
+ */
+static void test6(void)
 {
     Options *opts = optCreate();
 
@@ -357,11 +412,15 @@ void test6(void)
     r = optParse(opts, argc, argv);
 
     make_sure_that(r == -1);
+    make_sure_that(strcmp(optErrors(opts), "Unknown option or argument in \"-ab\".\n") == 0);
 
     optDestroy(opts);
 }
 
-void test7(void)
+/*
+ * Test a short option without an argument and a subsequent non-option argument.
+ */
+static void test7(void)
 {
     Options *opts = optCreate();
 
@@ -379,7 +438,10 @@ void test7(void)
     optDestroy(opts);
 }
 
-void test8(void)
+/*
+ * Test a long option without an argument and a subsequent non-option argument.
+ */
+static void test8(void)
 {
     Options *opts = optCreate();
 
@@ -397,7 +459,10 @@ void test8(void)
     optDestroy(opts);
 }
 
-void test9(void)
+/*
+ * Test error when an argument is given to an option that doesn't want one.
+ */
+static void test9(void)
 {
     Options *opts = optCreate();
 
@@ -409,11 +474,16 @@ void test9(void)
     r = optParse(opts, argc, argv);
 
     make_sure_that(r == -1);
+    make_sure_that(strcmp(optErrors(opts),
+                "Unknown option or argument in \"--option-a=foo\".\n") == 0);
 
     optDestroy(opts);
 }
 
-void test10(void)
+/*
+ * Test giving an argument to a long option with an optional argument.
+ */
+static void test10(void)
 {
     Options *opts = optCreate();
 
@@ -431,7 +501,10 @@ void test10(void)
     optDestroy(opts);
 }
 
-void test11(void)
+/*
+ * Test *not* giving an argument to a long option with an optional argument.
+ */
+static void test11(void)
 {
     Options *opts = optCreate();
 
@@ -448,7 +521,10 @@ void test11(void)
     optDestroy(opts);
 }
 
-void test12(void)
+/*
+ * Test giving an argument to a short option with an optional argument.
+ */
+static void test12(void)
 {
     Options *opts = optCreate();
 
@@ -466,7 +542,10 @@ void test12(void)
     optDestroy(opts);
 }
 
-void test13(void)
+/*
+ * Test *not* giving an argument to a short option with an optional argument.
+ */
+static void test13(void)
 {
     Options *opts = optCreate();
 
@@ -483,7 +562,10 @@ void test13(void)
     optDestroy(opts);
 }
 
-void test14(void)
+/*
+ * Test multiple non-argument long options *without* associated short options.
+ */
+static void test14(void)
 {
     Options *opts = optCreate();
 
@@ -499,6 +581,29 @@ void test14(void)
     make_sure_that(strcmp(argv[r], "bla") == 0);
     make_sure_that(optIsSet(opts, "option-a"));
     make_sure_that(optIsSet(opts, "option-b"));
+
+    optDestroy(opts);
+}
+
+/*
+ * Test error when not giving an argument to a short option that requires one.
+ */
+static void test15(void)
+{
+    Options *opts = optCreate();
+
+    char *argv[] = { "main", "bla", "-a", "-b", "-c" };
+    int r, argc = sizeof(argv) / sizeof(argv[2]);
+
+    optAdd(opts, "option-a", 'a', ARG_NONE);
+    optAdd(opts, "option-b", 'b', ARG_NONE);
+    optAdd(opts, "option-c", 'c', ARG_REQUIRED);
+
+    r = optParse(opts, argc, argv);
+
+    make_sure_that(r == -2);
+    make_sure_that(strcmp(optErrors(opts),
+                "Missing argument for \"-c\".\n") == 0);
 
     optDestroy(opts);
 }
@@ -519,6 +624,7 @@ int main(int argc, char *argv[])
     test12();
     test13();
     test14();
+    test15();
 
     return errors;
 }
