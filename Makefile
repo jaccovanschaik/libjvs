@@ -6,7 +6,7 @@
 # This software is distributed under the terms of the MIT license. See
 # http://www.opensource.org/licenses/mit-license.php for details.
 
-.PHONY: tags test
+.PHONY: test
 
 MAKE_ALIB = ar rv
 MAKE_SLIB = gcc -shared -o
@@ -23,7 +23,7 @@ LIBJVS = vector.o buffer.o hash.o list.o hashlist.o mdf.o debug.o dis.o \
 OPT = -O0
 CFLAGS = -std=gnu99 -g -fPIC -Wall -pedantic $(OPT) # -DPARANOID
 
-all: libjvs.a libjvs.so
+all: libjvs.a libjvs.so tags
 
 libjvs.a: $(LIBJVS)
 	$(MAKE_ALIB) libjvs.a $(LIBJVS)
@@ -44,7 +44,7 @@ install: libjvs.a libjvs.so test
 	rm -rf $(INSTALL_INC)/*
 	cp *.h $(INSTALL_INC)
 
-tags:
+tags: $(wildcard *.[ch])
 	ctags -R . /usr/include
 
 %.test: %.c %.h

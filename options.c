@@ -4,7 +4,7 @@
  * options.c is part of libjvs.
  *
  * Copyright:   (c) 2013-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: options.c 364 2019-11-08 12:30:12Z jacco $
+ * Version:     $Id: options.c 365 2019-11-08 13:34:40Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -40,6 +40,7 @@ typedef struct {
 struct Options {
     PointerArray options;
     HashList results;
+    int err;
     Buffer errors;
 };
 
@@ -93,11 +94,13 @@ static Option *opt_find_long(Options *options, const char *long_name)
  * used for an error message if the option was given more than once.
  */
 static void opt_add_result(Options *options,
-        const char *argv0, const Option *opt, const char *arg)
+        const Option *opt, const char *arg)
 {
     if (hlContains(&options->results, HASH_STRING(opt->long_name))) {
-        fprintf(stderr, "%s: option '--%s/-%c' given more than once\n",
-                argv0, opt->long_name, opt->short_name);
+        bufAddF(&options->errors, "Option '--%s' or '-%c' given more than once.\n",
+                opt->long_name, opt->short_name);
+        options->err = -4;
+        return;
     }
 
     OptionResult *result = calloc(1, sizeof(*result));
@@ -122,6 +125,14 @@ Options *optCreate(void)
  */
 void optAdd(Options *options, const char *long_name, char short_name, OPT_Argument argument)
 {
+    if ((short_name != 0 && opt_find_short(options, short_name) != NULL) ||
+        opt_find_long(options, long_name) != NULL) {
+        bufAddF(&options->errors, "Option '--%s' or '-%c' specified more than once.\n",
+                long_name, short_name);
+        options->err = -3;
+        return;
+    }
+
     Option *option = calloc(1, sizeof(Option));
 
     option->long_name  = long_name;
@@ -142,6 +153,8 @@ int optParse(Options *options, int argc, char *argv[])
 {
     Buffer opt_string = { 0 };
     int i, c;
+
+    if (options->err != 0) return options->err;
 
     struct option *long_options = calloc(paCount(&options->options) + 1, sizeof(struct option));
 
@@ -190,18 +203,21 @@ int optParse(Options *options, int argc, char *argv[])
         }
         else if (c == 0) {
             opt = opt_find_long(options, long_options[option_index].name);
-            opt_add_result(options, argv[0], opt, optarg);
+            opt_add_result(options, opt, optarg);
         }
         else {
             opt = opt_find_short(options, c);
-            opt_add_result(options, argv[0], opt, optarg);
+            opt_add_result(options, opt, optarg);
         }
     }
 
     bufClear(&opt_string);
     free(long_options);
 
-    if (c == -1)
+    if (options->err != 0) {
+        return options->err;
+    }
+    else if (c == -1)
         return optind;
     else if (c == '?')
         return -1;
@@ -608,6 +624,49 @@ static void test15(void)
     optDestroy(opts);
 }
 
+/*
+ * Test error where the same option was specified more than once.
+ */
+static void test16(void)
+{
+    Options *opts = optCreate();
+
+    char *argv[] = { "main", "bla", "-a" };
+    int r, argc = sizeof(argv) / sizeof(argv[2]);
+
+    optAdd(opts, "option-a", 'a', ARG_NONE);
+    optAdd(opts, "option-a", 'a', ARG_NONE);
+
+    r = optParse(opts, argc, argv);
+
+    make_sure_that(r == -3);
+    make_sure_that(strcmp(optErrors(opts),
+                "Option '--option-a' or '-a' specified more than once.\n") == 0);
+
+    optDestroy(opts);
+}
+
+/*
+ * Test error where options was given more than once.
+ */
+static void test17(void)
+{
+    Options *opts = optCreate();
+
+    char *argv[] = { "main", "bla", "-a", "-a" };
+    int r, argc = sizeof(argv) / sizeof(argv[2]);
+
+    optAdd(opts, "option-a", 'a', ARG_NONE);
+
+    r = optParse(opts, argc, argv);
+
+    make_sure_that(r == -4);
+    make_sure_that(strcmp(optErrors(opts),
+                "Option '--option-a' or '-a' given more than once.\n") == 0);
+
+    optDestroy(opts);
+}
+
 int main(int argc, char *argv[])
 {
     test1();
@@ -625,6 +684,8 @@ int main(int argc, char *argv[])
     test13();
     test14();
     test15();
+    test16();
+    test17();
 
     return errors;
 }
