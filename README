@@ -93,9 +93,9 @@ mdf.c, mdf.h
     Minimal Data Format parser.
 
 ml.c, ml.h
-    Multi-list. Lists where items can be in multiple lists at the same
-    time. However, a consequence is that it doesn't have the same level
-    of checks.
+    Multi-list. Lists where items can be in multiple lists at the same 
+    time. However, a consequence is that it can't have the same level of 
+    checks.
 
 net.c, net.h
     Provides general networking utilities.
