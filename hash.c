@@ -4,7 +4,7 @@
  * hash.h is part of libjvs.
  *
  * Copyright:   (c) 2007-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: hash.c 343 2019-08-27 08:39:24Z jacco $
+ * Version:     $Id: hash.c 367 2019-11-09 20:04:24Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -220,9 +220,9 @@ void *hashGet(const HashTable *tbl, const void *key, int key_len)
 /*
  * Delete the entry in <tbl> for <key> with length <key_len>. <tbl> and <key>
  * must not be NULL, <key_len> must be greater than 0. If no such entry exists
- * this function calls abort().
+ * this function calls abort(). The data this entry points to is not affected.
  */
-void hashDel(HashTable *tbl, const void *key, int key_len)
+void hashDrop(HashTable *tbl, const void *key, int key_len)
 {
    HashEntry *entry;
    HashKey hash_key = hash(key, key_len);
@@ -338,7 +338,7 @@ int main(int argc, char *argv[])
     make_sure_that(hashContains(table, HASH_STRING("four")));
 
     for (i = 0; i < count; i++) {
-        hashDel(table, HASH_VALUE(i));
+        hashDrop(table, HASH_VALUE(i));
     }
 
     make_sure_that(hashGet(table, HASH_VALUE(data[0].i)) == NULL);
@@ -366,7 +366,7 @@ int main(int argc, char *argv[])
     make_sure_that(hashContains(table, HASH_STRING("four")));
 
     for (i = 0; i < count; i++) {
-        hashDel(table, HASH_STRING(data[i].s));
+        hashDrop(table, HASH_STRING(data[i].s));
     }
 
     make_sure_that(hashGet(table, HASH_VALUE(data[0].i)) == NULL);

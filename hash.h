@@ -7,7 +7,7 @@
  * hash.h is part of libjvs.
  *
  * Copyright:   (c) 2007-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: hash.h 343 2019-08-27 08:39:24Z jacco $
+ * Version:     $Id: hash.h 367 2019-11-09 20:04:24Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -96,9 +96,9 @@ void *hashGet(const HashTable *tbl, const void *key, int key_len);
 /*
  * Delete the entry in <tbl> for <key> with length <key_len>. <tbl> and <key>
  * must not be NULL, <key_len> must be greater than 0. If no such entry exists
- * this function calls abort().
+ * this function calls abort(). The data this entry points to is not affected.
  */
-void hashDel(HashTable *tbl, const void *key, int key_len);
+void hashDrop(HashTable *tbl, const void *key, int key_len);
 
 /*
  * Return a pointer array containing the number of entries in each hash bucket.
