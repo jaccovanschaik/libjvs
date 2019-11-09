@@ -1,10 +1,23 @@
 /*
  * pa.c: Handle arrays of pointers.
  *
+ * It's sometimes useful to have an array of pointers where the indexes are
+ * smallish integers. For example, you might want to keep some extra information
+ * for a bunch of file descriptors that you have open. However, it's a nuisance
+ * to keep track of the size of the array when elements are added and removed,
+ * necessitating lots of realloc() calls.
+ *
+ * Use PointerArrays. You allocate a PointerArray and can then set, get and
+ * clear elements in this array with abandon. All the reallocations will be
+ * handled automatically for you. To the user it looks like an infinite array
+ * where every index is available. The actual memory used is one pointer for
+ * each index up to the highest one used. Unused indices look like they are set
+ * to NULL.
+ *
  * pa.c is part of libjvs.
  *
  * Copyright:   (c) 2013-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: pa.c 343 2019-08-27 08:39:24Z jacco $
+ * Version:     $Id: pa.c 371 2019-11-09 22:30:19Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
