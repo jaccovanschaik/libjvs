@@ -6,7 +6,7 @@
  *
  * Copyright: (c) 2019 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2019-11-07
- * Version:   $Id: tree.h 366 2019-11-09 20:00:50Z jacco $
+ * Version:   $Id: tree.h 368 2019-11-09 20:09:14Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -52,8 +52,15 @@ void treeSet(Tree *tree, const void *data, const void *key, size_t key_len);
 void treeDrop(Tree *tree, const void *key, size_t key_len);
 
 /*
+ * Clear the contents of <tree> but without freeing <tree> itself. It is
+ * returned to the state just after treeCreate(). The data referenced by the
+ * tree is unaffected.
+ */
+void treeClear(Tree *tree);
+
+/*
  * Destroy the entire data tree <tree>. The data that was entered into it
- * earlier remains untouched.
+ * earlier is unaffected.
  */
 void treeDestroy(Tree *tree);
 
