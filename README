@@ -72,7 +72,7 @@ geo2d.c, geo2d.h
     2-D geometry calculations. Obsolescent, due to:
 
 geometry2.c, geometry2.h
-    2-D vectors and calculations. The new hotness!
+    2-D calculations that use vector2.[ch] further down. The new hotness!
 
 hash.c, hash.h
     Provides hash tables.
