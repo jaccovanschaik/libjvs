@@ -112,6 +112,10 @@ pa.c, pa.h
 tcp.c, tcp.h
     Provides TCP networking utilities.
 
+tree.c, tree.h
+    Store data in a tree structure. Works much like hash.[ch] from a 
+    user perspective, but uses much less memory.
+
 udp.c, udp.h
     Provides UDP networking utilities.
 
