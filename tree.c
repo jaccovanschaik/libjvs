@@ -3,7 +3,7 @@
  *
  * Copyright: (c) 2019 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2019-11-07
- * Version:   $Id: tree.c 368 2019-11-09 20:09:14Z jacco $
+ * Version:   $Id: tree.c 373 2019-11-11 09:19:58Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -240,6 +240,7 @@ void treeClear(Tree *tree)
 
     free(tree->branch);
 
+    tree->data = NULL;
     tree->branch = NULL;
     tree->branch_count = 0;
 }
@@ -272,11 +273,12 @@ int main(int argc, char *argv[])
 
     make_sure_that(tree != NULL);
 
+    make_sure_that(tree->id == '\0');
+    make_sure_that(tree->data == NULL);
+    make_sure_that(tree->branch == NULL);
     make_sure_that(tree->branch_count == 0);
 
     treeAdd(tree, double_a, STRING_KEY(double_a));
-
-    make_sure_that(tree->branch_count == 1);
 
     make_sure_that(tree->id == '\0');
     make_sure_that(tree->data == NULL);
@@ -288,6 +290,7 @@ int main(int argc, char *argv[])
 
     make_sure_that(tree->branch[0]->branch[0]->id == 'A');
     make_sure_that(tree->branch[0]->branch[0]->data == double_a);
+    make_sure_that(tree->branch[0]->branch[0]->branch == NULL);
     make_sure_that(tree->branch[0]->branch[0]->branch_count == 0);
 
     treeAdd(tree, triple_a, STRING_KEY(triple_a));
@@ -306,6 +309,7 @@ int main(int argc, char *argv[])
 
     make_sure_that(tree->branch[0]->branch[0]->branch[0]->id == 'A');
     make_sure_that(tree->branch[0]->branch[0]->branch[0]->data == triple_a);
+    make_sure_that(tree->branch[0]->branch[0]->branch[0]->branch == NULL);
     make_sure_that(tree->branch[0]->branch[0]->branch[0]->branch_count == 0);
 
     treeAdd(tree, single_a, STRING_KEY(single_a));
@@ -324,9 +328,10 @@ int main(int argc, char *argv[])
 
     make_sure_that(tree->branch[0]->branch[0]->branch[0]->id == 'A');
     make_sure_that(tree->branch[0]->branch[0]->branch[0]->data == triple_a);
+    make_sure_that(tree->branch[0]->branch[0]->branch[0]->branch == NULL);
     make_sure_that(tree->branch[0]->branch[0]->branch[0]->branch_count == 0);
 
-    treeAdd(tree, empty, empty, 0);
+    treeAdd(tree, empty, STRING_KEY(empty));
 
     make_sure_that(tree->id == '\0');
     make_sure_that(tree->data == empty);
@@ -342,14 +347,13 @@ int main(int argc, char *argv[])
 
     make_sure_that(tree->branch[0]->branch[0]->branch[0]->id == 'A');
     make_sure_that(tree->branch[0]->branch[0]->branch[0]->data == triple_a);
+    make_sure_that(tree->branch[0]->branch[0]->branch[0]->branch == NULL);
     make_sure_that(tree->branch[0]->branch[0]->branch[0]->branch_count == 0);
 
-    treeSet(tree, alternative, empty, 0);
-
-    make_sure_that(treeGet(tree, empty, 0) == alternative);
+    treeSet(tree, alternative, STRING_KEY(double_a));
 
     make_sure_that(tree->id == '\0');
-    make_sure_that(tree->data == alternative);
+    make_sure_that(tree->data == empty);
     make_sure_that(tree->branch_count == 1);
 
     make_sure_that(tree->branch[0]->id == 'A');
@@ -357,14 +361,17 @@ int main(int argc, char *argv[])
     make_sure_that(tree->branch[0]->branch_count == 1);
 
     make_sure_that(tree->branch[0]->branch[0]->id == 'A');
-    make_sure_that(tree->branch[0]->branch[0]->data == double_a);
+    make_sure_that(tree->branch[0]->branch[0]->data == alternative);
     make_sure_that(tree->branch[0]->branch[0]->branch_count == 1);
 
     make_sure_that(tree->branch[0]->branch[0]->branch[0]->id == 'A');
     make_sure_that(tree->branch[0]->branch[0]->branch[0]->data == triple_a);
+    make_sure_that(tree->branch[0]->branch[0]->branch[0]->branch == NULL);
     make_sure_that(tree->branch[0]->branch[0]->branch[0]->branch_count == 0);
 
-    treeDrop(tree, empty, 0);
+    make_sure_that(treeGet(tree, STRING_KEY(double_a)) == alternative);
+
+    treeDrop(tree, STRING_KEY(empty));
 
     make_sure_that(tree->id == '\0');
     make_sure_that(tree->data == NULL);
@@ -375,11 +382,12 @@ int main(int argc, char *argv[])
     make_sure_that(tree->branch[0]->branch_count == 1);
 
     make_sure_that(tree->branch[0]->branch[0]->id == 'A');
-    make_sure_that(tree->branch[0]->branch[0]->data == double_a);
+    make_sure_that(tree->branch[0]->branch[0]->data == alternative);
     make_sure_that(tree->branch[0]->branch[0]->branch_count == 1);
 
     make_sure_that(tree->branch[0]->branch[0]->branch[0]->id == 'A');
     make_sure_that(tree->branch[0]->branch[0]->branch[0]->data == triple_a);
+    make_sure_that(tree->branch[0]->branch[0]->branch[0]->branch == NULL);
     make_sure_that(tree->branch[0]->branch[0]->branch[0]->branch_count == 0);
 
     treeDrop(tree, STRING_KEY(double_a));
@@ -398,6 +406,7 @@ int main(int argc, char *argv[])
 
     make_sure_that(tree->branch[0]->branch[0]->branch[0]->id == 'A');
     make_sure_that(tree->branch[0]->branch[0]->branch[0]->data == triple_a);
+    make_sure_that(tree->branch[0]->branch[0]->branch[0]->branch == NULL);
     make_sure_that(tree->branch[0]->branch[0]->branch[0]->branch_count == 0);
 
     treeDrop(tree, STRING_KEY(triple_a));
@@ -408,9 +417,50 @@ int main(int argc, char *argv[])
 
     make_sure_that(tree->branch[0]->id == 'A');
     make_sure_that(tree->branch[0]->data == single_a);
+    make_sure_that(tree->branch[0]->branch == NULL);
     make_sure_that(tree->branch[0]->branch_count == 0);
 
+    treeDrop(tree, STRING_KEY(single_a));
+
+    make_sure_that(tree->id == '\0');
+    make_sure_that(tree->data == NULL);
+    make_sure_that(tree->branch == NULL);
+    make_sure_that(tree->branch_count == 0);
+
     treeDestroy(tree);
+
+    tree = treeCreate();
+
+    treeAdd(tree, double_a, STRING_KEY(double_a));
+    treeAdd(tree, triple_a, STRING_KEY(triple_a));
+    treeAdd(tree, single_a, STRING_KEY(single_a));
+    treeAdd(tree, empty, STRING_KEY(empty));
+
+    make_sure_that(tree->id == '\0');
+    make_sure_that(tree->data == empty);
+    make_sure_that(tree->branch_count == 1);
+
+    make_sure_that(tree->branch[0]->id == 'A');
+    make_sure_that(tree->branch[0]->data == single_a);
+    make_sure_that(tree->branch[0]->branch_count == 1);
+
+    make_sure_that(tree->branch[0]->branch[0]->id == 'A');
+    make_sure_that(tree->branch[0]->branch[0]->data == double_a);
+    make_sure_that(tree->branch[0]->branch[0]->branch_count == 1);
+
+    make_sure_that(tree->branch[0]->branch[0]->branch[0]->id == 'A');
+    make_sure_that(tree->branch[0]->branch[0]->branch[0]->data == triple_a);
+    make_sure_that(tree->branch[0]->branch[0]->branch[0]->branch == NULL);
+    make_sure_that(tree->branch[0]->branch[0]->branch[0]->branch_count == 0);
+
+    treeClear(tree);
+
+    make_sure_that(tree->id == '\0');
+    make_sure_that(tree->data == NULL);
+    make_sure_that(tree->branch == NULL);
+    make_sure_that(tree->branch_count == 0);
+
+    free(tree);
 
     return errors;
 }
