@@ -6,7 +6,7 @@
  *
  * Copyright: (c) 2019 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2019-11-07
- * Version:   $Id: tree.h 374 2019-11-12 07:42:17Z jacco $
+ * Version:   $Id: tree.h 376 2019-11-12 13:48:29Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -29,32 +29,32 @@ typedef struct Tree Tree;
 Tree *treeCreate(void);
 
 /*
- * Add the data at <data> to the tree, addressable using <key> (which has length
+ * Add the data at <data> to the tree, addressable using <key> (which has size
  * <key_size>).
  */
 void treeAdd(Tree *tree, const void *data, const void *key, size_t key_size);
 
 /*
  * Return the data pointer that was associated earlier with <key> (which has
- * length <key_size>).
+ * size <key_size>).
  */
 void *treeGet(Tree *tree, const void *key, size_t key_size);
 
 /*
- * Change the data addressed by <key> (with length <key_size>) to <data>.
+ * Change the data addressed by <key> (with size <key_size>) to <data>.
  */
 void treeSet(Tree *tree, const void *data, const void *key, size_t key_size);
 
 /*
  * Traverse the tree at <tree>. Function <func> will be called for all data
  * items in the tree, passing in a pointer to this tree and to the data for the
- * item, and also the key and key length for the item.
+ * item, and also the key and key size for the item.
  */
 void treeTraverse(Tree *tree,
         int (*func)(Tree *tree, void *data, const void *key, size_t key_size));
 
 /*
- * Drop the association of key <key> (with length <key_size>) with its data from
+ * Drop the association of key <key> (with size <key_size>) with its data from
  * <tree>. The data itself is not touched.
  */
 void treeDrop(Tree *tree, const void *key, size_t key_size);
