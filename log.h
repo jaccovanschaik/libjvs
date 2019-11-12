@@ -4,27 +4,6 @@
 /*
  * log.h: Provide logging.
  *
- * log.h is part of libjvs.
- *
- * Copyright: (c) 2019-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Created:   2019-07-29
- * Version:   $Id: log.h 360 2019-11-01 13:13:26Z jacco $
- *
- * This software is distributed under the terms of the MIT license. See
- * http://www.opensource.org/licenses/mit-license.php for details.
- */
-
-#include <stdio.h>
-#include <stdint.h>
-#include <syslog.h>
-
-#include "buffer.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-/*
  * This log package works with log "channels", which are connected to log
  * "writers". You write log messages to one or more channels, and the connected
  * log writers take care of writing them, with any number of prefixes of your
@@ -47,7 +26,26 @@ extern "C" {
  * You can have the current date and time, the file, line and function from
  * which the log message was written, and also any fixed string. You can also
  * set a separator between the fields of the log message.
+ *
+ * log.h is part of libjvs.
+ *
+ * Copyright: (c) 2019-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
+ * Created:   2019-07-29
+ * Version:   $Id: log.h 375 2019-11-12 13:26:08Z jacco $
+ *
+ * This software is distributed under the terms of the MIT license. See
+ * http://www.opensource.org/licenses/mit-license.php for details.
  */
+
+#include <stdio.h>
+#include <stdint.h>
+#include <syslog.h>
+
+#include "buffer.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /*
  * These are some predefined channel masks, based on the log levels in syslog.h.

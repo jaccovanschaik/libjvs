@@ -1,11 +1,34 @@
 /*
  * log.c: Provide logging.
  *
+ * This log package works with log "channels", which are connected to log
+ * "writers". You write log messages to one or more channels, and the connected
+ * log writers take care of writing them, with any number of prefixes of your
+ * choosing, to your chosen destination. Writing to a channel that is not
+ * connected to a writer is effectively a no-op: the log message will disappear
+ * into the void.
+ *
+ * A log channel identifier is a single bit in a 64-bit bitmask (which means
+ * there are 64 channels in total). If a function has "uint64_t channels" as a
+ * parameter you can pass in a bitmask with multiple bits set, and the function
+ * will apply to all the associated channels.
+ *
+ * Log writers take care of writing the log messages to a given destination.
+ * There are log writers that write to files, file pointers, file descriptors,
+ * Buffers (see buf.h) and the syslog facility. There is also a log writer that
+ * calls a user-supplied function for each log message.
+ *
+ * Each log writer can have a number of associated prefixes that are written out
+ * before the actual log message (in the order in which they were requested).
+ * You can have the current date and time, the file, line and function from
+ * which the log message was written, and also any fixed string. You can also
+ * set a separator between the fields of the log message.
+ *
  * log.c is part of libjvs.
  *
  * Copyright: (c) 2019-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2019-07-29
- * Version:   $Id: log.c 360 2019-11-01 13:13:26Z jacco $
+ * Version:   $Id: log.c 375 2019-11-12 13:26:08Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
