@@ -23,7 +23,7 @@ LIBJVS = vector.o buffer.o hash.o list.o hashlist.o mdf.o debug.o dis.o \
 OPT = -O0
 CFLAGS = -std=gnu99 -g -fPIC -Wall -pedantic $(OPT) # -DPARANOID
 
-all: libjvs.a libjvs.so tags
+all: libjvs.a libjvs.so # tags
 
 libjvs.a: $(LIBJVS)
 	$(MAKE_ALIB) libjvs.a $(LIBJVS)

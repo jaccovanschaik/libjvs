@@ -3,7 +3,7 @@
  *
  * Copyright: (c) 2019 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2019-11-07
- * Version:   $Id: tree.c 373 2019-11-11 09:19:58Z jacco $
+ * Version:   $Id: tree.c 374 2019-11-12 07:42:17Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -103,9 +103,9 @@ static Tree *add_branch(Tree *tree, uint8_t id)
     return branch;
 }
 
-static Tree *find_leaf(Tree *tree, const void *key, size_t key_len)
+static Tree *find_leaf(Tree *tree, const void *key, size_t key_size)
 {
-    if (key_len == 0) return tree;
+    if (key_size == 0) return tree;
 
     uint8_t id = ((uint8_t *) key)[0];
 
@@ -115,13 +115,13 @@ static Tree *find_leaf(Tree *tree, const void *key, size_t key_len)
         return NULL;
     }
     else {
-        return find_leaf(tree->branch[index], ((uint8_t *) key) + 1, key_len - 1);
+        return find_leaf(tree->branch[index], ((uint8_t *) key) + 1, key_size - 1);
     }
 }
 
-static Tree *find_or_add_leaf(Tree *tree, const void *key, size_t key_len)
+static Tree *find_or_add_leaf(Tree *tree, const void *key, size_t key_size)
 {
-    if (key_len == 0) return tree;
+    if (key_size == 0) return tree;
 
     uint8_t id = ((uint8_t *) key)[0];
 
@@ -136,12 +136,12 @@ static Tree *find_or_add_leaf(Tree *tree, const void *key, size_t key_len)
         branch = tree->branch[index];
     }
 
-    return find_or_add_leaf(branch, ((uint8_t *) key) + 1, key_len - 1);
+    return find_or_add_leaf(branch, ((uint8_t *) key) + 1, key_size - 1);
 }
 
-static int delete_leaf(Tree *tree, const void *key, size_t key_len)
+static int delete_leaf(Tree *tree, const void *key, size_t key_size)
 {
-    if (key_len == 0) {
+    if (key_size == 0) {
         if (tree->data == NULL) {
             return 1;
         }
@@ -159,7 +159,7 @@ static int delete_leaf(Tree *tree, const void *key, size_t key_len)
 
     Tree *branch = tree->branch[index];
 
-    if (delete_leaf(branch, ((uint8_t *) key) + 1, key_len - 1) != 0) {
+    if (delete_leaf(branch, ((uint8_t *) key) + 1, key_size - 1) != 0) {
         return 1;
     }
     else if (branch->data == NULL && branch->branch_count == 0) {
@@ -182,11 +182,11 @@ Tree *treeCreate(void)
 
 /*
  * Add the data at <data> to the tree, addressable using <key> (which has length
- * <key_len>).
+ * <key_size>).
  */
-void treeAdd(Tree *tree, const void *data, const void *key, size_t key_len)
+void treeAdd(Tree *tree, const void *data, const void *key, size_t key_size)
 {
-    Tree *leaf = find_or_add_leaf(tree, key, key_len);
+    Tree *leaf = find_or_add_leaf(tree, key, key_size);
 
     dbgAssert(stderr, leaf->data == NULL, "Key already used.\n");
 
@@ -195,21 +195,21 @@ void treeAdd(Tree *tree, const void *data, const void *key, size_t key_len)
 
 /*
  * Return the data pointer that was associated earlier with <key> (which has
- * length <key_len>).
+ * length <key_size>).
  */
-void *treeGet(Tree *tree, const void *key, size_t key_len)
+void *treeGet(Tree *tree, const void *key, size_t key_size)
 {
-    Tree *leaf = find_leaf(tree, key, key_len);
+    Tree *leaf = find_leaf(tree, key, key_size);
 
     return leaf ? (void *) leaf->data : NULL;
 }
 
 /*
- * Change the data addressed by <key> (with length <key_len>) to <data>.
+ * Change the data addressed by <key> (with length <key_size>) to <data>.
  */
-void treeSet(Tree *tree, const void *data, const void *key, size_t key_len)
+void treeSet(Tree *tree, const void *data, const void *key, size_t key_size)
 {
-    Tree *leaf = find_leaf(tree, key, key_len);
+    Tree *leaf = find_leaf(tree, key, key_size);
 
     dbgAssert(stderr, leaf != NULL && leaf->data != NULL, "Key doesn't exist.\n");
 
@@ -217,12 +217,49 @@ void treeSet(Tree *tree, const void *data, const void *key, size_t key_len)
 }
 
 /*
- * Drop the association of key <key> (with length <key_len>) with its data from
+ * Helper function for treeTraverse. Traverse the tree that has its root at
+ * <root>, starting at <branch>. The key that lead us to <branch> is <key> with
+ * length <key_size>. Call function <func> for all branches (including this one)
+ * if they have data associated with them.
+ */
+static void tree_traverse(Tree *root, Tree *branch, uint8_t *key, size_t key_size,
+        int (*func)(Tree *tree, void *data, const void *key, size_t key_size))
+{
+    if (branch->data != NULL) {
+        func(branch, (void *) branch->data, key, key_size);
+    }
+
+    uint8_t *sub_key = calloc(key_size + 1, sizeof(uint8_t));
+
+    memcpy(sub_key, key, key_size);
+
+    for (int i = 0; i < branch->branch_count; i++) {
+        sub_key[key_size] = branch->branch[i]->id;
+
+        tree_traverse(root, branch->branch[i], sub_key, key_size + 1, func);
+    }
+
+    free(sub_key);
+}
+
+/*
+ * Traverse the tree at <tree>. Function <func> will be called for all data
+ * items in the tree, passing in a pointer to this tree and to the data for the
+ * item, and also the key and key length for the item.
+ */
+void treeTraverse(Tree *tree,
+        int (*func)(Tree *tree, void *data, const void *key, size_t key_size))
+{
+    tree_traverse(tree, tree, (uint8_t *) "", 0, func);
+}
+
+/*
+ * Drop the association of key <key> (with length <key_size>) with its data from
  * <tree>. The data itself is not touched.
  */
-void treeDrop(Tree *tree, const void *key, size_t key_len)
+void treeDrop(Tree *tree, const void *key, size_t key_size)
 {
-    int r = delete_leaf(tree, key, key_len);
+    int r = delete_leaf(tree, key, key_size);
 
     dbgAssert(stderr, r == 0, "Key doesn't exist.\n");
 }
@@ -260,6 +297,15 @@ void treeDestroy(Tree *tree)
 #include "utils.h"
 
 static int errors = 0;
+
+static int check_entry(Tree *tree, void *data, const void *key, size_t key_size)
+{
+    make_sure_that(key_size == 3);
+
+    make_sure_that(memcmp(data, key, 3) == 0);
+
+    return 0;
+}
 
 int main(int argc, char *argv[])
 {
@@ -459,6 +505,38 @@ int main(int argc, char *argv[])
     make_sure_that(tree->data == NULL);
     make_sure_that(tree->branch == NULL);
     make_sure_that(tree->branch_count == 0);
+
+    for (int i = 0; i < 3; i++) {
+        for (int j = 0; j < 3; j++) {
+            for (int k = 0; k < 3; k++) {
+                char *key = calloc(4, 1);
+
+                key[0] = 'A' + i;
+                key[1] = 'A' + j;
+                key[2] = 'A' + k;
+
+                treeAdd(tree, key, key, 3);
+            }
+        }
+    }
+
+    treeTraverse(tree, check_entry);
+
+    for (int i = 0; i < 3; i++) {
+        for (int j = 0; j < 3; j++) {
+            for (int k = 0; k < 3; k++) {
+                char key[] = { 'A' + i, 'A' + j, 'A' + k };
+
+                char *data = treeGet(tree, key, 3);
+
+                make_sure_that(memcmp(data, key, 3) == 0);
+
+                treeDrop(tree, key, 3);
+
+                free(data);
+            }
+        }
+    }
 
     free(tree);
 
