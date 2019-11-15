@@ -4,7 +4,7 @@
  * udp.c is part of libjvs.
  *
  * Copyright:   (c) 2007-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: udp.c 357 2019-10-21 13:46:41Z jacco $
+ * Version:     $Id: udp.c 377 2019-11-15 08:52:07Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -13,6 +13,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
 #include <unistd.h>
 #include <string.h>
 #include <fcntl.h>
@@ -79,6 +80,79 @@ int udpSend(int fd, const char *host, uint16_t port, const char *data, size_t si
         ((struct in_addr *) (host_ptr->h_addr))->s_addr;
 
     return sendto(fd, data, size, 0, (struct sockaddr *) &peeraddr_in, sizeof(peeraddr_in));
+}
+
+/*
+ * Add the socket given by <fd> to the multicast group given by <group> (a
+ * dotted-quad ip address).
+ */
+int udpMulticastJoin(int fd, const char *group)
+{
+    struct ip_mreq mreq;
+
+    mreq.imr_multiaddr.s_addr = inet_addr(group);
+    mreq.imr_interface.s_addr = htonl(INADDR_ANY);
+
+    if (setsockopt(fd, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq, sizeof(mreq)) < 0) {
+         perror("Adding multicast membership");
+         return -1;
+    }
+
+    return 0;
+}
+
+/*
+ * Allow (if <allow_loop> is 1) or disallow (if it is 0) multicast packets to be
+ * looped back to the sending network interface. The default is that packets do
+ * loop back.
+ */
+int udpMulticastLoop(int fd, int allow_loop)
+{
+    char loop = allow_loop;
+
+    if (setsockopt(fd, IPPROTO_IP, IP_MULTICAST_LOOP, (char *)&loop, sizeof(loop)) < 0) {
+        perror("Setting IP_MULTICAST_LOOP");
+        return -1;
+    }
+
+    return 0;
+}
+
+/*
+ * Set the outgoing UDP Multicast interface for <fd> to the one associated with
+ * <address>.
+ */
+int udpMulticastInterface(int fd, const char *address)
+{
+    struct in_addr addr;
+
+    addr.s_addr = inet_addr(address);
+
+    if(setsockopt(fd, IPPROTO_IP, IP_MULTICAST_IF, (char *)&addr, sizeof(addr)) < 0) {
+        perror("Setting IP_MULTICAST_IF");
+        return -1;
+    }
+
+    return 0;
+}
+
+/*
+ * Remove the socket given by <fd> from the multicast group given by <group> (a
+ * dotted-quad ip address).
+ */
+int udpMulticastLeave(int fd, const char *group)
+{
+    struct ip_mreq mreq;
+
+    mreq.imr_multiaddr.s_addr = inet_addr(group);
+    mreq.imr_interface.s_addr = htonl(INADDR_ANY);
+
+    if (setsockopt(fd, IPPROTO_IP, IP_DROP_MEMBERSHIP, &mreq, sizeof(mreq)) < 0) {
+         perror("Removing multicast membership");
+         return -1;
+    }
+
+    return 0;
 }
 
 #ifdef TEST

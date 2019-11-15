@@ -7,7 +7,7 @@
  * udp.h is part of libjvs.
  *
  * Copyright:   (c) 2007-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: udp.h 352 2019-10-14 12:03:38Z jacco $
+ * Version:     $Id: udp.h 377 2019-11-15 08:52:07Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -26,12 +26,37 @@ extern "C" {
 int udpSocket(void);
 
 /*
- * Send <data> with size <size> via <fd> to <host>, <port>. Note that this
- * function does a hostname lookup for every call, which can be slow. If
- * possible, use netConnect() to set a default address, after which you can
- * simply write() to the socket without incurring this overhead.
+ * Send <data> with size <size> via <fd> to <host>, <port>. Note that this function does a hostname
+ * lookup for every call, which can be slow. If possible, use netConnect() to set a default
+ * destination address, after which you can simply write() to the socket without incurring this
+ * overhead.
  */
 int udpSend(int fd, const char *host, uint16_t port, const char *data, size_t size);
+
+/*
+ * Add the socket given by <fd> to the multicast group given by <group> (a
+ * dotted-quad ip address).
+ */
+int udpMulticastJoin(int fd, const char *group);
+
+/*
+ * Allow (if <allow_loop> is 1) or disallow (if it is 0) multicast packets to be
+ * looped back to the sending network interface. The default is that packets do
+ * loop back.
+ */
+int udpMulticastLoop(int fd, int allow_loop);
+
+/*
+ * Set the outgoing UDP Multicast interface for <fd> to the one associated with
+ * <address>.
+ */
+int udpMulticastInterface(int fd, const char *address);
+
+/*
+ * Remove the socket given by <fd> from the multicast group given by <group> (a
+ * dotted-quad ip address).
+ */
+int udpMulticastLeave(int fd, const char *group);
 
 #ifdef __cplusplus
 }
