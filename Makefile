@@ -20,8 +20,9 @@ LIBJVS = vector.o buffer.o hash.o list.o hashlist.o mdf.o debug.o dis.o \
 	 utils.o bitmask.o net.o tcp.o udp.o log.o ns.o pa.o ml.o options.o \
 	 geo2d.o vector2.o matrix2.o vector3.o matrix3.o geometry2.o tree.o
 
-OPT = -O0
-CFLAGS = -std=gnu99 -g -fPIC -Wall -pedantic $(OPT) # -DPARANOID
+OPT = -O3
+PROF = # -pg
+CFLAGS = -std=gnu99 -g -fPIC -Wall -pedantic $(OPT) $(PROF) # -DPARANOID
 
 all: libjvs.a libjvs.so # tags
 
