@@ -4,7 +4,7 @@
  * utils.c is part of libjvs.
  *
  * Copyright:   (c) 2012-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: utils.c 347 2019-08-28 12:14:25Z jacco $
+ * Version:     $Id: utils.c 379 2019-11-23 18:14:34Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -658,11 +658,14 @@ char *env_expand(const char *text)
             for (p = p+1; isalnum(*p) || *p == '_'; p++) {
                 bufAddC(varname, *p);
             }
+
             char *value = getenv(bufGet(varname));
 
             if (value != NULL) {
                 bufAddS(result, value);
             }
+
+            p--;
         }
         else {
             bufAddC(result, *p);
@@ -852,9 +855,9 @@ int main(int argc, char *argv[])
 
     setenv("TEST_String_1234", "test result", 1);
 
-    char *result = env_expand("Testing env_expand: $TEST_String_1234");
+    char *result = env_expand("Testing env_expand: <$TEST_String_1234>");
 
-    make_sure_that(strcmp(result, "Testing env_expand: test result") == 0);
+    make_sure_that(strcmp(result, "Testing env_expand: <test result>") == 0);
 
     free(result);
 
