@@ -23,7 +23,7 @@
  * mdf.h is part of libjvs.
  *
  * Copyright:   (c) 2013-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: mdf.h 343 2019-08-27 08:39:24Z jacco $
+ * Version:     $Id: mdf.h 383 2019-11-26 21:03:02Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -64,22 +64,22 @@ struct MDF_Object {
 };
 
 /*
- * Create and return a MDF_Stream, using data from file <filename>.
+ * Create and return an MDF_Stream, using data from file <filename>.
  */
 MDF_Stream *mdfOpenFile(const char *filename);
 
 /*
- * Create and return a MDF_Stream, using data from FILE pointer <fp>.
+ * Create and return an MDF_Stream, using data from FILE pointer <fp>.
  */
 MDF_Stream *mdfOpenFP(FILE *fp);
 
 /*
- * Create and return a MDF_Stream, using data from file descriptor <fd>.
+ * Create and return an MDF_Stream, using data from file descriptor <fd>.
  */
 MDF_Stream *mdfOpenFD(int fd);
 
 /*
- * Create and return a MDF_Stream, using data from string <string>.
+ * Create and return an MDF_Stream, using data from string <string>.
  */
 MDF_Stream *mdfOpenString(const char *string);
 
