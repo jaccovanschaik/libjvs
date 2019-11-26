@@ -6,19 +6,27 @@
  *
  * Copyright: (c) 2019 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2019-11-07
- * Version:   $Id: tree.h 376 2019-11-12 13:48:29Z jacco $
+ * Version:   $Id: tree.h 382 2019-11-26 20:13:26Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
  */
 
 #include <stdlib.h>
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 typedef struct Tree Tree;
+
+struct Tree {
+    uint8_t id;
+    const void *data;
+    Tree **branch;
+    int branch_count;
+};
 
 #define STRING_KEY(s) s, strlen(s)
 #define VALUE_KEY(k)  &(k), sizeof(k)
