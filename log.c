@@ -28,7 +28,7 @@
  *
  * Copyright: (c) 2019-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2019-07-29
- * Version:   $Id: log.c 375 2019-11-12 13:26:08Z jacco $
+ * Version:   $Id: log.c 380 2019-11-26 12:36:14Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -872,16 +872,20 @@ void _logWrite(uint64_t channels,
         const char *file, int line, const char *func,
         const char *fmt, ...)
 {
-    Buffer msg = { 0 };
-
-    va_list ap;
-
-    va_start(ap, fmt);
-    bufAddV(&msg, fmt, ap);
-    va_end(ap);
+    Buffer *msg = NULL;
 
     for (int i = 0; i < max_channels; i++) {
         if (((1ULL << i) & channels) == 0) continue;    // Not writing to this channel.
+
+        if (msg == NULL) {
+            msg = bufCreate();
+
+            va_list ap;
+
+            va_start(ap, fmt);
+            bufAddV(msg, fmt, ap);
+            va_end(ap);
+        }
 
         LogChannel *chan = paGet(&log_channels, i);
 
@@ -894,7 +898,7 @@ void _logWrite(uint64_t channels,
 
             log_add_prefixes(&writer->prefixes, &str, writer->separator, file, line, func);
 
-            bufAdd(&str, bufGet(&msg), bufLen(&msg));
+            bufAdd(&str, bufGet(msg), bufLen(msg));
 
             log_write(writer, bufGet(&str));
 
@@ -902,7 +906,7 @@ void _logWrite(uint64_t channels,
         }
     }
 
-    bufClear(&msg);
+    bufDestroy(msg);
 }
 
 /*
