@@ -53,7 +53,7 @@ tags: $(wildcard *.[ch])
 
 test: $(LIBJVS_TEST)
 	@echo "Running tests..."
-	@./do_tests.sh $(LIBJVS_TEST)
+	@./run_tests.sh $(LIBJVS_TEST)
 	@echo "All tests succeeded."
 
 commit:
