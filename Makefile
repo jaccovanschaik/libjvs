@@ -16,9 +16,9 @@ INSTALL_INC = $(HOME)/include/libjvs
 
 CC = gcc
 
-LIBJVS = vector.o buffer.o hash.o list.o hashlist.o mdf.o debug.o dis.o \
-	 utils.o bitmask.o net.o tcp.o udp.o log.o ns.o pa.o ml.o options.o \
-	 geo2d.o vector2.o matrix2.o vector3.o matrix3.o geometry2.o tree.o
+LIBJVS_SRC = $(wildcard *.c)
+LIBJVS_OBJ = $(subst .c,.o,$(LIBJVS_SRC))
+LIBJVS_TEST = $(subst .c,.test,$(shell grep -l '^\#ifdef TEST' $(LIBJVS_SRC)))
 
 OPT = -O3
 PROF = # -pg
@@ -26,11 +26,11 @@ CFLAGS = -std=gnu99 -g -fPIC -Wall -pedantic $(OPT) $(PROF) # -DPARANOID
 
 all: libjvs.a libjvs.so # tags
 
-libjvs.a: $(LIBJVS)
-	$(MAKE_ALIB) libjvs.a $(LIBJVS)
+libjvs.a: $(LIBJVS_OBJ)
+	$(MAKE_ALIB) libjvs.a $(LIBJVS_OBJ)
 
-libjvs.so: $(LIBJVS)
-	$(MAKE_SLIB) libjvs.so $(LIBJVS) -lm
+libjvs.so: $(LIBJVS_OBJ)
+	$(MAKE_SLIB) libjvs.so $(LIBJVS_OBJ) -lm
 
 clean:
 	rm -f *.o libjvs.a libjvs.so core vgcore.* libjvs.tgz *.test *.log tags
@@ -38,7 +38,7 @@ clean:
 libjvs.tgz: clean
 	tar cvf - `ls | grep -v libjvs.tgz` | gzip > libjvs.tgz
 
-install: libjvs.a libjvs.so test
+install: test libjvs.a libjvs.so
 	if [ ! -d $(INSTALL_LIB) ]; then mkdir -p $(INSTALL_LIB); fi
 	cp libjvs.a libjvs.so $(INSTALL_LIB)
 	if [ ! -d $(INSTALL_INC)/libjvs ]; then mkdir -p $(INSTALL_INC); fi
@@ -48,11 +48,13 @@ install: libjvs.a libjvs.so test
 tags: $(wildcard *.[ch])
 	ctags -R . /usr/include
 
-%.test: %.c %.h
+%.test: %.c %.h libjvs.a
 	@$(CC) $(CFLAGS) -DTEST -o $@ $< libjvs.a -lm
 
-test: do_tests.sh libjvs.a
-	./do_tests.sh
+test: $(LIBJVS_TEST)
+	@echo "Running tests..."
+	@./do_tests.sh $(LIBJVS_TEST)
+	@echo "All tests succeeded."
 
 commit:
 	@echo "\033[7mSubversion status:\033[0m"
