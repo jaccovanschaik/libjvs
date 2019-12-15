@@ -4,7 +4,7 @@
  * hash.h is part of libjvs.
  *
  * Copyright:   (c) 2007-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: hash.c 367 2019-11-09 20:04:24Z jacco $
+ * Version:     $Id: hash.c 386 2019-12-15 17:45:57Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -23,6 +23,8 @@
 #include "hash.h"
 
 /* An entry in a hash table. */
+
+typedef struct HashEntry HashEntry;
 
 struct HashEntry {
     ListNode _node;     /* Make it listable. */

@@ -7,7 +7,7 @@
  * hash.h is part of libjvs.
  *
  * Copyright:   (c) 2007-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: hash.h 367 2019-11-09 20:04:24Z jacco $
+ * Version:     $Id: hash.h 386 2019-12-15 17:45:57Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -28,8 +28,6 @@ extern "C" {
 
 /* A hash table. Contains <HASH_BUCKETS> buckets, each of which consists of a
  * list of HashEntry structs. */
-
-typedef struct HashEntry HashEntry;
 
 typedef struct {
     List bucket[HASH_BUCKETS];
