@@ -3,7 +3,7 @@
  *
  * Copyright: (c) 2019 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2019-11-07
- * Version:   $Id: tree.c 382 2019-11-26 20:13:26Z jacco $
+ * Version:   $Id: tree.c 387 2019-12-15 17:47:27Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -15,6 +15,10 @@
 #include <stdint.h>
 #include <string.h>
 
+/*
+ * Find the branch with id <id> in <tree>. Search only in the range of branches between <low_index> 
+ * and <high_index>, inclusive.
+ */
 static int find_branch_between(const Tree *tree, uint8_t id, int low_index, int high_index)
 {
     if (low_index > high_index) return -1;
@@ -39,7 +43,9 @@ static int find_branch_between(const Tree *tree, uint8_t id, int low_index, int 
     else
         return find_branch_between(tree, id, middle_index + 1, high_index - 1);
 }
-
+/*
+ * Insert branch <branch> into <tree> at index <at_index>.
+ */
 static void insert_branch(Tree *tree, Tree *branch, int at_index)
 {
     tree->branch = realloc(tree->branch,
@@ -54,6 +60,9 @@ static void insert_branch(Tree *tree, Tree *branch, int at_index)
     tree->branch_count++;
 }
 
+/*
+ * Remove and return the branch at <at_index> in <tree>.
+ */
 static Tree *remove_branch(Tree *tree, int at_index)
 {
     Tree *branch = tree->branch[at_index];
@@ -74,11 +83,17 @@ static Tree *remove_branch(Tree *tree, int at_index)
     return branch;
 }
 
+/*
+ * Find and return the branch with id <id> in <tree>.
+ */
 static int find_branch(const Tree *tree, uint8_t id)
 {
     return find_branch_between(tree, id, 0, tree->branch_count - 1);
 }
 
+/*
+ * Insert and return an empty branch with id <id> into <tree>.
+ */
 static Tree *add_branch(Tree *tree, uint8_t id)
 {
     Tree *branch = calloc(1, sizeof(*branch));
@@ -96,6 +111,11 @@ static Tree *add_branch(Tree *tree, uint8_t id)
     return branch;
 }
 
+/*
+ * Find and return the leaf for key <key> (with size <key_size>) in <tree>. The
+ * key contains the path through the tree from this location, so it may be the
+ * end portion of a full key.
+ */
 static Tree *find_leaf(Tree *tree, const void *key, size_t key_size)
 {
     if (key_size == 0) return tree;
@@ -112,6 +132,11 @@ static Tree *find_leaf(Tree *tree, const void *key, size_t key_size)
     }
 }
 
+/*
+ * Find and return the leaf for key <key> (with length <key_size>) in <tree>,
+ * and create it if it doesn't exist. As above, the key may be the end portion
+ * of a longer key that describes the path to go from this location to the leaf.
+ */
 static Tree *find_or_add_leaf(Tree *tree, const void *key, size_t key_size)
 {
     if (key_size == 0) return tree;
@@ -132,6 +157,11 @@ static Tree *find_or_add_leaf(Tree *tree, const void *key, size_t key_size)
     return find_or_add_leaf(branch, ((uint8_t *) key) + 1, key_size - 1);
 }
 
+/*
+ * Delete the leaf for key <key> (with length <key_size>) in <tree>. Again, the
+ * key may be the end portion of a longer key that describes the path to go from
+ * this location to the leaf. Returns 0 if the leaf was found, 1 if it wasn't.
+ */
 static int delete_leaf(Tree *tree, const void *key, size_t key_size)
 {
     if (key_size == 0) {
@@ -161,6 +191,32 @@ static int delete_leaf(Tree *tree, const void *key, size_t key_size)
     }
 
     return 0;
+}
+
+/*
+ * Helper function for treeTraverse. Traverse the tree that has its root at
+ * <root>, starting at <branch>. The key that lead us to <branch> is <key> with
+ * size <key_size>. Call function <func> for all branches (including this one)
+ * if they have data associated with them.
+ */
+static void tree_traverse(Tree *root, Tree *branch, uint8_t *key, size_t key_size,
+        int (*func)(Tree *tree, void *data, const void *key, size_t key_size))
+{
+    if (branch->data != NULL) {
+        func(branch, (void *) branch->data, key, key_size);
+    }
+
+    uint8_t *sub_key = calloc(key_size + 1, sizeof(uint8_t));
+
+    memcpy(sub_key, key, key_size);
+
+    for (int i = 0; i < branch->branch_count; i++) {
+        sub_key[key_size] = branch->branch[i]->id;
+
+        tree_traverse(root, branch->branch[i], sub_key, key_size + 1, func);
+    }
+
+    free(sub_key);
 }
 
 /*
@@ -207,32 +263,6 @@ void treeSet(Tree *tree, const void *data, const void *key, size_t key_size)
     dbgAssert(stderr, leaf != NULL && leaf->data != NULL, "Key doesn't exist.\n");
 
     leaf->data = data;
-}
-
-/*
- * Helper function for treeTraverse. Traverse the tree that has its root at
- * <root>, starting at <branch>. The key that lead us to <branch> is <key> with
- * size <key_size>. Call function <func> for all branches (including this one)
- * if they have data associated with them.
- */
-static void tree_traverse(Tree *root, Tree *branch, uint8_t *key, size_t key_size,
-        int (*func)(Tree *tree, void *data, const void *key, size_t key_size))
-{
-    if (branch->data != NULL) {
-        func(branch, (void *) branch->data, key, key_size);
-    }
-
-    uint8_t *sub_key = calloc(key_size + 1, sizeof(uint8_t));
-
-    memcpy(sub_key, key, key_size);
-
-    for (int i = 0; i < branch->branch_count; i++) {
-        sub_key[key_size] = branch->branch[i]->id;
-
-        tree_traverse(root, branch->branch[i], sub_key, key_size + 1, func);
-    }
-
-    free(sub_key);
 }
 
 /*
