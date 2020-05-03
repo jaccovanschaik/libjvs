@@ -5,16 +5,17 @@
  *
  * Copyright: (c) 2019 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2019-08-27
- * Version:   $Id: matrix2.c 353 2019-10-14 12:25:35Z jacco $
+ * Version:   $Id: matrix2.c 390 2020-05-03 21:17:13Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
  */
 
+#include "matrix2.h"
+#include "vector2.h"
+
 #include <string.h>
 #include <assert.h>
-
-#include "matrix2.h"
 
 /*
  * Return a matrix with all coefficients set to 0.
