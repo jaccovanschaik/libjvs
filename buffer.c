@@ -5,7 +5,7 @@
  * buffer.c is part of libjvs.
  *
  * Copyright:   (c) 2007-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: buffer.c 343 2019-08-27 08:39:24Z jacco $
+ * Version:     $Id: buffer.c 389 2020-05-03 20:57:18Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -173,6 +173,7 @@ Buffer *bufAddV(Buffer *buf, const char *fmt, va_list ap)
 /*
  * Append a string to <buf>, formatted according to <fmt> and the subsequent parameters.
  */
+__attribute__((format (printf, 2, 3)))
 Buffer *bufAddF(Buffer *buf, const char *fmt, ...)
 {
     va_list ap;
@@ -217,6 +218,7 @@ Buffer *bufSetC(Buffer *buf, char c)
 /*
  * Set <buf> to a string formatted according to <fmt> and the subsequent parameters.
  */
+__attribute__((format (printf, 2, 3)))
 Buffer *bufSetF(Buffer *buf, const char *fmt, ...)
 {
     va_list ap;
@@ -352,8 +354,8 @@ Buffer *bufVaPack(Buffer *buf, va_list ap)
         va_end(ap_copy);
 
         if (available >= required + 1) {    /* Room for "required" plus a null-byte? */
-            buf->used += required;       /* Yes! Update actual length...          */
-            buf->data[buf->used] = '\0'; /* ... and add the null-byte.            */
+            buf->used += required;          /* Yes! Update actual length...          */
+            buf->data[buf->used] = '\0';    /* ... and add the null-byte.            */
             break;
         }
 
@@ -387,7 +389,7 @@ Buffer *bufPack(Buffer *buf, ...)
 }
 
 /*
- * This function does the same as strunpack from utils.[ch] but on a
+ * This function does the same as vstrunpack from utils.[ch] but on a
  * Buffer instead of a char *.
  */
 Buffer *bufVaUnpack(Buffer *buf, va_list ap)
@@ -400,7 +402,7 @@ Buffer *bufVaUnpack(Buffer *buf, va_list ap)
 }
 
 /*
- * This function does the same as vstrunpack from utils.[ch] but on a
+ * This function does the same as strunpack from utils.[ch] but on a
  * Buffer instead of a char *.
  */
 Buffer *bufUnpack(Buffer *buf, ...)
@@ -420,6 +422,7 @@ Buffer *bufUnpack(Buffer *buf, ...)
  * is_first to TRUE when passing in "Tom", set is_last to TRUE when passing in "Harry", set them
  * both to FALSE for "Dick". Returns the same pointer to <buf> that was passed in.
  */
+__attribute__((format (printf, 6, 7)))
 Buffer *bufList(Buffer *buf, const char *sep1, const char *sep2,
         int is_first, int is_last, const char *fmt, ...)
 {
