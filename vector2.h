@@ -8,7 +8,7 @@
  *
  * Copyright: (c) 2019 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2019-08-27
- * Version:   $Id: vector2.h 346 2019-08-28 07:38:39Z jacco $
+ * Version:   $Id: vector2.h 391 2020-05-17 11:27:28Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -56,6 +56,11 @@ Vector2 v2Diff(Vector2 v1, Vector2 v2);
  * Subtract vector <d> from <v>.
  */
 void v2Sub(Vector2 *v, Vector2 d);
+
+/*
+ * Return the square of the length of <v>.
+ */
+double v2LenSquared(Vector2 v);
 
 /*
  * Return the length of vector <v>.

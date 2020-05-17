@@ -8,7 +8,7 @@
  *
  * Copyright: (c) 2019 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2019-08-27
- * Version:   $Id: vector3.h 346 2019-08-28 07:38:39Z jacco $
+ * Version:   $Id: vector3.h 391 2020-05-17 11:27:28Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -56,6 +56,11 @@ Vector3 v3Diff(Vector3 v1, Vector3 v2);
  * Subtract vector <d> from <v>.
  */
 void v3Sub(Vector3 *v, Vector3 d);
+
+/*
+ * Return the square of the length of vector <v>.
+ */
+double v3LenSquared(Vector3 v);
 
 /*
  * Return the length of vector <v>.

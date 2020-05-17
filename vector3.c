@@ -5,7 +5,7 @@
  *
  * Copyright: (c) 2019 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2019-08-27
- * Version:   $Id: vector3.c 349 2019-08-30 12:06:55Z jacco $
+ * Version:   $Id: vector3.c 391 2020-05-17 11:27:28Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -80,11 +80,19 @@ void v3Sub(Vector3 *v, Vector3 d)
 }
 
 /*
+ * Return the square of the length of vector <v>.
+ */
+double v3LenSquared(Vector3 v)
+{
+    return v.r[0] * v.r[0] + v.r[1] * v.r[1] + v.r[2] * v.r[2];
+}
+
+/*
  * Return the length of vector <v>.
  */
 double v3Len(Vector3 v)
 {
-    return sqrt(v.r[0] * v.r[0] + v.r[1] * v.r[1] + v.r[2] * v.r[2]);
+    return sqrt(v3LenSquared(v));
 }
 
 /*
@@ -209,21 +217,22 @@ int main(int argc, char *argv[])
     make_sure_that(v1.r[1] == 8);
     make_sure_that(v1.r[2] == 9);
 
-    v3Set(&v1, 1, 2, 3);
+    v3Set(&v1, 1, 4, 8);
 
-    make_sure_that(close_to(v3Len(v1), sqrt(14)));
+    make_sure_that(v3LenSquared(v1) == 81);
+    make_sure_that(v3Len(v1) == 9);
 
     v2 = v3Scaled(v1, 2);
 
     make_sure_that(v2.r[0] == 2);
-    make_sure_that(v2.r[1] == 4);
-    make_sure_that(v2.r[2] == 6);
+    make_sure_that(v2.r[1] == 8);
+    make_sure_that(v2.r[2] == 16);
 
     v3Scale(&v1, 3);
 
     make_sure_that(v1.r[0] == 3);
-    make_sure_that(v1.r[1] == 6);
-    make_sure_that(v1.r[2] == 9);
+    make_sure_that(v1.r[1] == 12);
+    make_sure_that(v1.r[2] == 24);
 
 // void v3Normalize(Vector3 *v);
 // Vector3 v3Normalized(Vector3 v);

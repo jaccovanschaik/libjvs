@@ -5,7 +5,7 @@
  *
  * Copyright: (c) 2019 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2019-08-27
- * Version:   $Id: vector2.c 348 2019-08-28 12:15:44Z jacco $
+ * Version:   $Id: vector2.c 391 2020-05-17 11:27:28Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -77,11 +77,19 @@ void v2Sub(Vector2 *v, Vector2 d)
 }
 
 /*
+ * Return the square of the length of <v>.
+ */
+double v2LenSquared(Vector2 v)
+{
+    return v.r[0] * v.r[0] + v.r[1] * v.r[1];
+}
+
+/*
  * Return the length of vector <v>.
  */
 double v2Len(Vector2 v)
 {
-    return sqrt(v.r[0] * v.r[0] + v.r[1] * v.r[1]);
+    return sqrt(v2LenSquared(v));
 }
 
 /*
@@ -190,6 +198,7 @@ int main(int argc, char *argv[])
 
     make_sure_that(v3.r[0] == 3);
     make_sure_that(v3.r[1] == 4);
+    make_sure_that(v2LenSquared(v3) == 25);
     make_sure_that(v2Len(v3) == 5);
 
     v2 = v2Scaled(v3, 2);
