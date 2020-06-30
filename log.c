@@ -28,7 +28,7 @@
  *
  * Copyright: (c) 2019-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2019-07-29
- * Version:   $Id: log.c 380 2019-11-26 12:36:14Z jacco $
+ * Version:   $Id: log.c 392 2020-06-30 13:37:47Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -566,6 +566,7 @@ static LogWriter *log_add_buffer_writer(Buffer *buf)
 static void log_close_writer(LogWriter *writer)
 {
     // First remove it from all channels that write to it.
+
     for (int i = 0; i < max_channels; i++) {
         LogWriterRef *ref, *next_ref;
         LogChannel *chan;
@@ -581,6 +582,8 @@ static void log_close_writer(LogWriter *writer)
             }
         }
     }
+
+    // Then close it.
 
     switch(writer->type) {
     case LOG_OT_UDP:
@@ -600,6 +603,8 @@ static void log_close_writer(LogWriter *writer)
         /* Nothing opened, or not opened by me, so leave them alone. */
         break;
     }
+
+    // Remove all prefix definitions.
 
     LogPrefix *pfx;
 
@@ -845,15 +850,16 @@ void logConnect(uint64_t channels, LogWriter *writer)
     for (int i = 0; i < max_channels; i++) {
         if ((channels & (1ULL << i)) == 0) continue;
 
-        LogChannel *chan = paGet(&log_channels, i);
-        LogWriterRef *ref = calloc(1, sizeof(*ref));
+        LogChannel *chan;
 
-        ref->writer = writer;
-
-        if (chan == NULL) {
+        if ((chan = paGet(&log_channels, i)) == NULL) {
             chan = calloc(1, sizeof(*chan));
             paSet(&log_channels, i, chan);
         }
+
+        LogWriterRef *ref = calloc(1, sizeof(*ref));
+
+        ref->writer = writer;
 
         listAppendTail(&chan->writer_refs, ref);
     }
@@ -875,7 +881,14 @@ void _logWrite(uint64_t channels,
     Buffer *msg = NULL;
 
     for (int i = 0; i < max_channels; i++) {
-        if (((1ULL << i) & channels) == 0) continue;    // Not writing to this channel.
+        LogChannel *chan;
+
+        if (((1ULL << i) & channels) == 0     ||    // Don't want to write to this channel
+            !(chan = paGet(&log_channels, i)) ||    // Don't know this channel
+            listIsEmpty(&chan->writer_refs))        // Channel is unconnected (shouldn't happen)
+            continue;
+
+        // Only build the message if we have to...
 
         if (msg == NULL) {
             msg = bufCreate();
@@ -887,9 +900,7 @@ void _logWrite(uint64_t channels,
             va_end(ap);
         }
 
-        LogChannel *chan = paGet(&log_channels, i);
-
-        if (chan == NULL) continue;                     // Channel isn't connected.
+        // Send the message out to all connected writers.
 
         for (LogWriterRef *ref = listHead(&chan->writer_refs); ref; ref = listNext(ref)) {
             LogWriter *writer = ref->writer;
@@ -906,7 +917,7 @@ void _logWrite(uint64_t channels,
         }
     }
 
-    bufDestroy(msg);
+    if (msg) bufDestroy(msg);
 }
 
 /*
@@ -916,29 +927,38 @@ void _logWrite(uint64_t channels,
 __attribute__((format (printf, 2, 3)))
 void logContinue(uint64_t channels, const char *fmt, ...)
 {
-    Buffer msg = { 0 };
-
-    va_list ap;
-
-    va_start(ap, fmt);
-    bufAddV(&msg, fmt, ap);
-    va_end(ap);
+    Buffer *msg = NULL;
 
     for (int i = 0; i < max_channels; i++) {
-        if (((1ULL << i) & channels) == 0) continue;    // Not writing to this channel.
+        LogChannel *chan;
 
-        LogChannel *chan = paGet(&log_channels, i);
+        if (((1ULL << i) & channels) == 0     ||    // Don't want to write to this channel
+            !(chan = paGet(&log_channels, i)) ||    // Don't know this channel
+            listIsEmpty(&chan->writer_refs))        // Channel is unconnected (shouldn't happen)
+            continue;
 
-        if (chan == NULL) continue;
+        // Only build the message if we have to...
+
+        if (msg == NULL) {
+            msg = bufCreate();
+
+            va_list ap;
+
+            va_start(ap, fmt);
+            bufAddV(msg, fmt, ap);
+            va_end(ap);
+        }
+
+        // Send the message out to all connected writers.
 
         for (LogWriterRef *ref = listHead(&chan->writer_refs); ref; ref = listNext(ref)) {
             LogWriter *writer = ref->writer;
 
-            log_write(writer, bufGet(&msg));
+            log_write(writer, bufGet(msg));
         }
     }
 
-    bufClear(&msg);
+    if (msg) bufDestroy(msg);
 }
 
 /*
@@ -1091,8 +1111,8 @@ static int check_file(const char *filename, const char *text)
 }
 
 /*
- * Check that strings <s1> and <s2> are identical. Complain and return 1 if they
- * don't, otherwise return 0.
+ * Check that strings <s1> and <s2> are identical. Complain and return 1 if they're not, otherwise
+ * return 0.
  */
 static int check_string(const char *s1, const char *s2)
 {

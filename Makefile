@@ -50,7 +50,7 @@ tags: $(wildcard *.[ch])
 	@ctags -R . /usr/include
 
 %.test: %.c %.h libjvs.a
-	@echo "Building $@"
+	@echo "Building tester for $*"
 	@$(CC) $(CFLAGS) -DTEST -o $@ $< libjvs.a -lm
 
 test: $(LIBJVS_TEST)
