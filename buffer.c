@@ -30,7 +30,7 @@
  */
 static void buf_increase_by(Buffer *buf, size_t len)
 {
-    int new_len;
+    size_t new_len;
 
     while (buf->used + len + 1 > buf->size) {
         if (buf->size == 0)
@@ -40,7 +40,8 @@ static void buf_increase_by(Buffer *buf, size_t len)
 
         buf->data = realloc(buf->data, new_len);
 
-        dbgAssert(stderr, buf->data != NULL, "Could not (re-)allocate buffer data");
+        dbgAssert(stderr, buf->data != NULL,
+                "Could not (re-)allocate buffer data (%zd bytes requested)", new_len);
 
         buf->size = new_len;
     }
@@ -51,7 +52,11 @@ static void buf_increase_by(Buffer *buf, size_t len)
  */
 Buffer *bufCreate(void)
 {
-    return calloc(1, sizeof(Buffer));
+    Buffer *buf = calloc(1, sizeof(*buf));
+
+    dbgAssert(stderr, buf != NULL, "Could not allocate buffer");
+
+    return buf;
 }
 
 /*
@@ -62,6 +67,9 @@ Buffer *bufInit(Buffer *buf)
     buf->size = INITIAL_SIZE;
     buf->data = calloc(1, buf->size);
     buf->used = 0;
+
+    dbgAssert(stderr, buf->data != NULL || buf->size == 0,
+            "Could not allocate initial buffer data (%zd bytes requested)", buf->size);
 
     return buf;
 }
@@ -75,7 +83,7 @@ Buffer *bufInit(Buffer *buf)
  */
 void bufClear(Buffer *buf)
 {
-    if (buf->data) free(buf->data);
+    free(buf->data);
 
     memset(buf, 0, sizeof(Buffer));
 }
@@ -113,8 +121,7 @@ char *bufFinish(Buffer *buf)
  */
 void bufDestroy(Buffer *buf)
 {
-    if (buf->data) free(buf->data);
-
+    free(buf->data);
     free(buf);
 }
 
