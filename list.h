@@ -2,7 +2,9 @@
 #define LIBJVS_LIST_H
 
 /*
- * list.h: A package for handling linked lists.
+ * list.h: A package for handling linked lists of structs. To make a
+ * struct "listable" it must have a "ListNode" struct named "_node" as
+ * their first element.
  *
  * list.h is part of libjvs.
  *

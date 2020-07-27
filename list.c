@@ -1,5 +1,7 @@
 /*
- * list.c: A package for handling linked lists.
+ * list.c: A package for handling linked lists of structs. To make a
+ * struct "listable" it must have a "ListNode" struct named "_node" as
+ * their first element.
  *
  * list.c is part of libjvs.
  *
