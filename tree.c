@@ -16,7 +16,7 @@
 #include <string.h>
 
 /*
- * Find the branch with id <id> in <tree>. Search only in the range of branches between <low_index> 
+ * Find the branch with id <id> in <tree>. Search only in the range of branches between <low_index>
  * and <high_index>, inclusive.
  */
 static int find_branch_between(const Tree *tree, uint8_t id, int low_index, int high_index)
