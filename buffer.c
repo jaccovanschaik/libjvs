@@ -5,7 +5,7 @@
  * buffer.c is part of libjvs.
  *
  * Copyright:   (c) 2007-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: buffer.c 394 2020-07-27 14:08:18Z jacco $
+ * Version:     $Id: buffer.c 395 2020-07-27 14:29:37Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -482,10 +482,14 @@ int main(int argc, char *argv[])
     Buffer buf2 = { 0 };
     Buffer *buf3;
 
+    // ** bufReset
+
     bufReset(&buf1);
 
     make_sure_that(bufLen(&buf1) == 0);
     make_sure_that(bufIsEmpty(&buf1));
+
+    // ** The bufAdd* family
 
     bufAdd(&buf1, "ABCDEF", 3);
 
@@ -508,6 +512,8 @@ int main(int argc, char *argv[])
     make_sure_that(bufLen(&buf1) == 11);
     make_sure_that(strcmp(bufGet(&buf1), "ABCD1234XYZ") == 0);
 
+    // ** The bufSet* family
+
     bufSet(&buf1, "ABCDEF", 3);
 
     make_sure_that(bufLen(&buf1) == 3);
@@ -528,10 +534,14 @@ int main(int argc, char *argv[])
     make_sure_that(bufLen(&buf1) == 6);
     make_sure_that(strcmp(bufGet(&buf1), "ABCDEF") == 0);
 
+    // ** bufReset again
+
     bufReset(&buf1);
 
     make_sure_that(bufLen(&buf1) == 0);
     make_sure_that(strcmp(bufGet(&buf1), "") == 0);
+
+    // ** bufCat
 
     bufSet(&buf1, "ABC", 3);
     bufSet(&buf2, "DEF", 3);
@@ -546,6 +556,39 @@ int main(int argc, char *argv[])
     make_sure_that(bufLen(&buf2) == 3);
     make_sure_that(strcmp(bufGet(&buf2), "DEF") == 0);
 
+    // ** bufFinish
+
+    char *r;
+
+    // Regular string
+    buf3 = bufSetS(bufCreate(), "ABCDEF");
+    make_sure_that(strcmp((r = bufFinish(buf3)), "ABCDEF") == 0);
+    free(r);
+
+    // Empty buffer (where buf->data == NULL)
+    buf3 = bufCreate();
+    make_sure_that(strcmp((r = bufFinish(buf3)), "") == 0);
+    free(r);
+
+    // Reset buffer (where buf->data != NULL)
+    buf3 = bufSetS(bufCreate(), "ABCDEF");
+    bufReset(buf3);
+    make_sure_that(strcmp((r = bufFinish(buf3)), "") == 0);
+    free(r);
+
+    // ** bufFinishN
+
+    // Empty buffer (where buf->data == NULL)
+    buf3 = bufCreate();
+    make_sure_that(bufFinishN(buf3) == NULL);
+
+    // Reset buffer (where buf->data != NULL)
+    buf3 = bufSetS(bufCreate(), "ABCDEF");
+    bufReset(buf3);
+    make_sure_that(bufFinishN(buf3) == NULL);
+
+    // ** bufTrim
+
     bufSetF(&buf1, "ABCDEF");
 
     make_sure_that(strcmp(bufGet(bufTrim(&buf1, 0, 0)), "ABCDEF") == 0);
@@ -553,6 +596,8 @@ int main(int argc, char *argv[])
     make_sure_that(strcmp(bufGet(bufTrim(&buf1, 0, 1)), "BCDE") == 0);
     make_sure_that(strcmp(bufGet(bufTrim(&buf1, 1, 1)), "CD") == 0);
     make_sure_that(strcmp(bufGet(bufTrim(&buf1, 3, 3)), "") == 0);
+
+    // ** bufPack
 
     bufPack(&buf1,
            PACK_INT8,   0x01,
@@ -578,87 +623,85 @@ int main(int argc, char *argv[])
         "\x00\x00\x00\x04Hoi2"
         "Hoi3", 47) == 0);
 
-    {
-        uint8_t u8;
-        uint16_t u16;
-        uint32_t u32;
-        uint64_t u64;
-        float f32;
-        double f64;
-        char *string, *data, raw[4];
-        int data_size;
+    // ** bufUnpack
 
-        bufUnpack(&buf1,
-                PACK_INT8,   &u8,
-                PACK_INT16,  &u16,
-                PACK_INT32,  &u32,
-                PACK_INT64,  &u64,
-                PACK_FLOAT,  &f32,
-                PACK_DOUBLE, &f64,
-                PACK_STRING, &string,
-                PACK_DATA,   &data, &data_size,
-                PACK_RAW,    &raw, sizeof(raw),
-                END);
+    uint8_t u8;
+    uint16_t u16;
+    uint32_t u32;
+    uint64_t u64;
+    float f32;
+    double f64;
+    char *string, *data, raw[4];
+    int data_size;
 
-        make_sure_that(u8  == 0x01);
-        make_sure_that(u16 == 0x0123);
-        make_sure_that(u32 == 0x01234567);
-        make_sure_that(u64 == 0x0123456789ABCDEF);
-        make_sure_that(f32 == 0.0);
-        make_sure_that(f64 == 0.0);
-        make_sure_that(memcmp(string, "Hoi1", 5) == 0);
-        make_sure_that(memcmp(data, "Hoi2", 4) == 0);
-        make_sure_that(data_size == 4);
-        make_sure_that(memcmp(raw, "Hoi3", 4) == 0);
-    }
+    bufUnpack(&buf1,
+            PACK_INT8,   &u8,
+            PACK_INT16,  &u16,
+            PACK_INT32,  &u32,
+            PACK_INT64,  &u64,
+            PACK_FLOAT,  &f32,
+            PACK_DOUBLE, &f64,
+            PACK_STRING, &string,
+            PACK_DATA,   &data, &data_size,
+            PACK_RAW,    &raw, sizeof(raw),
+            END);
 
-    {
-        bufUnpack(&buf1,
-                PACK_INT8,   NULL,
-                PACK_INT16,  NULL,
-                PACK_INT32,  NULL,
-                PACK_INT64,  NULL,
-                PACK_FLOAT,  NULL,
-                PACK_DOUBLE, NULL,
-                PACK_STRING, NULL,
-                PACK_DATA,   NULL, NULL,
-                PACK_RAW,    NULL, 4,
-                END);
-    }
+    make_sure_that(u8  == 0x01);
+    make_sure_that(u16 == 0x0123);
+    make_sure_that(u32 == 0x01234567);
+    make_sure_that(u64 == 0x0123456789ABCDEF);
+    make_sure_that(f32 == 0.0);
+    make_sure_that(f64 == 0.0);
+    make_sure_that(memcmp(string, "Hoi1", 5) == 0);
+    make_sure_that(memcmp(data, "Hoi2", 4) == 0);
+    make_sure_that(data_size == 4);
+    make_sure_that(memcmp(raw, "Hoi3", 4) == 0);
 
-    {
-        const char *name[] = { "Mills", "Berry", "Buck", "Stipe" };
+    bufUnpack(&buf1,
+            PACK_INT8,   NULL,
+            PACK_INT16,  NULL,
+            PACK_INT32,  NULL,
+            PACK_INT64,  NULL,
+            PACK_FLOAT,  NULL,
+            PACK_DOUBLE, NULL,
+            PACK_STRING, NULL,
+            PACK_DATA,   NULL, NULL,
+            PACK_RAW,    NULL, 4,
+            END);
 
-        bufReset(&buf1);
+    // ** bufList
 
-        bufList(&buf1, ", ", " and ", TRUE, TRUE, "%s", name[0]);
+    const char *name[] = { "Mills", "Berry", "Buck", "Stipe" };
 
-        make_sure_that(strcmp(bufGet(&buf1), "Mills") == 0);
+    bufReset(&buf1);
 
-        bufReset(&buf1);
+    bufList(&buf1, ", ", " and ", TRUE, TRUE, "%s", name[0]);
 
-        bufList(&buf1, ", ", " and ", TRUE, FALSE, "%s", name[0]);
-        bufList(&buf1, ", ", " and ", FALSE, TRUE, "%s", name[1]);
+    make_sure_that(strcmp(bufGet(&buf1), "Mills") == 0);
 
-        make_sure_that(strcmp(bufGet(&buf1), "Mills and Berry") == 0);
+    bufReset(&buf1);
 
-        bufReset(&buf1);
+    bufList(&buf1, ", ", " and ", TRUE, FALSE, "%s", name[0]);
+    bufList(&buf1, ", ", " and ", FALSE, TRUE, "%s", name[1]);
 
-        bufList(&buf1, ", ", " and ", TRUE,  FALSE, "%s", name[0]);
-        bufList(&buf1, ", ", " and ", FALSE, FALSE, "%s", name[1]);
-        bufList(&buf1, ", ", " and ", FALSE, TRUE,  "%s", name[2]);
+    make_sure_that(strcmp(bufGet(&buf1), "Mills and Berry") == 0);
 
-        make_sure_that(strcmp(bufGet(&buf1), "Mills, Berry and Buck") == 0);
+    bufReset(&buf1);
 
-        bufReset(&buf1);
+    bufList(&buf1, ", ", " and ", TRUE,  FALSE, "%s", name[0]);
+    bufList(&buf1, ", ", " and ", FALSE, FALSE, "%s", name[1]);
+    bufList(&buf1, ", ", " and ", FALSE, TRUE,  "%s", name[2]);
 
-        bufList(&buf1, ", ", " and ", TRUE,  FALSE, "%s", name[0]);
-        bufList(&buf1, ", ", " and ", FALSE, FALSE, "%s", name[1]);
-        bufList(&buf1, ", ", " and ", FALSE, FALSE, "%s", name[2]);
-        bufList(&buf1, ", ", " and ", FALSE, TRUE,  "%s", name[3]);
+    make_sure_that(strcmp(bufGet(&buf1), "Mills, Berry and Buck") == 0);
 
-        make_sure_that(strcmp(bufGet(&buf1), "Mills, Berry, Buck and Stipe") == 0);
-    }
+    bufReset(&buf1);
+
+    bufList(&buf1, ", ", " and ", TRUE,  FALSE, "%s", name[0]);
+    bufList(&buf1, ", ", " and ", FALSE, FALSE, "%s", name[1]);
+    bufList(&buf1, ", ", " and ", FALSE, FALSE, "%s", name[2]);
+    bufList(&buf1, ", ", " and ", FALSE, TRUE,  "%s", name[3]);
+
+    make_sure_that(strcmp(bufGet(&buf1), "Mills, Berry, Buck and Stipe") == 0);
 
     bufClear(&buf1);
     bufClear(&buf2);
