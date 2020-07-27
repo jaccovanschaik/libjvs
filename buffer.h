@@ -8,7 +8,7 @@
  * buffer.h is part of libjvs.
  *
  * Copyright:   (c) 2007-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: buffer.h 389 2020-05-03 20:57:18Z jacco $
+ * Version:     $Id: buffer.h 394 2020-07-27 14:08:18Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -47,16 +47,25 @@ Buffer *bufInit(Buffer *buf);
 void bufClear(Buffer *buf);
 
 /*
- * Detach and return the contents of <buf>, and reinitialize the buffer. The caller is responsible
- * for the returned data after this and should free() it when finished.
+ * Detach and return the contents of <buf>, and reinitialize the buffer. The
+ * caller is responsible for the returned data after this and should free() it
+ * when finished.
  */
 char *bufDetach(Buffer *buf);
 
 /*
- * Destroy <buf>, but save and return its contents. The caller is responsible for the returned data
+ * Destroy <buf>, but save and return its contents. If the buffer is empty, an
+ * empty string is returned. The caller is responsible for the returned data
  * after this and should free() it when finished.
  */
 char *bufFinish(Buffer *buf);
+
+/*
+ * Destroy <buf>, but save and return its contents. If the buffer is empty, NULL
+ * is returned. The caller is responsible for the returned data after this and
+ * should free() it when finished.
+ */
+char *bufFinishN(Buffer *buf);
 
 /*
  * Destroy <buf>, together with the data it contains.
