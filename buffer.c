@@ -5,7 +5,7 @@
  * buffer.c is part of libjvs.
  *
  * Copyright:   (c) 2007-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: buffer.c 389 2020-05-03 20:57:18Z jacco $
+ * Version:     $Id: buffer.c 393 2020-07-27 13:54:37Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.

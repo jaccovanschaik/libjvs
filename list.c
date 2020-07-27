@@ -6,7 +6,7 @@
  * list.c is part of libjvs.
  *
  * Copyright:   (c) 2004-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: list.c 359 2019-11-01 13:12:31Z jacco $
+ * Version:     $Id: list.c 393 2020-07-27 13:54:37Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
