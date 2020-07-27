@@ -95,7 +95,7 @@ mdf.c, mdf.h
 ml.c, ml.h
     Multi-list. Lists where items can be in multiple lists at the same 
     time. However, a consequence is that it can't have the same level of 
-    checks.
+    checks that list.[ch] has.
 
 net.c, net.h
     Provides general networking utilities.
