@@ -5,7 +5,7 @@
  * buffer.c is part of libjvs.
  *
  * Copyright:   (c) 2007-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: buffer.c 395 2020-07-27 14:29:37Z jacco $
+ * Version:     $Id: buffer.c 396 2020-07-28 12:43:45Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -656,6 +656,9 @@ int main(int argc, char *argv[])
     make_sure_that(memcmp(data, "Hoi2", 4) == 0);
     make_sure_that(data_size == 4);
     make_sure_that(memcmp(raw, "Hoi3", 4) == 0);
+
+    free(string);
+    free(data);
 
     bufUnpack(&buf1,
             PACK_INT8,   NULL,
