@@ -7,7 +7,7 @@
  * utils.h is part of libjvs.
  *
  * Copyright:   (c) 2012-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: utils.h 347 2019-08-28 12:14:25Z jacco $
+ * Version:     $Id: utils.h 397 2020-08-23 10:04:11Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -74,12 +74,12 @@ int ifprintf(FILE *fp, int indent, const char *fmt, ...);
  * string buffer is returned through <str>, its length is this function's return value. Afterwards,
  * the caller is responsible for the string buffer and should free it when it is no longer needed.
  */
-int ihexstr(char **str, int indent, const char *data, int size);
+int ihexstr(char **str, int indent, const char *data, size_t size);
 
 /*
  * Dump <size> bytes from <data> as a hexdump to <fp>, with indent level <indent>.
  */
-void ihexdump(FILE *fp, int indent, const char *data, int size);
+void ihexdump(FILE *fp, int indent, const char *data, size_t size);
 
 /*
  * Dump the file descriptors up to <nfds> in <fds> to <fp>, preceded by <intro> (if <intro> is not
@@ -91,7 +91,7 @@ void dumpfds(FILE *fp, const char *intro, int nfds, fd_set *fds);
  * Duplicate <size> bytes starting at <src> and return a pointer to the
  * duplicate.
  */
-void *memdup(const void *src, unsigned int size);
+void *memdup(const void *src, size_t size);
 
 /*
  * Convert the double timestamp <t> to a struct timeval in <tv>.
@@ -146,12 +146,12 @@ const char *tsformat(const struct timespec *ts, const char *tz, const char *fmt,
  * and you should call the function again with a bigger data buffer. It will, however, never write
  * more than <size> bytes into <str>.
  */
-int vstrpack(char *str, int size, va_list ap);
+int vstrpack(char *str, size_t size, va_list ap);
 
 /*
  * Pack data into <str>, using a variable number of arguments.
  */
-int strpack(char *str, int size, ...);
+int strpack(char *str, size_t size, ...);
 
 /*
  * This function does the same as vstrpack, but it will allocate a sufficiently sized data buffer
@@ -192,12 +192,12 @@ int astrpack(char **str, ...);
  * be more than <size>. "Minimum" in this case means assuming all PACK_STRING and PACK_DATA fields
  * have length 0.
  */
-int vstrunpack(const char *str, int size, va_list ap);
+int vstrunpack(const char *str, size_t size, va_list ap);
 
 /*
  * Unpack data from <str> (which has size <size>) into the pointers following "size".
  */
-int strunpack(const char *str, int size, ...);
+int strunpack(const char *str, size_t size, ...);
 
 /*
  * Expand environment variables in <text> and return the result. Non-existing

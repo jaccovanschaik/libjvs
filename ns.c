@@ -4,7 +4,7 @@
  * ns.c is part of libjvs.
  *
  * Copyright:   (c) 2013-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: ns.c 343 2019-08-27 08:39:24Z jacco $
+ * Version:     $Id: ns.c 397 2020-08-23 10:04:11Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -25,7 +25,7 @@
 #include "ns.h"
 #include "ns-types.h"
 
-static void ns_handle_data(Dispatcher *dis, int fd, void *udata)
+static void ns_handle_data(Dispatcher *dis, int fd, __attribute__((unused)) void *udata)
 {
     char data[9000];
 
@@ -87,7 +87,7 @@ static void ns_add_connection(NS *ns, int fd)
     disOnData(&ns->dis, fd, ns_handle_data, NULL);
 }
 
-static void ns_accept_connection(Dispatcher *dis, int fd, void *udata)
+static void ns_accept_connection(Dispatcher *dis, int fd, __attribute__((unused)) void *udata)
 {
     NS *ns = (NS *) dis;
 

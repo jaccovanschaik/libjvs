@@ -4,7 +4,7 @@
  * tcp.c is part of libjvs.
  *
  * Copyright:   (c) 2007-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: tcp.c 343 2019-08-27 08:39:24Z jacco $
+ * Version:     $Id: tcp.c 397 2020-08-23 10:04:11Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -116,17 +116,17 @@ int tcpConnect(const char *host, uint16_t port)
     snprintf(port_as_text, sizeof(port_as_text), "%hu", port);
 
     if ((ret = getaddrinfo(host, port_as_text, &hints, &info)) != 0) {
-        dbgError(stderr, "netConnect failed (%s)", gai_strerror(ret));
+        dbgError(stderr, "tcpConnect: getaddrinfo failed (%s)", gai_strerror(ret));
 
         ret = -1;
     }
     else if ((ret = tcp_socket()) < 0) {
-        dbgError(stderr, "tcp_socket failed");
+        dbgError(stderr, "tcpConnect: tcp_socket failed");
 
         ret = -1;
     }
     else if (connect(ret, info->ai_addr, info->ai_addrlen) != 0) {
-        dbgError(stderr, "connect failed");
+        dbgError(stderr, "tcpConnect: connect failed");
 
         close(ret);
 
@@ -143,22 +143,23 @@ int tcpConnect(const char *host, uint16_t port)
  */
 int tcpAccept(int sd)
 {
-    struct sockaddr_in peeraddr_in;    /* for peer socket address */
+    struct sockaddr peeraddr;    /* for peer socket address */
 
     socklen_t addrlen;
 
     int csd;
 
-    memset(&peeraddr_in, 0, sizeof(struct sockaddr_in));
+    memset(&peeraddr, 0, sizeof(struct sockaddr));
 
-    addrlen = sizeof(struct sockaddr_in);
+    addrlen = sizeof(struct sockaddr);
 
     do {
-        csd = accept(sd, (struct sockaddr *) &peeraddr_in, &addrlen);
+        csd = accept(sd, &peeraddr, &addrlen);
     } while (csd == -1 && errno == EINTR);
 
-    if (csd == -1)
+    if (csd == -1) {
 P       dbgError(stderr, "accept failed");
+    }
 
     return csd;
 }
@@ -192,7 +193,7 @@ int tcpWrite(int fd, const void *buf, int len)
     int res, n = 0;
 
     do {
-        res = write(fd, (char *) buf + n, len - n);
+        res = write(fd, (const char *) buf + n, len - n);
     } while ((res > 0 || errno == EINTR) && (n += res) < len);
 
     if (res == -1) {

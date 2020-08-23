@@ -28,7 +28,7 @@
  *
  * Copyright: (c) 2019-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2019-07-29
- * Version:   $Id: log.c 392 2020-06-30 13:37:47Z jacco $
+ * Version:   $Id: log.c 397 2020-08-23 10:04:11Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -165,13 +165,13 @@ static void log_add_time(Buffer *buf, struct tm *tm, struct timespec *ts, const 
     double remainder = (double) ts->tv_nsec / 1000000000.0;
     char rem_string[12]; // "0.123456789\0"
 
+    char *new_str = NULL;
+    char *cur_str = strdup(fmt);
+
     if (regex == NULL) {
         regex = calloc(1, sizeof(*regex));
         regcomp(regex, "%([+-]?[0-9]*)N", REG_EXTENDED);
     }
-
-    char *new_str = NULL;
-    char *cur_str = strdup(fmt);
 
     while (regexec(regex, cur_str, nmatch, pmatch, 0) == 0) {
         if (sscanf(cur_str + pmatch[1].rm_so, "%d", &precision) == 0) {

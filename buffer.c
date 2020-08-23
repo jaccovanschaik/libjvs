@@ -5,7 +5,7 @@
  * buffer.c is part of libjvs.
  *
  * Copyright:   (c) 2007-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: buffer.c 396 2020-07-28 12:43:45Z jacco $
+ * Version:     $Id: buffer.c 397 2020-08-23 10:04:11Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -154,8 +154,6 @@ void bufDestroy(Buffer *buf)
  */
 Buffer *bufAdd(Buffer *buf, const void *data, size_t len)
 {
-    dbgAssert(stderr, len >= 0, "bufAdd called with length %zd", len);
-
     buf_increase_by(buf, len);
 
     memcpy(buf->data + buf->used, data, len);
