@@ -3,7 +3,7 @@
  *
  * Copyright: (c) 2019 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2019-11-07
- * Version:   $Id: tree.c 398 2020-09-08 13:09:18Z jacco $
+ * Version:   $Id: tree.c 399 2020-09-08 15:01:21Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -200,7 +200,7 @@ static int delete_leaf(Tree *tree, const void *key, size_t key_size)
  * if they have data associated with them.
  */
 static void tree_traverse(Tree *root, Tree *branch, uint8_t *key, size_t key_size,
-        int (*func)(Tree *tree, void *data, const void *key, size_t key_size))
+        void (*func)(Tree *tree, void *data, const void *key, size_t key_size))
 {
     if (branch->data != NULL) {
         func(branch, (void *) branch->data, key, key_size);
@@ -271,7 +271,7 @@ void treeSet(Tree *tree, const void *data, const void *key, size_t key_size)
  * item, and also the key and key size for the item.
  */
 void treeTraverse(Tree *tree,
-        int (*func)(Tree *tree, void *data, const void *key, size_t key_size))
+        void (*func)(Tree *tree, void *data, const void *key, size_t key_size))
 {
     tree_traverse(tree, tree, (uint8_t *) "", 0, func);
 }
@@ -321,15 +321,13 @@ void treeDestroy(Tree *tree)
 
 static int errors = 0;
 
-static int check_entry(Tree *tree, void *data, const void *key, size_t key_size)
+static void check_entry(Tree *tree, void *data, const void *key, size_t key_size)
 {
     UNUSED(tree);
 
     make_sure_that(key_size == 3);
 
     make_sure_that(memcmp(data, key, 3) == 0);
-
-    return 0;
 }
 
 int main(void)

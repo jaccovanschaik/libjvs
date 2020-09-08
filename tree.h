@@ -6,7 +6,7 @@
  *
  * Copyright: (c) 2019 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2019-11-07
- * Version:   $Id: tree.h 382 2019-11-26 20:13:26Z jacco $
+ * Version:   $Id: tree.h 399 2020-09-08 15:01:21Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -30,6 +30,11 @@ struct Tree {
 
 #define STRING_KEY(s) s, strlen(s)
 #define VALUE_KEY(k)  &(k), sizeof(k)
+
+#define treeAddS(t, d, s)   treeAdd(t, d, s, strlen(s))
+#define treeSetS(t, d, s)   treeSet(t, d, s, strlen(s))
+#define treeGetS(t, s)      treeGet(t, s, strlen(s))
+#define treeDropS(t, s)     treeDrop(t, s, strlen(s))
 
 /*
  * Create an empty tree.
@@ -59,7 +64,7 @@ void treeSet(Tree *tree, const void *data, const void *key, size_t key_size);
  * item, and also the key and key size for the item.
  */
 void treeTraverse(Tree *tree,
-        int (*func)(Tree *tree, void *data, const void *key, size_t key_size));
+        void (*func)(Tree *tree, void *data, const void *key, size_t key_size));
 
 /*
  * Drop the association of key <key> (with size <key_size>) with its data from
