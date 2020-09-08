@@ -5,7 +5,7 @@
  * buffer.c is part of libjvs.
  *
  * Copyright:   (c) 2007-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: buffer.c 397 2020-08-23 10:04:11Z jacco $
+ * Version:     $Id: buffer.c 398 2020-09-08 13:09:18Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -474,7 +474,7 @@ Buffer *bufList(Buffer *buf, const char *sep1, const char *sep2,
 #ifdef TEST
 static int errors = 0;
 
-int main(int argc, char *argv[])
+int main(void)
 {
     Buffer buf1 = { 0 };
     Buffer buf2 = { 0 };

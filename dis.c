@@ -4,7 +4,7 @@
  * dis.c is part of libjvs.
  *
  * Copyright:   (c) 2013-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: dis.c 343 2019-08-27 08:39:24Z jacco $
+ * Version:     $Id: dis.c 398 2020-09-08 13:09:18Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -461,6 +461,8 @@ static int fd[2];
 
 static void handle_fd0(Dispatcher *dis, int fd, void *udata)
 {
+    UNUSED(udata);
+
     char buffer[16];
 
     int count = read(fd, buffer, sizeof(buffer));
@@ -473,13 +475,17 @@ static void handle_fd0(Dispatcher *dis, int fd, void *udata)
 
 static void handle_timeout(Dispatcher *dis, double t, void *udata)
 {
+    UNUSED(dis);
+    UNUSED(t);
+    UNUSED(udata);
+
     if (write(fd[1], "Hoi!", 4) == -1) {
         perror("write");
         exit(1);
     }
 }
 
-int main(int argc, char *argv[])
+int main(void)
 {
     int i;
 

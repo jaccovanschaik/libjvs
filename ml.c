@@ -4,7 +4,7 @@
  * ml.c is part of libjvs.
  *
  * Copyright:   (c) 2005-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: ml.c 343 2019-08-27 08:39:24Z jacco $
+ * Version:     $Id: ml.c 398 2020-09-08 13:09:18Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -528,7 +528,7 @@ int Compare(const void *a, const void *b)
     return(A->i - B->i);
 }
 
-int main(int argc, char *argv[])
+int main(void)
 {
     MList *list1;
     MList *list2;

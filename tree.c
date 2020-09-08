@@ -3,7 +3,7 @@
  *
  * Copyright: (c) 2019 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2019-11-07
- * Version:   $Id: tree.c 393 2020-07-27 13:54:37Z jacco $
+ * Version:   $Id: tree.c 398 2020-09-08 13:09:18Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -323,6 +323,8 @@ static int errors = 0;
 
 static int check_entry(Tree *tree, void *data, const void *key, size_t key_size)
 {
+    UNUSED(tree);
+
     make_sure_that(key_size == 3);
 
     make_sure_that(memcmp(data, key, 3) == 0);
@@ -330,7 +332,7 @@ static int check_entry(Tree *tree, void *data, const void *key, size_t key_size)
     return 0;
 }
 
-int main(int argc, char *argv[])
+int main(void)
 {
     static const char *triple_a = "AAA";
     static const char *double_a = "AA";

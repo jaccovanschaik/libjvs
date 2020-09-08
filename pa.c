@@ -17,7 +17,7 @@
  * pa.c is part of libjvs.
  *
  * Copyright:   (c) 2013-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: pa.c 371 2019-11-09 22:30:19Z jacco $
+ * Version:     $Id: pa.c 398 2020-09-08 13:09:18Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -124,7 +124,7 @@ void paDestroy(PointerArray *pa)
 
 int errors = 0;
 
-int main(int argc, char *argv[])
+int main(void)
 {
     PointerArray pa = { 0 };
 

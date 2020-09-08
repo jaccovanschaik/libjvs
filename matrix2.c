@@ -5,7 +5,7 @@
  *
  * Copyright: (c) 2019 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2019-08-27
- * Version:   $Id: matrix2.c 390 2020-05-03 21:17:13Z jacco $
+ * Version:   $Id: matrix2.c 398 2020-09-08 13:09:18Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -237,7 +237,7 @@ void m2Apply(Matrix2 m, Vector2 *v)
 
 static int errors = 0;
 
-int main(int argc, char *argv[])
+int main(void)
 {
     Matrix2 m1 = m2New();
 

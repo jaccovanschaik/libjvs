@@ -4,7 +4,7 @@
  * tcp.c is part of libjvs.
  *
  * Copyright:   (c) 2007-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: tcp.c 397 2020-08-23 10:04:11Z jacco $
+ * Version:     $Id: tcp.c 398 2020-09-08 13:09:18Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -210,7 +210,7 @@ P       dbgError(stderr, "write failed");
 
 static int errors = 0;
 
-int main(int argc, char *argv[])
+int main(void)
 {
     int r;
 
@@ -223,11 +223,11 @@ int main(int argc, char *argv[])
     int client_fd = tcpConnect("localhost", 54321);
     int server_fd = tcpAccept(listen_fd);
 
-    if ((r = tcpWrite(client_fd, server_msg, strlen(server_msg))) != strlen(server_msg)) {
+    if ((r = tcpWrite(client_fd, server_msg, strlen(server_msg))) != (int) strlen(server_msg)) {
         fprintf(stderr, "tcpWrite to client_fd failed.\n");
         errors++;
     }
-    else if ((r = tcpRead(server_fd, incoming, strlen(server_msg))) != strlen(server_msg)) {
+    else if ((r = tcpRead(server_fd, incoming, strlen(server_msg))) != (int) strlen(server_msg)) {
         fprintf(stderr, "tcpRead from server_fd failed.\n");
         errors++;
     }
@@ -236,11 +236,11 @@ int main(int argc, char *argv[])
         errors++;
     }
 
-    if ((r = tcpWrite(server_fd, client_msg, strlen(client_msg))) != strlen(client_msg)) {
+    if ((r = tcpWrite(server_fd, client_msg, strlen(client_msg))) != (int) strlen(client_msg)) {
         fprintf(stderr, "tcpWrite to server_fd failed.\n");
         errors++;
     }
-    else if ((r = tcpRead(client_fd, incoming, strlen(client_msg))) != strlen(client_msg)) {
+    else if ((r = tcpRead(client_fd, incoming, strlen(client_msg))) != (int) strlen(client_msg)) {
         fprintf(stderr, "tcpRead from client_fd failed.\n");
         errors++;
     }

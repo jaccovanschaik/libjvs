@@ -4,7 +4,7 @@
  * options.c is part of libjvs.
  *
  * Copyright:   (c) 2013-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: options.c 365 2019-11-08 13:34:40Z jacco $
+ * Version:     $Id: options.c 398 2020-09-08 13:09:18Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -667,7 +667,7 @@ static void test17(void)
     optDestroy(opts);
 }
 
-int main(int argc, char *argv[])
+int main(void)
 {
     test1();
     test2();

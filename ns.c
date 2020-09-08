@@ -4,7 +4,7 @@
  * ns.c is part of libjvs.
  *
  * Copyright:   (c) 2013-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: ns.c 397 2020-08-23 10:04:11Z jacco $
+ * Version:     $Id: ns.c 398 2020-09-08 13:09:18Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -489,11 +489,16 @@ void tester(uint16_t port)
 
 void on_connect(NS *ns, int fd, void *udata)
 {
+    UNUSED(ns);
+    UNUSED(udata);
+
     P dbgPrint(stderr, "fd = %d\n", fd);
 }
 
 void on_disconnect(NS *ns, int fd, void *udata)
 {
+    UNUSED(udata);
+
     P dbgPrint(stderr, "fd = %d\n", fd);
 
     nsClose(ns);
@@ -501,6 +506,8 @@ void on_disconnect(NS *ns, int fd, void *udata)
 
 void on_socket(NS *ns, int fd, const char *data, int size, void *udata)
 {
+    UNUSED(udata);
+
     int n;
     char *str;
 
@@ -531,7 +538,7 @@ void testee(NS *ns)
     nsDestroy(ns);
 }
 
-int main(int argc, char *argv[])
+int main(void)
 {
     NS *ns = nsCreate();
 

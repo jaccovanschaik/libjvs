@@ -4,7 +4,7 @@
  * hash.h is part of libjvs.
  *
  * Copyright:   (c) 2007-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: hash.c 386 2019-12-15 17:45:57Z jacco $
+ * Version:     $Id: hash.c 398 2020-09-08 13:09:18Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -291,7 +291,7 @@ void hashFreeStats(PointerArray *stats)
 
 static int errors = 0;
 
-int main(int argc, char *argv[])
+int main(void)
 {
     HashTable *table = hashCreateTable();
 

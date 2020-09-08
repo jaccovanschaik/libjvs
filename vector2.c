@@ -5,7 +5,7 @@
  *
  * Copyright: (c) 2019 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2019-08-27
- * Version:   $Id: vector2.c 391 2020-05-17 11:27:28Z jacco $
+ * Version:   $Id: vector2.c 398 2020-09-08 13:09:18Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -157,7 +157,7 @@ double v2Angle(Vector2 v1, Vector2 v2)
 
 static int errors = 0;
 
-int main(int argc, char *argv[])
+int main(void)
 {
     Vector2 v1 = v2New();
 

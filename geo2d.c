@@ -5,7 +5,7 @@
  *
  * Copyright: (c) 2018-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2018-11-04
- * Version:   $Id: geo2d.c 343 2019-08-27 08:39:24Z jacco $
+ * Version:   $Id: geo2d.c 398 2020-09-08 13:09:18Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -314,7 +314,7 @@ Matrix2x2 g2dMatrixMultiply(Matrix2x2 m1, Matrix2x2 m2)
 
 #include "utils.h"
 
-int main(int argc, char *argv[])
+int main(void)
 {
     int r, errors = 0;
     double r1, r2;

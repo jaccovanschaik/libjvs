@@ -4,7 +4,7 @@
  * udp.c is part of libjvs.
  *
  * Copyright:   (c) 2007-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: udp.c 377 2019-11-15 08:52:07Z jacco $
+ * Version:     $Id: udp.c 398 2020-09-08 13:09:18Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -160,7 +160,7 @@ int udpMulticastLeave(int fd, const char *group)
 
 static int errors = 0;
 
-int main(int argc, char *argv[])
+int main(void)
 {
     int r;
     char buffer[16];

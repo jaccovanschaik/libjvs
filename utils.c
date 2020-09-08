@@ -4,7 +4,7 @@
  * utils.c is part of libjvs.
  *
  * Copyright:   (c) 2012-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: utils.c 397 2020-08-23 10:04:11Z jacco $
+ * Version:     $Id: utils.c 398 2020-09-08 13:09:18Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -731,7 +731,7 @@ void _make_sure_that(const char *file, int line, int *errors, const char *str, i
 #ifdef TEST
 int errors = 0;
 
-int main(int argc, char *argv[])
+int main(void)
 {
     uint8_t u8;
     uint16_t u16;
