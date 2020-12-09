@@ -4,7 +4,7 @@
  * utils.c is part of libjvs.
  *
  * Copyright:   (c) 2012-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: utils.c 398 2020-09-08 13:09:18Z jacco $
+ * Version:     $Id: utils.c 401 2020-12-09 20:28:44Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -725,6 +725,36 @@ void _make_sure_that(const char *file, int line, int *errors, const char *str, i
     if (!val) {
         fprintf(stderr, "%s:%d: Expression \"%s\" failed\n", file, line, str);
         (*errors)++;
+    }
+}
+
+/*
+ * Check that the timespec in <t> contains <sec> and <nsec>. If not, print a message top that effect on stderr (using
+ * <file> and <line>, which should contain the source file and line where this function was called) and increment the
+ * error counter pointed to by <errors>. This function is used in test code, and should be called using the
+ * check_timespec macro.
+ */
+void _check_timespec(const char *file, int line, const char *name, int *errors, struct timespec t, long sec, long nsec)
+{
+    if (t.tv_sec != sec || t.tv_nsec != nsec) {
+        (*errors)++;
+        fprintf(stderr, "%s:%d: %s = { %ld, %ld }, expected { %ld, %ld }\n",
+                file, line, name, t.tv_sec, t.tv_nsec, sec, nsec);
+    }
+}
+
+/*
+ * Check that the timeval in <t> contains <sec> and <nsec>. If not, print a message top that effect on stderr (using
+ * <file> and <line>, which should contain the source file and line where this function was called) and increment the
+ * error counter pointed to by <errors>. This function is used in test code, and should be called using the
+ * check_timeval macro.
+ */
+void _check_timeval(const char *file, int line, const char *name, int *errors, struct timeval t, long sec, long usec)
+{
+    if (t.tv_sec != sec || t.tv_usec != usec) {
+        (*errors)++;
+        fprintf(stderr, "%s:%d: %s = { %ld, %ld }, expected { %ld, %ld }\n",
+                file, line, name, t.tv_sec, t.tv_usec, sec, usec);
     }
 }
 

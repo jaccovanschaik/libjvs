@@ -7,7 +7,7 @@
  * utils.h is part of libjvs.
  *
  * Copyright:   (c) 2012-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: utils.h 397 2020-08-23 10:04:11Z jacco $
+ * Version:     $Id: utils.h 401 2020-12-09 20:28:44Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -32,6 +32,9 @@ extern "C" {
 #define hexstr(spp, data, size) ihexstr(spp, 0, data, size)
 
 #define make_sure_that(expr) _make_sure_that(__FILE__, __LINE__, &errors, #expr, (expr))
+
+#define check_timespec(t, sec, nsec) _check_timespec(__FILE__, __LINE__, #t, &errors, t, sec, nsec)
+#define check_timeval(t, sec, usec) _check_timeval(__FILE__, __LINE__, #t, &errors, t, sec, usec)
 
 /*
  * "Packable" types.
@@ -208,7 +211,13 @@ int strunpack(const char *str, size_t size, ...);
 char *env_expand(const char *text);
 
 /*
- * See if <actual> is "close to" (in the floating point sense) <expected>.
+ * From:
+ * https://github.com/elliotchance/c2go/blob/4ecf1a1adaafea18d7f23ab5632e67357fb2f56e/tests/tests.h
+ *
+ * This will strictly not handle any input value that is infinite or NaN.
+ * It will always return false, even if the values are exactly equal. This is to
+ * force you to use the correct matcher (ie. is_inf()) instead of relying on
+ * comparisons which might not work.
  */
 int close_to(double actual, double expected);
 
@@ -218,6 +227,22 @@ int close_to(double actual, double expected);
  * increase <*errors> by 1. Called by the make_sure_that() macro, less useful on its own.
  */
 void _make_sure_that(const char *file, int line, int *errors, const char *str, int val);
+
+/*
+ * Check that the timespec in <t> contains <sec> and <nsec>. If not, print a message top that effect on stderr (using
+ * <file> and <line>, which should contain the source file and line where this function was called) and increment the
+ * error counter pointed to by <errors>. This function is used in test code, and should be called using the
+ * check_timespec macro.
+ */
+void _check_timespec(const char *file, int line, const char *name, int *errors, struct timespec t, long sec, long nsec);
+
+/*
+ * Check that the timeval in <t> contains <sec> and <nsec>. If not, print a message top that effect on stderr (using
+ * <file> and <line>, which should contain the source file and line where this function was called) and increment the
+ * error counter pointed to by <errors>. This function is used in test code, and should be called using the
+ * check_timeval macro.
+ */
+void _check_timeval(const char *file, int line, const char *name, int *errors, struct timeval t, long sec, long usec);
 
 #ifdef __cplusplus
 }
