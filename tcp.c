@@ -4,7 +4,7 @@
  * tcp.c is part of libjvs.
  *
  * Copyright:   (c) 2007-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: tcp.c 407 2020-12-19 23:33:55Z jacco $
+ * Version:     $Id: tcp.c 408 2020-12-19 23:36:40Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -31,11 +31,11 @@ static struct linger linger = { 1, 5 }; /* 5 second linger */
 /*
  * Create a socket
  */
-static int tcp_socket(void)
+static int tcp_socket(int family)
 {
     int sd;                            /* socket descriptor */
 
-    if ((sd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
+    if ((sd = socket(family, SOCK_STREAM, 0)) == -1) {
 P       dbgError(stderr, "unable to create socket");
         return -1;
     }
@@ -61,7 +61,7 @@ static int tcp_listen(int socket)
     return 0;
 }
 
-static int tcp_bind(int sd, const char *host, uint16_t port)
+static int tcp_bind(int sd, const char *host, uint16_t port, int family)
 {
     struct addrinfo *info = NULL;
     struct addrinfo  hint = { 0 };
@@ -72,7 +72,7 @@ static int tcp_bind(int sd, const char *host, uint16_t port)
 
     int r;
 
-    hint.ai_family   = AF_INET;
+    hint.ai_family   = family;
     hint.ai_socktype = SOCK_STREAM;
     hint.ai_flags   |= AI_PASSIVE;
 
@@ -112,7 +112,7 @@ int tcpListen(const char *host, uint16_t port)
 {
     int lsd;
 
-    if ((lsd = tcp_socket()) == -1) {
+    if ((lsd = tcp_socket(AF_INET)) == -1) {
 P       dbgError(stderr, "tcp_socket failed");
         return -1;
     }
@@ -123,7 +123,7 @@ P       dbgError(stderr, "tcp_socket failed");
 P       dbgError(stderr, "setsockopt(REUSEADDR) failed");
         return -1;
     }
-    else if (tcp_bind(lsd, host, port) != 0) {
+    else if (tcp_bind(lsd, host, port, AF_INET) != 0) {
         return -1;
     }
     else if (tcp_listen(lsd) != 0) {
@@ -157,7 +157,7 @@ int tcpConnect(const char *host, uint16_t port)
 
         ret = -1;
     }
-    else if ((ret = tcp_socket()) < 0) {
+    else if ((ret = tcp_socket(AF_INET)) < 0) {
         dbgError(stderr, "tcpConnect: tcp_socket failed");
 
         ret = -1;
