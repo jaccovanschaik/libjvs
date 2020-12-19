@@ -4,7 +4,7 @@
  * tcp.c is part of libjvs.
  *
  * Copyright:   (c) 2007-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: tcp.c 406 2020-12-19 23:33:04Z jacco $
+ * Version:     $Id: tcp.c 407 2020-12-19 23:33:55Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -53,7 +53,7 @@ P       dbgError(stderr, "setsockopt(LINGER) failed");
  */
 static int tcp_listen(int socket)
 {
-    if (listen(socket, 5) == -1) {
+    if (listen(socket, SOMAXCONN) == -1) {
         dbgError(stderr, "listen failed");
         return -1;
     }
