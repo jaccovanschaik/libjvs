@@ -4,7 +4,7 @@
  * tcp.c is part of libjvs.
  *
  * Copyright:   (c) 2007-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: tcp.c 409 2020-12-19 23:40:00Z jacco $
+ * Version:     $Id: tcp.c 410 2020-12-19 23:55:21Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -49,32 +49,25 @@ P       dbgError(stderr, "setsockopt(LINGER) failed");
 }
 
 /*
- * Tell a socket to be a listener
+ * Bind the listen socket given in <sd> to <host> and <port>, using address
+ * family <family>. If <host> is NULL, the socket will be bound to all
+ * interfaces. If <port> is 0, a random port will be selected by the operating
+ * system. Use netLocalPort to find out which port that was.
  */
-static int tcp_listen(int socket)
-{
-    if (listen(socket, SOMAXCONN) == -1) {
-        dbgError(stderr, "listen failed");
-        return -1;
-    }
-
-    return 0;
-}
-
 static int tcp_bind(int sd, const char *host, uint16_t port, int family)
 {
     struct addrinfo *info = NULL;
-    struct addrinfo  hint = { 0 };
+    struct addrinfo  hint = {
+        .ai_family   = family,
+        .ai_socktype = SOCK_STREAM,
+        .ai_flags    = AI_PASSIVE
+    };
 
     char port_str[6];
 
     snprintf(port_str, sizeof(port_str), "%hu", port);
 
     int r;
-
-    hint.ai_family   = family;
-    hint.ai_socktype = SOCK_STREAM;
-    hint.ai_flags   |= AI_PASSIVE;
 
     if ((r = getaddrinfo(host, port_str, &hint, &info)) != 0) {
         dbgError(stderr, "getaddrinfo for %s:%hu failed: %s",
@@ -102,17 +95,17 @@ static int tcp_bind(int sd, const char *host, uint16_t port, int family)
 }
 
 /*
- * Open a listen port on <host> and <port> and return the corresponding
- * file descriptor. If <host> is NULL the socket will listen on all
- * interfaces. If <port> is equal to 0, the socket will be bound to a
- * random local port (use netLocalPort() on the returned fd to find out
+ * Open a listen port on <host> and <port>, using address family <family>, and
+ * return the corresponding file descriptor. If <host> is NULL the socket will
+ * listen on all interfaces. If <port> is equal to 0, the socket will be bound
+ * to a random local port (use netLocalPort() on the returned fd to find out
  * which).
  */
-int tcpListen(const char *host, uint16_t port)
+static int tcp_listen(const char *host, uint16_t port, int family)
 {
     int lsd;
 
-    if ((lsd = tcp_socket(AF_INET)) == -1) {
+    if ((lsd = tcp_socket(family)) == -1) {
 P       dbgError(stderr, "tcp_socket failed");
         return -1;
     }
@@ -123,10 +116,11 @@ P       dbgError(stderr, "tcp_socket failed");
 P       dbgError(stderr, "setsockopt(REUSEADDR) failed");
         return -1;
     }
-    else if (tcp_bind(lsd, host, port, AF_INET) != 0) {
+    else if (tcp_bind(lsd, host, port, family) != 0) {
         return -1;
     }
-    else if (tcp_listen(lsd) != 0) {
+    else if (listen(lsd, SOMAXCONN) == -1) {
+        dbgError(stderr, "listen failed");
         return -1;
     }
 
@@ -134,10 +128,10 @@ P       dbgError(stderr, "setsockopt(REUSEADDR) failed");
 }
 
 /*
- * Make a connection to <port> on <host> and return the corresponding
+ * Make an IPv4 connection to <port> on <host> and return the corresponding
  * file descriptor.
  */
-int tcpConnect(const char *host, uint16_t port)
+static int tcp_connect(const char *host, uint16_t port, int family)
 {
     int ret;
 
@@ -145,7 +139,7 @@ int tcpConnect(const char *host, uint16_t port)
     struct addrinfo *info;
 
     struct addrinfo hints = {
-        .ai_family = AF_INET,
+        .ai_family = family,
         .ai_socktype = SOCK_STREAM
     };
 
@@ -157,7 +151,7 @@ int tcpConnect(const char *host, uint16_t port)
 
         ret = -1;
     }
-    else if ((ret = tcp_socket(AF_INET)) < 0) {
+    else if ((ret = tcp_socket(family)) < 0) {
         dbgError(stderr, "tcpConnect: tcp_socket failed");
 
         ret = -1;
@@ -176,7 +170,47 @@ int tcpConnect(const char *host, uint16_t port)
 }
 
 /*
- * Accept an incoming connection request on a listen socket.
+ * Open an IPv4 listen port on <host> and <port> and return the corresponding
+ * file descriptor. If <host> is NULL the socket will listen on all
+ * interfaces. If <port> is equal to 0, the socket will be bound to a random
+ * local port (use netLocalPort() on the returned fd to find out which).
+ */
+int tcpListen(const char *host, uint16_t port)
+{
+    return tcp_listen(host, port, AF_INET);
+}
+
+/*
+ * Make an IPv4 connection to <port> on <host> and return the corresponding
+ * file descriptor.
+ */
+int tcpConnect(const char *host, uint16_t port)
+{
+    return tcp_connect(host, port, AF_INET);
+}
+
+/*
+ * Open an IPv6 listen port on <host> and <port> and return the corresponding
+ * file descriptor. If <host> is NULL the socket will listen on all
+ * interfaces. If <port> is equal to 0, the socket will be bound to a random
+ * local port (use netLocalPort() on the returned fd to find out which).
+ */
+int tcp6Listen(const char *host, uint16_t port)
+{
+    return tcp_listen(host, port, AF_INET6);
+}
+
+/*
+ * Make an IPv6 TCP connection to <port> on <host> and return the corresponding
+ * file descriptor.
+ */
+int tcp6Connect(const char *host, uint16_t port)
+{
+    return tcp_connect(host, port, AF_INET6);
+}
+
+/*
+ * Accept an incoming (IPv4 or IPv6) connection request on a listen socket.
  */
 int tcpAccept(int sd)
 {
