@@ -4,7 +4,7 @@
  * tcp.c is part of libjvs.
  *
  * Copyright:   (c) 2007-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: tcp.c 405 2020-12-19 20:39:10Z jacco $
+ * Version:     $Id: tcp.c 406 2020-12-19 23:33:04Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -54,11 +54,51 @@ P       dbgError(stderr, "setsockopt(LINGER) failed");
 static int tcp_listen(int socket)
 {
     if (listen(socket, 5) == -1) {
-P       dbgError(stderr, "listen failed");
+        dbgError(stderr, "listen failed");
         return -1;
     }
 
     return 0;
+}
+
+static int tcp_bind(int sd, const char *host, uint16_t port)
+{
+    struct addrinfo *info = NULL;
+    struct addrinfo  hint = { 0 };
+
+    char port_str[6];
+
+    snprintf(port_str, sizeof(port_str), "%hu", port);
+
+    int r;
+
+    hint.ai_family   = AF_INET;
+    hint.ai_socktype = SOCK_STREAM;
+    hint.ai_flags   |= AI_PASSIVE;
+
+    if ((r = getaddrinfo(host, port_str, &hint, &info)) != 0) {
+        dbgError(stderr, "getaddrinfo for %s:%hu failed: %s",
+                host, port, gai_strerror(r));
+        r = -1;
+    }
+    else {
+        struct addrinfo *aip;
+
+        for (aip = info; aip != NULL; aip = aip->ai_next) {
+            if ((r = bind(sd, info->ai_addr, info->ai_addrlen)) == 0) {
+                break;
+            }
+        }
+
+        if (r != 0) {
+            dbgError(stderr, "couldn't bind to %s:%hu", host, port);
+            r = -1;
+        }
+    }
+
+    freeaddrinfo(info);
+
+    return r;
 }
 
 /*
@@ -83,14 +123,10 @@ P       dbgError(stderr, "tcp_socket failed");
 P       dbgError(stderr, "setsockopt(REUSEADDR) failed");
         return -1;
     }
-
-    if (netBind(lsd, host, port) != 0) {
-P       dbgError(stderr, "netBind failed");
+    else if (tcp_bind(lsd, host, port) != 0) {
         return -1;
     }
-
-    if (tcp_listen(lsd) != 0) {
-P       dbgError(stderr, "tcp_listen failed");
+    else if (tcp_listen(lsd) != 0) {
         return -1;
     }
 
@@ -224,12 +260,27 @@ P       dbgError(stderr, "write failed");
 
 static int errors = 0;
 
-int main(void)
+static void test_msg(int send_fd, int recv_fd, char *msg)
 {
     int r;
+    char buf[32];
 
-    char incoming[32];
+    if ((r = tcpWrite(send_fd, msg, strlen(msg))) != (int) strlen(msg)) {
+        fprintf(stderr, "tcpWrite to send_fd failed.\n");
+        errors++;
+    }
+    else if ((r = tcpRead(recv_fd, buf, strlen(msg))) != (int) strlen(msg)) {
+        fprintf(stderr, "tcpRead from recv_fd failed.\n");
+        errors++;
+    }
+    else if (strncmp(buf, msg, strlen(msg)) != 0) {
+        fprintf(stderr, "buf = \"%s\", msg = \"%s\"\n", buf, msg);
+        errors++;
+    }
+}
 
+int main(void)
+{
     char *client_msg = "Hello client!";
     char *server_msg = "Hello server!";
 
@@ -237,37 +288,26 @@ int main(void)
     int client_fd = tcpConnect("localhost", 54321);
     int server_fd = tcpAccept(listen_fd);
 
-    if ((r = tcpWrite(client_fd, server_msg, strlen(server_msg)))
-            != (int) strlen(server_msg)) {
-        fprintf(stderr, "tcpWrite to client_fd failed.\n");
-        errors++;
-    }
-    else if ((r = tcpRead(server_fd, incoming, strlen(server_msg)))
-            != (int) strlen(server_msg)) {
-        fprintf(stderr, "tcpRead from server_fd failed.\n");
-        errors++;
-    }
-    else if (strncmp(incoming, server_msg, strlen(server_msg)) != 0) {
-        fprintf(stderr, "incoming = \"%s\", server_msg = \"%s\"\n",
-                incoming, server_msg);
-        errors++;
-    }
+    test_msg(client_fd, server_fd, server_msg);
+    test_msg(server_fd, client_fd, client_msg);
 
-    if ((r = tcpWrite(server_fd, client_msg, strlen(client_msg)))
-            != (int) strlen(client_msg)) {
-        fprintf(stderr, "tcpWrite to server_fd failed.\n");
-        errors++;
-    }
-    else if ((r = tcpRead(client_fd, incoming, strlen(client_msg)))
-            != (int) strlen(client_msg)) {
-        fprintf(stderr, "tcpRead from client_fd failed.\n");
-        errors++;
-    }
-    else if (strncmp(incoming, client_msg, strlen(client_msg)) != 0) {
-        fprintf(stderr, "incoming = \"%s\", client_msg = \"%s\"\n",
-                incoming, client_msg);
-        errors++;
-    }
+    close(listen_fd);
+    close(client_fd);
+    close(server_fd);
+
+    listen_fd = tcpListen(NULL, 0);
+
+    uint16_t port = netLocalPort(listen_fd);
+
+    client_fd = tcpConnect("localhost", port);
+    server_fd = tcpAccept(listen_fd);
+
+    test_msg(client_fd, server_fd, server_msg);
+    test_msg(server_fd, client_fd, client_msg);
+
+    close(listen_fd);
+    close(client_fd);
+    close(server_fd);
 
     return errors;
 }
