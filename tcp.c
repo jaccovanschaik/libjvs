@@ -4,7 +4,7 @@
  * tcp.c is part of libjvs.
  *
  * Copyright:   (c) 2007-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: tcp.c 408 2020-12-19 23:36:40Z jacco $
+ * Version:     $Id: tcp.c 409 2020-12-19 23:40:00Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -180,18 +180,10 @@ int tcpConnect(const char *host, uint16_t port)
  */
 int tcpAccept(int sd)
 {
-    struct sockaddr peeraddr;    /* for peer socket address */
-
-    socklen_t addrlen;
-
     int csd;
 
-    memset(&peeraddr, 0, sizeof(struct sockaddr));
-
-    addrlen = sizeof(struct sockaddr);
-
     do {
-        csd = accept(sd, &peeraddr, &addrlen);
+        csd = accept(sd, NULL, NULL);
     } while (csd == -1 && errno == EINTR);
 
     if (csd == -1) {
