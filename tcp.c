@@ -4,7 +4,7 @@
  * tcp.c is part of libjvs.
  *
  * Copyright:   (c) 2007-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: tcp.c 398 2020-09-08 13:09:18Z jacco $
+ * Version:     $Id: tcp.c 402 2020-12-19 14:00:37Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -28,8 +28,6 @@
 
 static struct linger linger = { 1, 5 }; /* 5 second linger */
 
-static int one = 1;
-
 /*
  * Create a socket
  */
@@ -39,11 +37,6 @@ static int tcp_socket(void)
 
     if ((sd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
 P       dbgError(stderr, "unable to create socket");
-        return -1;
-    }
-
-    if (setsockopt(sd, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one)) != 0) {
-P       dbgError(stderr, "setsockopt(REUSEADDR) failed");
         return -1;
     }
 
@@ -84,6 +77,13 @@ P       dbgError(stderr, "tcp_socket failed");
         return -1;
     }
 
+    int one = 1;
+
+    if (setsockopt(lsd, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one)) != 0) {
+P       dbgError(stderr, "setsockopt(REUSEADDR) failed");
+        return -1;
+    }
+
     if (netBind(lsd, host, port) != 0) {
 P       dbgError(stderr, "netBind failed");
         return -1;
@@ -116,7 +116,8 @@ int tcpConnect(const char *host, uint16_t port)
     snprintf(port_as_text, sizeof(port_as_text), "%hu", port);
 
     if ((ret = getaddrinfo(host, port_as_text, &hints, &info)) != 0) {
-        dbgError(stderr, "tcpConnect: getaddrinfo failed (%s)", gai_strerror(ret));
+        dbgError(stderr, "tcpConnect: getaddrinfo failed (%s)",
+                gai_strerror(ret));
 
         ret = -1;
     }
