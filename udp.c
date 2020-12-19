@@ -4,7 +4,7 @@
  * udp.c is part of libjvs.
  *
  * Copyright:   (c) 2007-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: udp.c 398 2020-09-08 13:09:18Z jacco $
+ * Version:     $Id: udp.c 404 2020-12-19 14:08:20Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -57,15 +57,15 @@ int udpSocket(void)
 }
 
 /*
- * Send <data> with size <size> via <fd> to <host>, <port>. Note that this function does a hostname
- * lookup for every call, which can be slow. If possible, use netConnect() to set a default
- * destination address, after which you can simply write() to the socket without incurring this
- * overhead.
+ * Send <data> with size <size> via <fd> to <host>, <port>. Note that this
+ * function does a hostname lookup for every call, which can be slow. If
+ * possible, use netConnect() to set a default destination address, after
+ * which you can simply write() to the socket without incurring this overhead.
  */
-int udpSend(int fd, const char *host, uint16_t port, const char *data, size_t size)
+int udpSend(int fd, const char *host, uint16_t port,
+        const char *data, size_t size)
 {
-    struct hostent *host_ptr;               /* pointer to host info for remote host */
-
+    struct hostent *host_ptr;               /* pointer to remote host info */
     struct sockaddr_in peeraddr_in = { 0 }; /* for peer socket address */
 
     peeraddr_in.sin_family = AF_INET;
@@ -79,7 +79,8 @@ int udpSend(int fd, const char *host, uint16_t port, const char *data, size_t si
     peeraddr_in.sin_addr.s_addr =
         ((struct in_addr *) (host_ptr->h_addr))->s_addr;
 
-    return sendto(fd, data, size, 0, (struct sockaddr *) &peeraddr_in, sizeof(peeraddr_in));
+    return sendto(fd, data, size, 0, (struct sockaddr *) &peeraddr_in,
+            sizeof(peeraddr_in));
 }
 
 /*
@@ -93,7 +94,8 @@ int udpMulticastJoin(int fd, const char *group)
     mreq.imr_multiaddr.s_addr = inet_addr(group);
     mreq.imr_interface.s_addr = htonl(INADDR_ANY);
 
-    if (setsockopt(fd, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq, sizeof(mreq)) < 0) {
+    if (setsockopt(fd, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq, sizeof(mreq)) < 0)
+    {
          perror("Adding multicast membership");
          return -1;
     }
@@ -110,7 +112,9 @@ int udpMulticastLoop(int fd, int allow_loop)
 {
     char loop = allow_loop;
 
-    if (setsockopt(fd, IPPROTO_IP, IP_MULTICAST_LOOP, (char *)&loop, sizeof(loop)) < 0) {
+    if (setsockopt(fd, IPPROTO_IP, IP_MULTICAST_LOOP, (char *) &loop,
+                sizeof(loop)) < 0)
+    {
         perror("Setting IP_MULTICAST_LOOP");
         return -1;
     }
@@ -128,7 +132,9 @@ int udpMulticastInterface(int fd, const char *address)
 
     addr.s_addr = inet_addr(address);
 
-    if(setsockopt(fd, IPPROTO_IP, IP_MULTICAST_IF, (char *)&addr, sizeof(addr)) < 0) {
+    if(setsockopt(fd, IPPROTO_IP, IP_MULTICAST_IF, (char *)&addr,
+                sizeof(addr)) < 0)
+    {
         perror("Setting IP_MULTICAST_IF");
         return -1;
     }
@@ -147,7 +153,8 @@ int udpMulticastLeave(int fd, const char *group)
     mreq.imr_multiaddr.s_addr = inet_addr(group);
     mreq.imr_interface.s_addr = htonl(INADDR_ANY);
 
-    if (setsockopt(fd, IPPROTO_IP, IP_DROP_MEMBERSHIP, &mreq, sizeof(mreq)) < 0) {
+    if (setsockopt(fd, IPPROTO_IP, IP_DROP_MEMBERSHIP, &mreq, sizeof(mreq)) < 0)
+    {
          perror("Removing multicast membership");
          return -1;
     }
