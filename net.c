@@ -4,7 +4,7 @@
  * net.c is part of libjvs.
  *
  * Copyright:   (c) 2007-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: net.c 403 2020-12-19 14:04:58Z jacco $
+ * Version:     $Id: net.c 405 2020-12-19 20:39:10Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.

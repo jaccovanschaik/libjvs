@@ -4,7 +4,7 @@
  * tcp.c is part of libjvs.
  *
  * Copyright:   (c) 2007-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: tcp.c 402 2020-12-19 14:00:37Z jacco $
+ * Version:     $Id: tcp.c 405 2020-12-19 20:39:10Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -172,10 +172,23 @@ int tcpRead(int fd, void *buf, int len)
 {
     int res, n = 0;
 
-    do {
-        res = read(fd, (char *) buf + n, len - n);
-    } while ((res > 0 || errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK)
-             && (n += res) < len);
+    while (1) {
+        if ((res = read(fd, (char *) buf + n, len - n)) == 0) {
+            break;
+        }
+        else if (res > 0 && (n += res) == len) {
+            break;
+        }
+        else if (res < 0 && errno == EINTR) {
+            errno = 0;
+            continue;
+        }
+        else if (res < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
+            errno = 0;
+            usleep(100000);
+            continue;
+        }
+    }
 
     if (res == -1) {
 P       dbgError(stderr, "read failed");
@@ -224,29 +237,35 @@ int main(void)
     int client_fd = tcpConnect("localhost", 54321);
     int server_fd = tcpAccept(listen_fd);
 
-    if ((r = tcpWrite(client_fd, server_msg, strlen(server_msg))) != (int) strlen(server_msg)) {
+    if ((r = tcpWrite(client_fd, server_msg, strlen(server_msg)))
+            != (int) strlen(server_msg)) {
         fprintf(stderr, "tcpWrite to client_fd failed.\n");
         errors++;
     }
-    else if ((r = tcpRead(server_fd, incoming, strlen(server_msg))) != (int) strlen(server_msg)) {
+    else if ((r = tcpRead(server_fd, incoming, strlen(server_msg)))
+            != (int) strlen(server_msg)) {
         fprintf(stderr, "tcpRead from server_fd failed.\n");
         errors++;
     }
     else if (strncmp(incoming, server_msg, strlen(server_msg)) != 0) {
-        fprintf(stderr, "incoming = \"%s\", server_msg = \"%s\"\n", incoming, server_msg);
+        fprintf(stderr, "incoming = \"%s\", server_msg = \"%s\"\n",
+                incoming, server_msg);
         errors++;
     }
 
-    if ((r = tcpWrite(server_fd, client_msg, strlen(client_msg))) != (int) strlen(client_msg)) {
+    if ((r = tcpWrite(server_fd, client_msg, strlen(client_msg)))
+            != (int) strlen(client_msg)) {
         fprintf(stderr, "tcpWrite to server_fd failed.\n");
         errors++;
     }
-    else if ((r = tcpRead(client_fd, incoming, strlen(client_msg))) != (int) strlen(client_msg)) {
+    else if ((r = tcpRead(client_fd, incoming, strlen(client_msg)))
+            != (int) strlen(client_msg)) {
         fprintf(stderr, "tcpRead from client_fd failed.\n");
         errors++;
     }
     else if (strncmp(incoming, client_msg, strlen(client_msg)) != 0) {
-        fprintf(stderr, "incoming = \"%s\", client_msg = \"%s\"\n", incoming, client_msg);
+        fprintf(stderr, "incoming = \"%s\", client_msg = \"%s\"\n",
+                incoming, client_msg);
         errors++;
     }
 
