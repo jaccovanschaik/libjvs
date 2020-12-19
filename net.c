@@ -107,28 +107,26 @@ P       dbgError(stderr, "bind failed");
  */
 int netConnect(int fd, const char *host, uint16_t port)
 {
-    struct hostent *host_ptr;       /* pointer to host info for remote host */
+    struct addrinfo *info = NULL;
+    char port_str[6];
 
-    struct sockaddr_in peeraddr_in = { 0 }; /* for peer socket address */
+    snprintf(port_str, sizeof(port_str), "%hu", port);
 
-    peeraddr_in.sin_family = AF_INET;
-    peeraddr_in.sin_port = htons(port);
+    int r = getaddrinfo(host, port_str, NULL, &info);
 
-    if ((host_ptr = gethostbyname(host)) == NULL) {
-P       dbgError(stderr, "gethostbyname(%s) failed", host);
-        return -1;
+    if (r != 0) {
+        dbgError(stderr, "getaddrinfo for %s:%hu failed: %s",
+                host, port, gai_strerror(r));
+        r = -1;
+    }
+    else if (connect(fd, info->ai_addr, sizeof(*info->ai_addr)) != 0) {
+P       dbgError(stderr, "connect to %s:%hu failed", host, port);
+        r = -1;
     }
 
-    peeraddr_in.sin_addr.s_addr =
-        ((struct in_addr *) (host_ptr->h_addr))->s_addr;
+    freeaddrinfo(info);
 
-    if (connect(fd, (struct sockaddr *) &peeraddr_in, sizeof(peeraddr_in)) != 0)
-    {
-P       dbgError(stderr, "connect to %s:%d failed", host, port);
-        return -1;
-    }
-
-    return 0;
+    return r;
 }
 
 /*
