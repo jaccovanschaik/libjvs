@@ -4,7 +4,7 @@
  * net.c is part of libjvs.
  *
  * Copyright:   (c) 2007-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: net.c 343 2019-08-27 08:39:24Z jacco $
+ * Version:     $Id: net.c 403 2020-12-19 14:04:58Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -19,8 +19,8 @@
 #include "debug.h"
 
 /*
- * Get the host name that belongs to IP address <big_endian_ip>. Returns the fqdn if it can be
- * found, otherwise an IP address in dotted-quad notation.
+ * Get the host name that belongs to IP address <big_endian_ip>. Returns the
+ * fqdn if it can be found, otherwise an IP address in dotted-quad notation.
  */
 const char *netHost(uint32_t big_endian_ip)
 {
@@ -32,7 +32,8 @@ const char *netHost(uint32_t big_endian_ip)
 
         return text_buffer;
     }
-    else if ((ent = gethostbyaddr((char *) &big_endian_ip, sizeof(big_endian_ip), AF_INET)) == NULL)
+    else if ((ent = gethostbyaddr((char *) &big_endian_ip,
+                    sizeof(big_endian_ip), AF_INET)) == NULL)
     {
         snprintf(text_buffer, sizeof(text_buffer), "%d.%d.%d.%d",
                  (big_endian_ip & 0xFF000000) >> 24,
@@ -65,8 +66,8 @@ P       dbgError(stderr, "getservbyname(%s) failed", service);
 }
 
 /*
- * Bind a socket to <port> and <host>. If <host> is NULL, the socket
- * will be bound to INADDR_ANY. If port is 0, it will be bound to a random port.
+ * Bind a socket to <port> and <host>. If <host> is NULL, the socket will be
+ * bound to INADDR_ANY. If port is 0, it will be bound to a random port.
  */
 int netBind(int socket, const char *host, uint16_t port)
 {
@@ -79,7 +80,8 @@ int netBind(int socket, const char *host, uint16_t port)
         myaddr_in.sin_addr.s_addr = INADDR_ANY;
     }
     else if ((host_ptr = gethostbyname(host)) != NULL) {
-        myaddr_in.sin_addr.s_addr = ((struct in_addr *) (host_ptr->h_addr))->s_addr;
+        myaddr_in.sin_addr.s_addr =
+            ((struct in_addr *) (host_ptr->h_addr))->s_addr;
     }
     else {
 P       dbgError(stderr, "gethostbyname(%s) failed", host);
@@ -89,7 +91,9 @@ P       dbgError(stderr, "gethostbyname(%s) failed", host);
     myaddr_in.sin_port = htons(port);
     myaddr_in.sin_family = AF_INET;
 
-    if (bind(socket, (struct sockaddr *) &myaddr_in, sizeof(struct sockaddr_in)) != 0) {
+    if (bind(socket, (struct sockaddr *) &myaddr_in,
+                sizeof(struct sockaddr_in)) != 0)
+    {
 P       dbgError(stderr, "bind failed");
         return -1;
     }
@@ -98,12 +102,12 @@ P       dbgError(stderr, "bind failed");
 }
 
 /*
- * Connect an existing socket <fd> to <host> and <port>. Returns 0 on success or -1 if an error
- * occurs.
+ * Connect an existing socket <fd> to <host> and <port>. Returns 0 on success
+ * or -1 if an error occurs.
  */
 int netConnect(int fd, const char *host, uint16_t port)
 {
-    struct hostent *host_ptr;               /* pointer to host info for remote host */
+    struct hostent *host_ptr;       /* pointer to host info for remote host */
 
     struct sockaddr_in peeraddr_in = { 0 }; /* for peer socket address */
 
@@ -118,7 +122,8 @@ P       dbgError(stderr, "gethostbyname(%s) failed", host);
     peeraddr_in.sin_addr.s_addr =
         ((struct in_addr *) (host_ptr->h_addr))->s_addr;
 
-    if (connect(fd, (struct sockaddr *) &peeraddr_in, sizeof(peeraddr_in)) != 0) {
+    if (connect(fd, (struct sockaddr *) &peeraddr_in, sizeof(peeraddr_in)) != 0)
+    {
 P       dbgError(stderr, "connect to %s:%d failed", host, port);
         return -1;
     }
