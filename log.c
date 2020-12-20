@@ -28,7 +28,7 @@
  *
  * Copyright: (c) 2019-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2019-07-29
- * Version:   $Id: log.c 398 2020-09-08 13:09:18Z jacco $
+ * Version:   $Id: log.c 412 2020-12-20 19:14:19Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -447,7 +447,7 @@ static LogWriter *log_add_udp_writer(const char *host, uint16_t port)
 {
     int fd;
 
-    if ((fd = udpSocket()) < 0 || netConnect(fd, host, port) != 0) {
+    if ((fd = udpSocket()) < 0 || udpConnect(fd, host, port) != 0) {
         return NULL;
     }
 

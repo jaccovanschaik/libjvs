@@ -4,7 +4,7 @@
  * net.c is part of libjvs.
  *
  * Copyright:   (c) 2007-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: net.c 405 2020-12-19 20:39:10Z jacco $
+ * Version:     $Id: net.c 412 2020-12-20 19:14:19Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -13,6 +13,8 @@
 #include <netdb.h>
 #include <stdio.h>
 #include <stdint.h>
+#include <stdbool.h>
+#include <errno.h>
 
 #include "defs.h"
 #include "net.h"
@@ -63,70 +65,6 @@ P       dbgError(stderr, "getservbyname(%s) failed", service);
     }
 
     return serv_ptr->s_port;
-}
-
-/*
- * Bind a socket to <port> and <host>. If <host> is NULL, the socket will be
- * bound to INADDR_ANY. If port is 0, it will be bound to a random port.
- */
-int netBind(int socket, const char *host, uint16_t port)
-{
-    struct sockaddr_in myaddr_in;      /* for local socket address */
-    struct hostent *host_ptr;
-
-    memset(&myaddr_in, 0, sizeof(myaddr_in));
-
-    if (host == NULL) {
-        myaddr_in.sin_addr.s_addr = INADDR_ANY;
-    }
-    else if ((host_ptr = gethostbyname(host)) != NULL) {
-        myaddr_in.sin_addr.s_addr =
-            ((struct in_addr *) (host_ptr->h_addr))->s_addr;
-    }
-    else {
-P       dbgError(stderr, "gethostbyname(%s) failed", host);
-        return -1;
-    }
-
-    myaddr_in.sin_port = htons(port);
-    myaddr_in.sin_family = AF_INET;
-
-    if (bind(socket, (struct sockaddr *) &myaddr_in,
-                sizeof(struct sockaddr_in)) != 0)
-    {
-P       dbgError(stderr, "bind failed");
-        return -1;
-    }
-
-    return 0;
-}
-
-/*
- * Connect an existing socket <fd> to <host> and <port>. Returns 0 on success
- * or -1 if an error occurs.
- */
-int netConnect(int fd, const char *host, uint16_t port)
-{
-    struct addrinfo *info = NULL;
-    char port_str[6];
-
-    snprintf(port_str, sizeof(port_str), "%hu", port);
-
-    int r = getaddrinfo(host, port_str, NULL, &info);
-
-    if (r != 0) {
-        dbgError(stderr, "getaddrinfo for %s:%hu failed: %s",
-                host, port, gai_strerror(r));
-        r = -1;
-    }
-    else if (connect(fd, info->ai_addr, sizeof(*info->ai_addr)) != 0) {
-P       dbgError(stderr, "connect to %s:%hu failed", host, port);
-        r = -1;
-    }
-
-    freeaddrinfo(info);
-
-    return r;
 }
 
 /*

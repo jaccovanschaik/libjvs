@@ -4,7 +4,7 @@
  * udp.c is part of libjvs.
  *
  * Copyright:   (c) 2007-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: udp.c 411 2020-12-20 00:30:11Z jacco $
+ * Version:     $Id: udp.c 412 2020-12-20 19:14:19Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -118,8 +118,6 @@ static int udp_connect(int sd, const char *host, uint16_t port, int family)
     }
     else if (connect(sd, info->ai_addr, info->ai_addrlen) != 0) {
         dbgError(stderr, "%s: connect failed", __func__);
-
-        close(r);
 
         r = -1;
     }

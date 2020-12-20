@@ -4,7 +4,7 @@
  * tcp.c is part of libjvs.
  *
  * Copyright:   (c) 2007-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: tcp.c 410 2020-12-19 23:55:21Z jacco $
+ * Version:     $Id: tcp.c 412 2020-12-20 19:14:19Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -36,12 +36,12 @@ static int tcp_socket(int family)
     int sd;                            /* socket descriptor */
 
     if ((sd = socket(family, SOCK_STREAM, 0)) == -1) {
-P       dbgError(stderr, "unable to create socket");
+        dbgError(stderr, "unable to create socket: %s", strerror(errno));
         return -1;
     }
 
     if (setsockopt(sd, SOL_SOCKET, SO_LINGER, &linger, sizeof(linger)) != 0) {
-P       dbgError(stderr, "setsockopt(LINGER) failed");
+        dbgError(stderr, "setsockopt(LINGER) failed: %s", strerror(errno));
         return -1;
     }
 
@@ -133,7 +133,7 @@ P       dbgError(stderr, "setsockopt(REUSEADDR) failed");
  */
 static int tcp_connect(const char *host, uint16_t port, int family)
 {
-    int ret;
+    int r;
 
     char port_as_text[6];
     struct addrinfo *info;
@@ -145,28 +145,26 @@ static int tcp_connect(const char *host, uint16_t port, int family)
 
     snprintf(port_as_text, sizeof(port_as_text), "%hu", port);
 
-    if ((ret = getaddrinfo(host, port_as_text, &hints, &info)) != 0) {
-        dbgError(stderr, "tcpConnect: getaddrinfo failed (%s)",
-                gai_strerror(ret));
+    if ((r = getaddrinfo(host, port_as_text, &hints, &info)) != 0) {
+        dbgError(stderr, "tcpConnect: getaddrinfo failed: %s",
+                gai_strerror(r));
 
-        ret = -1;
+        r = -1;
     }
-    else if ((ret = tcp_socket(family)) < 0) {
-        dbgError(stderr, "tcpConnect: tcp_socket failed");
-
-        ret = -1;
+    else if ((r = tcp_socket(family)) < 0) {
+        r = -1;
     }
-    else if (connect(ret, info->ai_addr, info->ai_addrlen) != 0) {
-        dbgError(stderr, "tcpConnect: connect failed");
+    else if (connect(r, info->ai_addr, info->ai_addrlen) != 0) {
+        dbgError(stderr, "tcpConnect: connect failed: %s", strerror(errno));
 
-        close(ret);
+        close(r);
 
-        ret = -1;
+        r = -1;
     }
 
     freeaddrinfo(info);
 
-    return ret;
+    return r;
 }
 
 /*
