@@ -4,7 +4,7 @@
  * utils.c is part of libjvs.
  *
  * Copyright:   (c) 2012-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: utils.c 413 2021-03-01 09:31:44Z jacco $
+ * Version:     $Id: utils.c 414 2021-03-01 12:36:57Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -809,7 +809,9 @@ static char *embiggen(char *str, size_t *size, size_t new_size)
  * Use the iconv converter <cd> to convert the character string pointed to by
  * <input>, with length <input_len>, and return a pointer to the result. If
  * <output_len> is not NULL, the length of the returned string is written
- * there. <cd> is an "iconv_t" as returned by the iconv_open() function.
+ * there. <cd> is an "iconv_t" as returned by the iconv_open() function. This
+ * is basically a wrapper around iconv() to make it a little more convenient
+ * to use.
  *
  * The returned string will always have a terminating null byte, but
  * note that some character encodings supported by iconv may allow an embedded

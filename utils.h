@@ -7,7 +7,7 @@
  * utils.h is part of libjvs.
  *
  * Copyright:   (c) 2012-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: utils.h 401 2020-12-09 20:28:44Z jacco $
+ * Version:     $Id: utils.h 414 2021-03-01 12:36:57Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -21,6 +21,7 @@ extern "C" {
 
 #include <stdio.h>
 #include <stdarg.h>
+#include <iconv.h>
 
 #ifndef __WIN32
 #include <sys/select.h>
@@ -67,26 +68,29 @@ void set_indent_string(const char *str);
 void findent(FILE *fp, int level);
 
 /*
- * Indented fprintf. Print output given by <fmt> and the following parameters, preceded by <indent>
- * levels of indent, to <fp>. Returns the number of characters printed (just like fprintf).
- */
+ * Indented fprintf. Print output given by <fmt> and the following parameters,
+ * preceded by <indent> levels of indent, to <fp>. Returns the number of
+ * characters printed (just like fprintf). */
 int ifprintf(FILE *fp, int indent, const char *fmt, ...);
 
 /*
- * Dump <size> bytes from <data> into a new string buffer, using indent <indent>. The address of the
- * string buffer is returned through <str>, its length is this function's return value. Afterwards,
- * the caller is responsible for the string buffer and should free it when it is no longer needed.
+ * Dump <size> bytes from <data> into a new string buffer, using indent
+ * <indent>. The address of the string buffer is returned through <str>, its
+ * length is this function's return value. Afterwards, the caller is
+ * responsible for the string buffer and should free it when it is no longer
+ * needed.
  */
 int ihexstr(char **str, int indent, const char *data, size_t size);
 
 /*
- * Dump <size> bytes from <data> as a hexdump to <fp>, with indent level <indent>.
+ * Dump <size> bytes from <data> as a hexdump to <fp>, with indent level
+ * <indent>.
  */
 void ihexdump(FILE *fp, int indent, const char *data, size_t size);
 
 /*
- * Dump the file descriptors up to <nfds> in <fds> to <fp>, preceded by <intro> (if <intro> is not
- * NULL).
+ * Dump the file descriptors up to <nfds> in <fds> to <fp>, preceded by
+ * <intro> (if <intro> is not NULL).
  */
 void dumpfds(FILE *fp, const char *intro, int nfds, fd_set *fds);
 
@@ -107,7 +111,8 @@ void dtotv(double t, struct timeval *tv);
 double tvtod(const struct timeval *tv);
 
 /*
- * Return the current UTC time (number of seconds since 1970-01-01/00:00:00 UTC) as a double.
+ * Return the current UTC time (number of seconds since 1970-01-01/00:00:00
+ * UTC) as a double.
  */
 double dnow(void);
 
@@ -127,8 +132,8 @@ const char *tsformat(const struct timespec *ts, const char *tz, const char *fmt,
 /*
  * Pack data from <ap> into <str>, which has size <size>.
  *
- * The pack functions take type/value pairs (closed by END) to specify what to pack into the string.
- * The types, values and packed data are as follows:
+ * The pack functions take type/value pairs (closed by END) to specify what to
+ * pack into the string. The types, values and packed data are as follows:
  *
  * type         value           packs
  * ----         -----           -----
@@ -138,16 +143,19 @@ const char *tsformat(const struct timespec *ts, const char *tz, const char *fmt,
  * PACK_INT64   uint64_t        8 byte int
  * PACK_FLOAT   double          4 byte float
  * PACK_DOUBLE  double          8 byte double
- * PACK_STRING  char *          4-byte length (from strlen) followed by as many bytes.
- * PACK_DATA    char *, uint    4-byte length (as given) followed by as many bytes.
+ * PACK_STRING  char *          4-byte length (from strlen),
+ *                              followed by as many bytes.
+ * PACK_DATA    char *, uint    4-byte length (as given),
+ *                              followed by as many bytes.
  * PACK_RAW     char *, uint    Raw bytes using length as given.
  *
  * All ints (including the lengths) are packed with big-endian byte order.
  *
- * All pack functions return the number of bytes necessary to pack the given data, which may be more
- * than <size>. In that case they are telling you that more bytes were needed than you gave them,
- * and you should call the function again with a bigger data buffer. It will, however, never write
- * more than <size> bytes into <str>.
+ * All pack functions return the number of bytes necessary to pack the given
+ * data, which may be more than <size>. In that case they are telling you that
+ * more bytes were needed than you gave them, and you should call the function
+ * again with a bigger data buffer. It will, however, never write more than
+ * <size> bytes into <str>.
  */
 int vstrpack(char *str, size_t size, va_list ap);
 
@@ -157,23 +165,23 @@ int vstrpack(char *str, size_t size, va_list ap);
 int strpack(char *str, size_t size, ...);
 
 /*
- * This function does the same as vstrpack, but it will allocate a sufficiently sized data buffer
- * for you and return it through <str>.
+ * This function does the same as vstrpack, but it will allocate a
+ * sufficiently sized data buffer for you and return it through <str>.
  */
 int vastrpack(char **str, va_list ap);
 
 /*
- * This function does the same as strpack, but it will allocate a sufficiently sized data buffer for
- * you and return it through <str>.
+ * This function does the same as strpack, but it will allocate a sufficiently
+ * sized data buffer for you and return it through <str>.
  */
 int astrpack(char **str, ...);
 
 /*
  * Unpack data from <str>, which has length <size>.
  *
- * The unpack functions take type/pointer pairs (closed by END) where data is extracted from <str>
- * and put into the addresses that the pointers point to. The types, pointers and unpacked data are
- * as follows:
+ * The unpack functions take type/pointer pairs (closed by END) where data is
+ * extracted from <str> and put into the addresses that the pointers point to.
+ * The types, pointers and unpacked data are as follows:
  *
  * type         pointer         unpacks
  * ----         -------         -----
@@ -187,18 +195,20 @@ int astrpack(char **str, ...);
  * PACK_DATA    char **, uint * 4-byte length, followed by as many bytes.
  * PACK_RAW     char *, uint    As many raw bytes as given.
  *
- * Note: PACK_STRING and PACK_DATA allocate space to put the data in, and it is the caller's
- * responsibility to free that space again. PACK_STRING creates a null-terminated string. PACK_DATA
- * requires an additional int * where it writes the length of the allocated data.
+ * Note: PACK_STRING and PACK_DATA allocate space to put the data in, and it
+ * is the caller's responsibility to free that space again. PACK_STRING
+ * creates a null-terminated string. PACK_DATA requires an additional int *
+ * where it writes the length of the allocated data.
  *
- * This function returns the minimum number of bytes necessary to unpack the given fields, which may
- * be more than <size>. "Minimum" in this case means assuming all PACK_STRING and PACK_DATA fields
- * have length 0.
+ * This function returns the minimum number of bytes necessary to unpack the
+ * given fields, which may be more than <size>. "Minimum" in this case means
+ * assuming all PACK_STRING and PACK_DATA fields have length 0.
  */
 int vstrunpack(const char *str, size_t size, va_list ap);
 
 /*
- * Unpack data from <str> (which has size <size>) into the pointers following "size".
+ * Unpack data from <str> (which has size <size>) into the pointers following
+ * "size".
  */
 int strunpack(const char *str, size_t size, ...);
 
@@ -222,27 +232,53 @@ char *env_expand(const char *text);
 int close_to(double actual, double expected);
 
 /*
- * Test <val>. If it is FALSE, print that fact, along with the textual representation of <val> which
- * is in <str>, the file and line on which the error occurred in <file> and <line> to stderr, and
- * increase <*errors> by 1. Called by the make_sure_that() macro, less useful on its own.
+ * Test <val>. If it is FALSE, print that fact, along with the textual
+ * representation of <val> which is in <str>, the file and line on which the
+ * error occurred in <file> and <line> to stderr, and increase <*errors> by 1.
+ * Called by the make_sure_that() macro, less useful on its own.
  */
-void _make_sure_that(const char *file, int line, int *errors, const char *str, int val);
+void _make_sure_that(const char *file, int line,
+                     int *errors, const char *str, int val);
 
 /*
- * Check that the timespec in <t> contains <sec> and <nsec>. If not, print a message top that effect on stderr (using
- * <file> and <line>, which should contain the source file and line where this function was called) and increment the
- * error counter pointed to by <errors>. This function is used in test code, and should be called using the
- * check_timespec macro.
+ * Check that the timespec in <t> contains <sec> and <nsec>. If not, print a
+ * message to that effect on stderr (using <file> and <line>, which should
+ * contain the source file and line where this function was called) and
+ * increment the error counter pointed to by <errors>. This function is used
+ * in test code, and should be called using the check_timespec macro.
  */
-void _check_timespec(const char *file, int line, const char *name, int *errors, struct timespec t, long sec, long nsec);
+void _check_timespec(const char *file, int line,
+                     const char *name, int *errors,
+                     struct timespec t, long sec, long nsec);
 
 /*
- * Check that the timeval in <t> contains <sec> and <nsec>. If not, print a message top that effect on stderr (using
- * <file> and <line>, which should contain the source file and line where this function was called) and increment the
- * error counter pointed to by <errors>. This function is used in test code, and should be called using the
- * check_timeval macro.
+ * Check that the timeval in <t> contains <sec> and <nsec>. If not, print a
+ * message top that effect on stderr (using <file> and <line>, which should
+ * contain the source file and line where this function was called) and
+ * increment the error counter pointed to by <errors>. This function is used
+ * in test code, and should be called using the check_timeval macro.
  */
-void _check_timeval(const char *file, int line, const char *name, int *errors, struct timeval t, long sec, long usec);
+void _check_timeval(const char *file, int line,
+                    const char *name, int *errors,
+                    struct timeval t, long sec, long usec);
+
+/*
+ * Use the iconv converter <cd> to convert the character string pointed to by
+ * <input>, with length <input_len>, and return a pointer to the result. If
+ * <output_len> is not NULL, the length of the returned string is written
+ * there. <cd> is an "iconv_t" as returned by the iconv_open() function. This
+ * is basically a wrapper around iconv() to make it a little more convenient
+ * to use.
+ *
+ * The returned string will always have a terminating null byte, but
+ * note that some character encodings supported by iconv may allow an embedded
+ * null byte in a string. In those cases you should use <output_len> to get
+ * the "real" length of the returned string. If the conversion could not be
+ * performed because of an encoding error in <input>, NULL is returned and
+ * errno is set to EINVAL.
+ */
+const char *convert_charset(iconv_t cd, const char *input, size_t input_len,
+                            size_t *output_len);
 
 #ifdef __cplusplus
 }
