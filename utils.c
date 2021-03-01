@@ -4,7 +4,7 @@
  * utils.c is part of libjvs.
  *
  * Copyright:   (c) 2012-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: utils.c 401 2020-12-09 20:28:44Z jacco $
+ * Version:     $Id: utils.c 413 2021-03-01 09:31:44Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -20,6 +20,9 @@
 #include <math.h>
 #include <time.h>
 #include <sys/time.h>
+#include <assert.h>
+#include <iconv.h>
+#include <errno.h>
 
 #include "defs.h"
 #include "utils.h"
@@ -66,9 +69,9 @@ void findent(FILE *fp, int level)
 }
 
 /*
- * Indented fprintf. Print output given by <fmt> and the following parameters, preceded by <indent>
- * levels of indent, to <fp>. Returns the number of characters printed (just like fprintf).
- */
+ * Indented fprintf. Print output given by <fmt> and the following parameters,
+ * preceded by <indent> levels of indent, to <fp>. Returns the number of
+ * characters printed (just like fprintf). */
 int ifprintf(FILE *fp, int indent, const char *fmt, ...)
 {
     int r;
@@ -86,9 +89,11 @@ int ifprintf(FILE *fp, int indent, const char *fmt, ...)
 #define HEXDUMP_BYTES_PER_LINE 16
 
 /*
- * Dump <size> bytes from <data> into a new string buffer, using indent <indent>. The address of the
- * string buffer is returned through <str>, its length is this function's return value. Afterwards,
- * the caller is responsible for the string buffer and should free it when it is no longer needed.
+ * Dump <size> bytes from <data> into a new string buffer, using indent
+ * <indent>. The address of the string buffer is returned through <str>, its
+ * length is this function's return value. Afterwards, the caller is
+ * responsible for the string buffer and should free it when it is no longer
+ * needed.
  */
 int ihexstr(char **str, int indent, const char *data, size_t size)
 {
@@ -126,7 +131,8 @@ int ihexstr(char **str, int indent, const char *data, size_t size)
 }
 
 /*
- * Dump <size> bytes from <data> as a hexdump to <fp>, with indent level <indent>.
+ * Dump <size> bytes from <data> as a hexdump to <fp>, with indent level
+ * <indent>.
  */
 void ihexdump(FILE *fp, int indent, const char *data, size_t size)
 {
@@ -157,8 +163,8 @@ void ihexdump(FILE *fp, int indent, const char *data, size_t size)
 }
 
 /*
- * Dump the file descriptors up to <nfds> in <fds> to <fp>, preceded by <intro> (if <intro> is not
- * NULL).
+ * Dump the file descriptors up to <nfds> in <fds> to <fp>, preceded by
+ * <intro> (if <intro> is not NULL).
  */
 void dumpfds(FILE *fp, const char *intro, int nfds, fd_set *fds)
 {
@@ -208,7 +214,8 @@ double tvtod(const struct timeval *tv)
 }
 
 /*
- * Return the current UTC time (number of seconds since 1970-01-01/00:00:00 UTC) as a double.
+ * Return the current UTC time (number of seconds since 1970-01-01/00:00:00
+ * UTC) as a double.
  */
 double dnow(void)
 {
@@ -300,8 +307,8 @@ static void pack(void *data, size_t size, char **dest, ssize_t *remaining)
 /*
  * Pack data from <ap> into <str>, which has size <size>.
  *
- * The pack functions take type/value pairs (closed by END) to specify what to pack into the string.
- * The types, values and packed data are as follows:
+ * The pack functions take type/value pairs (closed by END) to specify what to
+ * pack into the string. The types, values and packed data are as follows:
  *
  * type         value           packs
  * ----         -----           -----
@@ -311,16 +318,19 @@ static void pack(void *data, size_t size, char **dest, ssize_t *remaining)
  * PACK_INT64   uint64_t        8 byte int
  * PACK_FLOAT   double          4 byte float
  * PACK_DOUBLE  double          8 byte double
- * PACK_STRING  char *          4-byte length (from strlen) followed by as many bytes.
- * PACK_DATA    char *, uint    4-byte length (as given) followed by as many bytes.
+ * PACK_STRING  char *          4-byte length (from strlen),
+ *                              followed by as many bytes.
+ * PACK_DATA    char *, uint    4-byte length (as given),
+ *                              followed by as many bytes.
  * PACK_RAW     char *, uint    Raw bytes using length as given.
  *
  * All ints (including the lengths) are packed with big-endian byte order.
  *
- * All pack functions return the number of bytes necessary to pack the given data, which may be more
- * than <size>. In that case they are telling you that more bytes were needed than you gave them,
- * and you should call the function again with a bigger data buffer. It will, however, never write
- * more than <size> bytes into <str>.
+ * All pack functions return the number of bytes necessary to pack the given
+ * data, which may be more than <size>. In that case they are telling you that
+ * more bytes were needed than you gave them, and you should call the function
+ * again with a bigger data buffer. It will, however, never write more than
+ * <size> bytes into <str>.
  */
 int vstrpack(char *str, size_t size, va_list ap)
 {
@@ -430,8 +440,8 @@ int strpack(char *str, size_t size, ...)
 }
 
 /*
- * This function does the same as vstrpack, but it will allocate a sufficiently sized data buffer
- * for you and return it through <str>.
+ * This function does the same as vstrpack, but it will allocate a
+ * sufficiently sized data buffer for you and return it through <str>.
  */
 int vastrpack(char **str, va_list ap)
 {
@@ -459,8 +469,8 @@ int vastrpack(char **str, va_list ap)
 }
 
 /*
- * This function does the same as strpack, but it will allocate a sufficiently sized data buffer for
- * you and return it through <str>.
+ * This function does the same as strpack, but it will allocate a sufficiently
+ * sized data buffer for you and return it through <str>.
  */
 int astrpack(char **str, ...)
 {
@@ -477,9 +487,9 @@ int astrpack(char **str, ...)
 /*
  * Unpack data from <str>, which has length <size>.
  *
- * The unpack functions take type/pointer pairs (closed by END) where data is extracted from <str>
- * and put into the addresses that the pointers point to. The types, pointers and unpacked data are
- * as follows:
+ * The unpack functions take type/pointer pairs (closed by END) where data is
+ * extracted from <str> and put into the addresses that the pointers point to.
+ * The types, pointers and unpacked data are as follows:
  *
  * type         pointer         unpacks
  * ----         -------         -----
@@ -493,13 +503,14 @@ int astrpack(char **str, ...)
  * PACK_DATA    char **, uint * 4-byte length, followed by as many bytes.
  * PACK_RAW     char *, uint    As many raw bytes as given.
  *
- * Note: PACK_STRING and PACK_DATA allocate space to put the data in, and it is the caller's
- * responsibility to free that space again. PACK_STRING creates a null-terminated string. PACK_DATA
- * requires an additional int * where it writes the length of the allocated data.
+ * Note: PACK_STRING and PACK_DATA allocate space to put the data in, and it
+ * is the caller's responsibility to free that space again. PACK_STRING
+ * creates a null-terminated string. PACK_DATA requires an additional int *
+ * where it writes the length of the allocated data.
  *
- * This function returns the minimum number of bytes necessary to unpack the given fields, which may
- * be more than <size>. "Minimum" in this case means assuming all PACK_STRING and PACK_DATA fields
- * have length 0.
+ * This function returns the minimum number of bytes necessary to unpack the
+ * given fields, which may be more than <size>. "Minimum" in this case means
+ * assuming all PACK_STRING and PACK_DATA fields have length 0.
  */
 int vstrunpack(const char *str, size_t size, va_list ap)
 {
@@ -513,7 +524,9 @@ int vstrunpack(const char *str, size_t size, va_list ap)
         case PACK_INT8:
             {
                 uint8_t *u8 = va_arg(ap, uint8_t *);
-                if (u8 != NULL && ssize >= (ssize_t) sizeof(uint8_t)) *u8 = *((uint8_t *) ptr);
+                if (u8 != NULL && ssize >= (ssize_t) sizeof(uint8_t)) {
+                    *u8 = *((uint8_t *) ptr);
+                }
                 ptr += sizeof(uint8_t);
                 ssize -= sizeof(uint8_t);
             }
@@ -521,7 +534,9 @@ int vstrunpack(const char *str, size_t size, va_list ap)
         case PACK_INT16:
             {
                 uint16_t *u16 = va_arg(ap, uint16_t *);
-                if (u16 != NULL && ssize >= (ssize_t) sizeof(uint16_t)) *u16 = be16toh(*((uint16_t *) ptr));
+                if (u16 != NULL && ssize >= (ssize_t) sizeof(uint16_t)) {
+                    *u16 = be16toh(*((uint16_t *) ptr));
+                }
                 ptr += sizeof(uint16_t);
                 ssize -= sizeof(uint16_t);
             }
@@ -529,7 +544,9 @@ int vstrunpack(const char *str, size_t size, va_list ap)
         case PACK_INT32:
             {
                 uint32_t *u32 = va_arg(ap, uint32_t *);
-                if (u32 != NULL && ssize >= (ssize_t) sizeof(uint32_t)) *u32 = be32toh(*((uint32_t *) ptr));
+                if (u32 != NULL && ssize >= (ssize_t) sizeof(uint32_t)) {
+                    *u32 = be32toh(*((uint32_t *) ptr));
+                }
                 ptr += sizeof(uint32_t);
                 ssize -= sizeof(uint32_t);
             }
@@ -537,7 +554,9 @@ int vstrunpack(const char *str, size_t size, va_list ap)
         case PACK_INT64:
             {
                 uint64_t *u64 = va_arg(ap, uint64_t *);
-                if (u64 != NULL && ssize >= (ssize_t) sizeof(uint64_t)) *u64 = be64toh(*((uint64_t *) ptr));
+                if (u64 != NULL && ssize >= (ssize_t) sizeof(uint64_t)) {
+                    *u64 = be64toh(*((uint64_t *) ptr));
+                }
                 ptr += sizeof(uint64_t);
                 ssize -= sizeof(uint64_t);
             }
@@ -573,7 +592,10 @@ int vstrunpack(const char *str, size_t size, va_list ap)
                 int len = 0;
                 char **strpp = va_arg(ap, char **);
 
-                if (ssize >= (ssize_t) sizeof(uint32_t)) len = be32toh(*((uint32_t *) ptr));
+                if (ssize >= (ssize_t) sizeof(uint32_t)) {
+                    len = be32toh(*((uint32_t *) ptr));
+                }
+
                 ptr += sizeof(uint32_t);
                 ssize -= sizeof(uint32_t);
 
@@ -627,7 +649,8 @@ int vstrunpack(const char *str, size_t size, va_list ap)
 }
 
 /*
- * Unpack data from <str> (which has size <size>) into the pointers following "size".
+ * Unpack data from <str> (which has size <size>) into the pointers following
+ * "size".
  */
 int strunpack(const char *str, size_t size, ...)
 {
@@ -716,11 +739,13 @@ int close_to(double actual, double expected)
 }
 
 /*
- * Test <val>. If it is FALSE, print that fact, along with the textual representation of <val> which
- * is in <str>, the file and line on which the error occurred in <file> and <line> to stderr, and
- * increase <*errors> by 1. Called by the make_sure_that() macro, less useful on its own.
+ * Test <val>. If it is FALSE, print that fact, along with the textual
+ * representation of <val> which is in <str>, the file and line on which the
+ * error occurred in <file> and <line> to stderr, and increase <*errors> by 1.
+ * Called by the make_sure_that() macro, less useful on its own.
  */
-void _make_sure_that(const char *file, int line, int *errors, const char *str, int val)
+void _make_sure_that(const char *file, int line,
+                     int *errors, const char *str, int val)
 {
     if (!val) {
         fprintf(stderr, "%s:%d: Expression \"%s\" failed\n", file, line, str);
@@ -729,12 +754,15 @@ void _make_sure_that(const char *file, int line, int *errors, const char *str, i
 }
 
 /*
- * Check that the timespec in <t> contains <sec> and <nsec>. If not, print a message top that effect on stderr (using
- * <file> and <line>, which should contain the source file and line where this function was called) and increment the
- * error counter pointed to by <errors>. This function is used in test code, and should be called using the
- * check_timespec macro.
+ * Check that the timespec in <t> contains <sec> and <nsec>. If not, print a
+ * message to that effect on stderr (using <file> and <line>, which should
+ * contain the source file and line where this function was called) and
+ * increment the error counter pointed to by <errors>. This function is used
+ * in test code, and should be called using the check_timespec macro.
  */
-void _check_timespec(const char *file, int line, const char *name, int *errors, struct timespec t, long sec, long nsec)
+void _check_timespec(const char *file, int line,
+                     const char *name, int *errors,
+                     struct timespec t, long sec, long nsec)
 {
     if (t.tv_sec != sec || t.tv_nsec != nsec) {
         (*errors)++;
@@ -744,18 +772,92 @@ void _check_timespec(const char *file, int line, const char *name, int *errors, 
 }
 
 /*
- * Check that the timeval in <t> contains <sec> and <nsec>. If not, print a message top that effect on stderr (using
- * <file> and <line>, which should contain the source file and line where this function was called) and increment the
- * error counter pointed to by <errors>. This function is used in test code, and should be called using the
- * check_timeval macro.
+ * Check that the timeval in <t> contains <sec> and <nsec>. If not, print a
+ * message top that effect on stderr (using <file> and <line>, which should
+ * contain the source file and line where this function was called) and
+ * increment the error counter pointed to by <errors>. This function is used
+ * in test code, and should be called using the check_timeval macro.
  */
-void _check_timeval(const char *file, int line, const char *name, int *errors, struct timeval t, long sec, long usec)
+void _check_timeval(const char *file, int line,
+                    const char *name, int *errors,
+                    struct timeval t, long sec, long usec)
 {
     if (t.tv_sec != sec || t.tv_usec != usec) {
         (*errors)++;
         fprintf(stderr, "%s:%d: %s = { %ld, %ld }, expected { %ld, %ld }\n",
                 file, line, name, t.tv_sec, t.tv_usec, sec, usec);
     }
+}
+
+/*
+ * Increase the size of <str> (whose current size is pointed to by <size>) to
+ * <new_size>, and return the (possibly changed) address of the embiggened
+ * string, while also updating <size> to the new size.
+ */
+static char *embiggen(char *str, size_t *size, size_t new_size)
+{
+    assert(new_size >= *size);
+
+    str = realloc(str, new_size);
+    memset(str + *size, 0, new_size - *size);
+    *size = new_size;
+
+    return str;
+}
+
+/*
+ * Use the iconv converter <cd> to convert the character string pointed to by
+ * <input>, with length <input_len>, and return a pointer to the result. If
+ * <output_len> is not NULL, the length of the returned string is written
+ * there. <cd> is an "iconv_t" as returned by the iconv_open() function.
+ *
+ * The returned string will always have a terminating null byte, but
+ * note that some character encodings supported by iconv may allow an embedded
+ * null byte in a string. In those cases you should use <output_len> to get
+ * the "real" length of the returned string. If the conversion could not be
+ * performed because of an encoding error in <input>, NULL is returned and
+ * errno is set to EINVAL.
+ */
+const char *convert_charset(iconv_t cd, const char *input, size_t input_len,
+                            size_t *output_len)
+{
+    static char *out = NULL;
+    static size_t out_size = 4;
+
+    size_t inbytesleft;
+    size_t outbytesleft;
+
+    if (out == NULL) out = calloc(1, out_size);
+
+    while (1) {
+        inbytesleft = input_len;
+        outbytesleft = out_size;
+
+        char *in_ptr = (char *) input;
+        char *out_ptr = out;
+
+        size_t r = iconv(cd, &in_ptr, &inbytesleft, &out_ptr, &outbytesleft);
+
+        if (r == (size_t) -1) {
+            if (errno == E2BIG) {
+                out = embiggen(out, &out_size, 2 * out_size);
+            }
+            else {
+                return NULL;
+            }
+        }
+        else {
+            if (outbytesleft == 0) {
+                outbytesleft += out_size;
+                out = embiggen(out, &out_size, 2 * out_size);
+            }
+            break;
+        }
+    }
+
+    if (output_len != NULL) *output_len = out_size - outbytesleft;
+
+    return out;
 }
 
 #ifdef TEST
@@ -864,8 +966,9 @@ int main(void)
     make_sure_that(r == 75);
 
     make_sure_that(strncmp(sp,
-                "  000000  30 31 32 33 34 35 36 37 38 39 41 42 43 44 0A 0D 0123456789ABCD..\n",
-                r) == 0);
+                "  000000"
+                "  30 31 32 33 34 35 36 37 38 39 41 42 43 44 0A 0D"
+                " 0123456789ABCD..\n", r) == 0);
 
     tv.tv_sec  = 0;
     tv.tv_usec = 999999;
@@ -898,16 +1001,35 @@ int main(void)
         .tv_nsec = 123456789
     };
 
-    make_sure_that(strcmp(tsformat(&ts, NULL, "%Y-%m-%d/%H:%M:%S", 0),
+    make_sure_that(strcmp(
+                tsformat(&ts, NULL, "%Y-%m-%d/%H:%M:%S", 0),
                 "1970-01-01/13:00:00") == 0);
-    make_sure_that(strcmp(tsformat(&ts, "UTC", "%Y-%m-%d/%H:%M:%S", 1),
+
+    make_sure_that(strcmp(
+                tsformat(&ts, "UTC", "%Y-%m-%d/%H:%M:%S", 1),
                 "1970-01-01/12:00:00.1") == 0);
-    make_sure_that(strcmp(tsformat(&ts, "Europe/Amsterdam", "%Y-%m-%d/%H:%M:%S", 4),
+
+    make_sure_that(strcmp(
+                tsformat(&ts, "Europe/Amsterdam", "%Y-%m-%d/%H:%M:%S", 4),
                 "1970-01-01/13:00:00.1235") == 0);
-    make_sure_that(strcmp(tsformat(&ts, "America/New_York", "%Y-%m-%d/%H:%M:%S", 5),
+
+    make_sure_that(strcmp(
+                tsformat(&ts, "America/New_York", "%Y-%m-%d/%H:%M:%S", 5),
                 "1970-01-01/07:00:00.12346") == 0);
-    make_sure_that(strcmp(tsformat(&ts, "Asia/Shanghai", "%Y-%m-%d/%H:%M:%S", 9),
+
+    make_sure_that(strcmp(
+                tsformat(&ts, "Asia/Shanghai", "%Y-%m-%d/%H:%M:%S", 9),
                 "1970-01-01/20:00:00.123456789") == 0);
+
+    char *door_win = "T\xFCr";
+    char *door_utf = "T\xC3\xBCr";
+    iconv_t cd = iconv_open("UTF-8", "WINDOWS-1252");
+
+    size_t out_len;
+    const char *out = convert_charset(cd, door_win, strlen(door_win), &out_len);
+
+    make_sure_that(out_len == 4);
+    make_sure_that(memcmp(out, door_utf, strlen(door_utf)) == 0);
 
     return errors;
 }
