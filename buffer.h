@@ -8,7 +8,7 @@
  * buffer.h is part of libjvs.
  *
  * Copyright:   (c) 2007-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: buffer.h 394 2020-07-27 14:08:18Z jacco $
+ * Version:     $Id: buffer.h 415 2021-03-19 20:38:09Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -22,9 +22,9 @@ extern "C" {
 #include <stdarg.h>
 
 typedef struct {
-    char  *data;    /* Data contained in this buffer. */
-    size_t used;    /* The number of bytes in use (excluding a trailing null byte!). */
-    size_t size;    /* The number of bytes allocated. */
+    char  *data;    /* Pointer to buffer data. */
+    size_t used;    /* Bytes in use (excluding a trailing null byte!). */
+    size_t size;    /* Bytes allocated. */
 } Buffer;
 
 /*
