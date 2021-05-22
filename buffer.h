@@ -8,7 +8,7 @@
  * buffer.h is part of libjvs.
  *
  * Copyright:   (c) 2007-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: buffer.h 415 2021-03-19 20:38:09Z jacco $
+ * Version:     $Id: buffer.h 416 2021-05-22 13:38:27Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -20,6 +20,7 @@ extern "C" {
 
 #include <stdlib.h>
 #include <stdarg.h>
+#include <stdbool.h>
 
 typedef struct {
     char  *data;    /* Pointer to buffer data. */
@@ -83,14 +84,14 @@ Buffer *bufAdd(Buffer *buf, const void *data, size_t len);
 Buffer *bufAddC(Buffer *buf, char c);
 
 /*
- * Append a string to <buf>, formatted according to <fmt> and with the subsequent parameters
- * contained in <ap>.
+ * Append a string to <buf>, formatted according to <fmt> and with the
+ * subsequent parameters contained in <ap>.
  */
 Buffer *bufAddV(Buffer *buf, const char *fmt, va_list ap);
 
 /*
- * Append a string to <buf>, formatted according to <fmt> and the subsequent parameters.
- */
+ * Append a string to <buf>, formatted according to <fmt> and the subsequent
+ * parameters. */
 __attribute__((format (printf, 2, 3)))
 Buffer *bufAddF(Buffer *buf, const char *fmt, ...);
 
@@ -110,14 +111,15 @@ Buffer *bufSet(Buffer *buf, const void *data, size_t len);
 Buffer *bufSetC(Buffer *buf, char c);
 
 /*
- * Set <buf> to a string formatted according to <fmt> and the subsequent parameters.
+ * Set <buf> to a string formatted according to <fmt> and the subsequent
+ * parameters.
  */
 __attribute__((format (printf, 2, 3)))
 Buffer *bufSetF(Buffer *buf, const char *fmt, ...);
 
 /*
- * Replace <buf> with a string formatted according to <fmt> and the subsequent parameters contained
- * in <ap>.
+ * Replace <buf> with a string formatted according to <fmt> and the subsequent
+ * parameters contained in <ap>.
  */
 Buffer *bufSetV(Buffer *buf, const char *fmt, va_list ap);
 
@@ -127,9 +129,9 @@ Buffer *bufSetV(Buffer *buf, const char *fmt, va_list ap);
 Buffer *bufSetS(Buffer *buf, const char *str);
 
 /*
- * Get a pointer to the data from <buf>. Find the size of the returned data using bufLen(). Note
- * that this returns a direct pointer to the data in <buf>. You are not supposed to change it (hence
- * the const keyword).
+ * Get a pointer to the data from <buf>. Find the size of the returned data
+ * using bufLen(). Note that this returns a direct pointer to the data in
+ * <buf>. You are not supposed to change it (hence the const keyword).
  */
 const char *bufGet(const Buffer *buf);
 
@@ -160,8 +162,9 @@ Buffer *bufCat(Buffer *base, const Buffer *addition);
 Buffer *bufTrim(Buffer *buf, size_t left, size_t right);
 
 /*
- * Return -1, 1 or 0 if <left> is smaller than, greater than or equal to <right>, either in size, or
- * (when both have the same size) according to memcmp().
+ * Return -1, 1 or 0 if <left> is smaller than, greater than or equal to
+ * <right>, either in size, or (when both have the same size) according to
+ * memcmp().
  */
 int bufCompare(const Buffer *left, const Buffer *right);
 
@@ -190,14 +193,29 @@ Buffer *bufVaUnpack(Buffer *buf, va_list ap);
 Buffer *bufUnpack(Buffer *buf, ...);
 
 /*
- * This function assists in building textual lists of the form "Tom, Dick and Harry". Call it three
- * times with the arguments "Tom", "Dick" and "Harry". Set sep1 to ", " and sep2 to " and ". Set
- * is_first to TRUE when passing in "Tom", set is_last to TRUE when passing in "Harry", set them
- * both to FALSE for "Dick". Returns the same pointer to <buf> that was passed in.
+ * This function assists in building textual lists of the form "Tom, Dick and
+ * Harry". Call it three times with the arguments "Tom", "Dick" and "Harry".
+ * Set sep1 to ", " and sep2 to " and ". Set is_first to TRUE when passing in
+ * "Tom", set is_last to TRUE when passing in "Harry", set them both to FALSE
+ * for "Dick". Returns the same pointer to <buf> that was passed in.
  */
 __attribute__((format (printf, 6, 7)))
 Buffer *bufList(Buffer *buf, const char *sep1, const char *sep2,
         int is_first, int is_last, const char *fmt, ...);
+
+/*
+ * Return true if <buf> starts with the text created by <fmt> and the
+ * subsequent parameters, otherwise false.
+ */
+__attribute__((format (printf, 2, 3)))
+bool bufStartsWith(const Buffer *buf, const char *fmt, ...);
+
+/*
+ * Return true if <buf> ends with the text created by <fmt> and the
+ * subsequent parameters, otherwise false.
+ */
+__attribute__((format (printf, 2, 3)))
+bool bufEndsWith(const Buffer *buf, const char *fmt, ...);
 
 #ifdef __cplusplus
 }

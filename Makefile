@@ -22,7 +22,8 @@ LIBJVS_TEST = $(subst .c,.test,$(shell grep -l '^\#ifdef TEST' $(LIBJVS_SRC)))
 
 OPT = -Og
 PROF = # -pg
-CFLAGS = -std=gnu99 -g -fPIC -Wall -Wextra -Werror -pedantic $(OPT) $(PROF) # -DPARANOID
+CFLAGS = -std=gnu99 -D_GNU_SOURCE -g -fPIC -Wall -Wextra -Werror -pedantic \
+         $(OPT) $(PROF) # -DPARANOID
 
 all: libjvs.a libjvs.so # tags
 

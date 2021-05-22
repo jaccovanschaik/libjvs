@@ -5,7 +5,7 @@
  * buffer.c is part of libjvs.
  *
  * Copyright:   (c) 2007-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: buffer.c 415 2021-03-19 20:38:09Z jacco $
+ * Version:     $Id: buffer.c 416 2021-05-22 13:38:27Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -17,6 +17,7 @@
 #include <stdarg.h>
 #include <string.h>
 #include <assert.h>
+#include <stdbool.h>
 
 #include "buffer.h"
 #include "utils.h"
@@ -475,6 +476,48 @@ Buffer *bufList(Buffer *buf, const char *sep1, const char *sep2,
     return buf;
 }
 
+/*
+ * Return true if <buf> starts with the text created by <fmt> and the
+ * subsequent parameters, otherwise false.
+ */
+__attribute__((format (printf, 2, 3)))
+bool bufStartsWith(const Buffer *buf, const char *fmt, ...)
+{
+    va_list ap;
+    char *pat;
+
+    va_start(ap, fmt);
+    vasprintf(&pat, fmt, ap);
+    va_end(ap);
+
+    bool r = strncmp(bufGet(buf), pat, strlen(pat));
+
+    free(pat);
+
+    return r == 0;
+}
+
+/*
+ * Return true if <buf> ends with the text created by <fmt> and the
+ * subsequent parameters, otherwise false.
+ */
+__attribute__((format (printf, 2, 3)))
+bool bufEndsWith(const Buffer *buf, const char *fmt, ...)
+{
+    va_list ap;
+    char *pat;
+
+    va_start(ap, fmt);
+    vasprintf(&pat, fmt, ap);
+    va_end(ap);
+
+    bool r = strcmp(bufGet(buf) + bufLen(buf) - strlen(pat), pat);
+
+    free(pat);
+
+    return r == 0;
+}
+
 #ifdef TEST
 static int errors = 0;
 
@@ -710,6 +753,36 @@ int main(void)
 
     bufClear(&buf1);
     bufClear(&buf2);
+
+    // ** bufStartsWith, bufEndsWith
+
+    bufSetS(&buf1, "abcdef");
+
+    make_sure_that(bufStartsWith(&buf1, "abc") == true);
+    make_sure_that(bufStartsWith(&buf1, "def") == false);
+    make_sure_that(bufEndsWith(&buf1, "def") == true);
+    make_sure_that(bufEndsWith(&buf1, "abc") == false);
+
+    make_sure_that(bufStartsWith(&buf1, "%s", "abc") == true);
+    make_sure_that(bufStartsWith(&buf1, "%s", "def") == false);
+    make_sure_that(bufEndsWith(&buf1, "%s", "def") == true);
+    make_sure_that(bufEndsWith(&buf1, "%s", "abc") == false);
+
+    bufClear(&buf1);
+
+    bufSetS(&buf1, "123456789");
+
+    make_sure_that(bufStartsWith(&buf1, "123") == true);
+    make_sure_that(bufStartsWith(&buf1, "789") == false);
+    make_sure_that(bufEndsWith(&buf1, "789") == true);
+    make_sure_that(bufEndsWith(&buf1, "123") == false);
+
+    make_sure_that(bufStartsWith(&buf1, "%d", 123) == true);
+    make_sure_that(bufStartsWith(&buf1, "%d", 789) == false);
+    make_sure_that(bufEndsWith(&buf1, "%d", 789) == true);
+    make_sure_that(bufEndsWith(&buf1, "%d", 123) == false);
+
+    bufClear(&buf1);
 
     return errors;
 }
