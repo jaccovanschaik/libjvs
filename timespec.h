@@ -2,7 +2,7 @@
 #define TIME_H
 
 /*
- * timespec.h: XXX
+ * timespec.h: calculations with struct timespec's.
  *
  * Copyright: (c) 2020 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2020-10-22
