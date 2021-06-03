@@ -3,7 +3,7 @@
  *
  * Copyright: (c) 2020 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2020-09-08
- * Version:   $Id: path.c 400 2020-09-08 15:02:08Z jacco $
+ * Version:   $Id: path.c 418 2021-06-03 19:06:07Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -15,6 +15,7 @@
 
 #include <stdio.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <dirent.h>
 #include <string.h>
 #include <errno.h>
@@ -102,10 +103,23 @@ void pathAdd(Path *path, const char *addition)
 
         if ((dir = opendir(bufGet(&dirname))) == NULL) continue;
 
-        while ((entry = readdir(dir)) != NULL) {
-            if (entry->d_type != DT_REG && entry->d_type != DT_LNK) continue;
+        int dir_fd = dirfd(dir);
 
-            path_add_file(path, bufGet(&dirname), entry->d_name);
+        while ((entry = readdir(dir)) != NULL) {
+            if (entry->d_type == DT_UNKNOWN) {
+                struct stat statbuf;
+
+                fstatat(dir_fd, entry->d_name, &statbuf, 0);
+
+                int type = statbuf.st_mode & S_IFMT;
+
+                if (type == S_IFREG || type == S_IFLNK) {
+                    path_add_file(path, bufGet(&dirname), entry->d_name);
+                }
+            }
+            else if (entry->d_type == DT_REG || entry->d_type == DT_LNK) {
+                path_add_file(path, bufGet(&dirname), entry->d_name);
+            }
         }
 
         closedir(dir);
