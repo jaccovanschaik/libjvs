@@ -2,11 +2,19 @@
 #define PATH_H
 
 /*
- * path.h: XXX
+ * path.h: Find files in paths.
+ *
+ * Allows you to look up a file in one of the directories of a search path,
+ * like a shell would do. Unlike a shell, this finds all regular files and
+ * symbolic links, not just the executable ones. Uses a search tree to quickly
+ * find the file.
+ *
+ * Note that the search tree is built when you call pathCreate and pathAdd, so
+ * a file created anywhere in the search path after that will not be found.
  *
  * Copyright: (c) 2020 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2020-09-08
- * Version:   $Id: path.h 400 2020-09-08 15:02:08Z jacco $
+ * Version:   $Id: path.h 419 2021-06-06 11:13:46Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -23,7 +31,7 @@ typedef struct {
 
 /*
  * Create a path, using <initial> as its initial value. <initial> will be
- * handled as described in pathAdd() below. In addition, it may also be NULL.
+ * handled as described in pathAdd() below, but here it may also be NULL.
  */
 Path *pathCreate(const char *initial);
 

@@ -1,9 +1,17 @@
 /*
- * path.c: XXX
+ * path.c: Find files in paths.
+ *
+ * Allows you to look up a file in one of the directories of a search path,
+ * like a shell would do. Unlike a shell, this finds all regular files and
+ * symbolic links, not just the executable ones. Uses a search tree to quickly
+ * find the file.
+ *
+ * Note that the search tree is built when you call pathCreate and pathAdd, so
+ * a file created anywhere in the search path after that will not be found.
  *
  * Copyright: (c) 2020 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2020-09-08
- * Version:   $Id: path.c 418 2021-06-03 19:06:07Z jacco $
+ * Version:   $Id: path.c 419 2021-06-06 11:13:46Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -12,6 +20,7 @@
 #include "path.h"
 #include "buffer.h"
 #include "defs.h"
+#include "debug.h"
 
 #include <stdio.h>
 #include <sys/types.h>
@@ -66,7 +75,7 @@ static void path_add_file(Path *path, const char *dirname, const char *filename)
 
 /*
  * Create a path, using <initial> as its initial value. <initial> will be
- * handled as described in pathAdd() below. In addition, it may also be NULL.
+ * handled as described in pathAdd() below, but here it may also be NULL.
  */
 Path *pathCreate(const char *initial)
 {
@@ -84,6 +93,8 @@ Path *pathCreate(const char *initial)
  */
 void pathAdd(Path *path, const char *addition)
 {
+    dbgAssert(stderr, addition != NULL, "<addition> may not be NULL");
+
     Buffer dirname = { 0 };
 
     const char *end = addition - 1;
