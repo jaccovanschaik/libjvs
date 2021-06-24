@@ -28,7 +28,7 @@
  *
  * Copyright: (c) 2019-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2019-07-29
- * Version:   $Id: log.c 416 2021-05-22 13:38:27Z jacco $
+ * Version:   $Id: log.c 420 2021-06-24 13:28:36Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -138,7 +138,7 @@ static void log_get_time(struct timespec *ts)
 {
 #ifdef TEST
     ts->tv_sec  = 12 * 3600 + 34 * 60 + 56;
-    ts->tv_nsec = 123456789;
+    ts->tv_nsec = 987654321;
 #else
     clock_gettime(CLOCK_REALTIME, ts);
 #endif
@@ -146,11 +146,10 @@ static void log_get_time(struct timespec *ts)
 
 /*
  * Add the timestamp data in <tm> and <ts> to <buf>, using the
- * strftime-compatible format string in <fmt>. This function supports an
- * additional format specifier "%<n>N" which is replaced with <n> sub-second
- * digits (i.e. 2 gives hundredths, 3 gives thousands, 6 gives millionths etc.)
- * %N is a specifier in the date command where it gives nanoseconds. The number
- * of digits can be 0 to 9. The default, if no <n> is given is 9.
+ * strftime-compatible format string in <fmt>. This function also supports an
+ * additional digit (and only one digit) in the %S specifier, which gives the
+ * number of sub-second digits to follow the decimal point. "%0S" gives the same
+ * output as "%S": only the seconds without a decimal point.
  */
 static void log_add_time(Buffer *buf, struct tm *tm, struct timespec *ts, const char *fmt)
 {
@@ -160,29 +159,29 @@ static void log_add_time(Buffer *buf, struct tm *tm, struct timespec *ts, const 
     regmatch_t pmatch[nmatch];
 
     int precision;
-    double remainder = (double) ts->tv_nsec / 1000000000.0;
-    char rem_string[12]; // "0.123456789\0"
+    char sec_string[12]; // "0.987654321\0"
 
     char *new_str = NULL;
     char *cur_str = strdup(fmt);
 
     if (regex == NULL) {
         regex = calloc(1, sizeof(*regex));
-        regcomp(regex, "%([+-]?[0-9]*)N", REG_EXTENDED);
+        regcomp(regex, "%([0-9])S", REG_EXTENDED);
     }
 
     while (regexec(regex, cur_str, nmatch, pmatch, 0) == 0) {
-        if (sscanf(cur_str + pmatch[1].rm_so, "%d", &precision) == 0) {
-            precision = 9;
-        }
-        else {
-            precision = CLAMP(precision, 0, 9);
-        }
+        sscanf(cur_str + pmatch[1].rm_so, "%d", &precision);
 
-        snprintf(rem_string, sizeof(rem_string), "%0*.*f", 2 + precision, precision, remainder);
+        int field_width = precision == 0 ? 2 : 3 + precision;
+
+        snprintf(sec_string, sizeof(sec_string), "%0*.*f",
+                field_width, precision,
+                tm->tm_sec + ts->tv_nsec / 1000000000.0);
 
         if (asprintf(&new_str, "%.*s%s%s",
-                pmatch[0].rm_so, cur_str, rem_string + 2, cur_str + pmatch[0].rm_eo) == -1) {
+                pmatch[0].rm_so, cur_str,
+                sec_string,
+                cur_str + pmatch[0].rm_eo) == -1) {
             break;
         }
 
@@ -326,7 +325,8 @@ static LogWriter *log_find_file_writer(const char *filename)
     LogWriter *writer;
 
     for (writer = listHead(&log_writers); writer; writer = listNext(writer)) {
-        if (writer->type == LOG_OT_FILE && strcmp(writer->file, filename) == 0) break;
+        if (writer->type == LOG_OT_FILE &&
+            strcmp(writer->file, filename) == 0) break;
     }
 
     return writer;
@@ -753,10 +753,11 @@ LogWriter *logBufferWriter(Buffer *buf)
 
 /*
  * Prefix log messages to <writer> with the local time, formatted using the
- * strftime-compatible format <fmt>. <fmt> supports an additional format
- * specifier "%<n>N" which is replaced with <n> sub-second digits (i.e. 2 gives
- * hundredths, 3 gives thousands, 6 gives millionths etc.) The number of digits
- * can be 0 to 9. If <n> is not given, the default is 9.
+ * strftime-compatible format <fmt>. <fmt> supports an additional digit in the
+ * %S specifier (i.e. "%<n>S") where <n> is the number of sub-second digits to
+ * add after the decimal point. If <n> is left out altogether, the result is
+ * identical to the usual "%S" specifier, where the current seconds value is
+ * shown. If <n> is 0, the seconds value is rounded to the nearest whole second.
  */
 void logWithLocalTime(LogWriter *writer, const char *fmt)
 {
@@ -767,10 +768,11 @@ void logWithLocalTime(LogWriter *writer, const char *fmt)
 
 /*
  * Prefix log messages to <writer> with the UTC time, formatted using the
- * strftime-compatible format <fmt>. <fmt> supports an additional format
- * specifier "%<n>N" which is replaced with <n> sub-second digits (i.e. 2 gives
- * hundredths, 3 gives thousands, 6 gives millionths etc.) The number of digits
- * can be 0 to 9. If <n> is not given, the default is 9.
+ * strftime-compatible format <fmt>. <fmt> supports an additional digit in the
+ * %S specifier (i.e. "%<n>S") where <n> is the number of sub-second digits to
+ * add after the decimal point. If <n> is left out altogether, the result is
+ * identical to the usual "%S" specifier, where the current seconds value is
+ * shown. If <n> is 0, the seconds value is rounded to the nearest whole second.
  */
 void logWithUniversalTime(LogWriter *writer, const char *fmt)
 {
@@ -992,6 +994,31 @@ void logReset(void)
 
 static int errors = 0;
 
+#define check_string(s1, s2) _check_string(__FILE__, __LINE__, s1, s2);
+
+/*
+ * Check that strings <s1> and <s2> are identical. Complain and return 1 if
+ * they're not, otherwise return 0.
+ */
+static int _check_string(const char *file, int line,
+        const char *s1, const char *s2)
+{
+    if (strcmp(s1, s2) != 0) {
+        fprintf(stderr, "%s:%d: String does not match expectation.\n",
+                file, line);
+        fprintf(stderr, "Expected:\n");
+        fprintf(stderr, "<%s>\n", s1);
+        fprintf(stderr, "Actual:\n");
+        fprintf(stderr, "<%s>\n", s2);
+
+        errors++;
+
+        return 1;
+    }
+
+    return 0;
+}
+
 /*
  * Test the extended time format.
  */
@@ -1008,57 +1035,36 @@ static int test_time_format(void)
 
     // Check a general string with some standard strftime specifiers.
 
-    log_add_time(&buf, &tm_local, &ts, "%Y-%m-%d %H:%M:%S.%3N: bladibla");
-    make_sure_that(strcmp(bufGet(&buf), "1970-01-01 12:34:56.123: bladibla") == 0);
+    log_add_time(&buf, &tm_local, &ts, "%Y-%m-%d %H:%M:%3S: bladibla");
+    check_string(bufGet(&buf), "1970-01-01 12:34:56.988: bladibla");
 
     bufClear(&buf);
 
     // Check rounding
 
-    log_add_time(&buf, &tm_local, &ts, "%6N");
-    make_sure_that(strcmp(bufGet(&buf), "123457") == 0);
+    log_add_time(&buf, &tm_local, &ts, "%6S");
+    check_string(bufGet(&buf), "56.987654");
+
+    bufClear(&buf);
+
+    // Check default format
+
+    log_add_time(&buf, &tm_local, &ts, "%S");
+    check_string(bufGet(&buf), "56");
 
     bufClear(&buf);
 
     // Check no digits at all
 
-    log_add_time(&buf, &tm_local, &ts, "%0N");
-    make_sure_that(strcmp(bufGet(&buf), "") == 0);
-
-    bufClear(&buf);
-
-    // Check too great precision
-
-    log_add_time(&buf, &tm_local, &ts, "%12N");
-    make_sure_that(strcmp(bufGet(&buf), "123456789") == 0);
-
-    bufClear(&buf);
-
-    // Check default precision
-
-    log_add_time(&buf, &tm_local, &ts, "%N");
-    make_sure_that(strcmp(bufGet(&buf), "123456789") == 0);
+    log_add_time(&buf, &tm_local, &ts, "%0S");
+    check_string(bufGet(&buf), "57");
 
     bufClear(&buf);
 
     // Check multiple specifiers
 
-    log_add_time(&buf, &tm_local, &ts, "%3N/%6N");
-    make_sure_that(strcmp(bufGet(&buf), "123/123457") == 0);
-
-    bufClear(&buf);
-
-    // Check that negative digit counts are handled as 0.
-
-    log_add_time(&buf, &tm_local, &ts, "%-3N");
-    make_sure_that(strcmp(bufGet(&buf), "") == 0);
-
-    bufClear(&buf);
-
-    // Check that positive digit counts are accepted.
-
-    log_add_time(&buf, &tm_local, &ts, "%+3N");
-    make_sure_that(strcmp(bufGet(&buf), "123") == 0);
+    log_add_time(&buf, &tm_local, &ts, "%3S/%6S");
+    check_string(bufGet(&buf), "56.988/56.987654");
 
     bufClear(&buf);
 
@@ -1078,7 +1084,8 @@ static int check_file(const char *filename, const char *text)
     int fd = open(filename, O_RDONLY);
 
     if (fd == -1) {
-        fprintf(stderr, "Could not open file \"%s\" for comparison.\n", filename);
+        fprintf(stderr,
+                "Could not open file \"%s\" for comparison.\n", filename);
         return 1;
     }
 
@@ -1089,7 +1096,8 @@ static int check_file(const char *filename, const char *text)
     char *content = calloc(1, statbuf.st_size + 1);
 
     if (read(fd, content, statbuf.st_size) != statbuf.st_size) {
-        fprintf(stderr, "Could not read file \"%s\" for comparison.\n", filename);
+        fprintf(stderr,
+                "Could not read file \"%s\" for comparison.\n", filename);
         return 1;
     }
 
@@ -1106,25 +1114,6 @@ static int check_file(const char *filename, const char *text)
     free(content);
 
     return r == 0 ? 0 : 1;
-}
-
-/*
- * Check that strings <s1> and <s2> are identical. Complain and return 1 if they're not, otherwise
- * return 0.
- */
-static int check_string(const char *s1, const char *s2)
-{
-    if (strcmp(s1, s2) != 0) {
-        fprintf(stderr, "String does not match expectation.\n");
-        fprintf(stderr, "Expected:\n");
-        fputs(s1, stderr);
-        fprintf(stderr, "Actual:\n");
-        fputs(s2, stderr);
-
-        return 1;
-    }
-
-    return 0;
 }
 
 int main(void)
@@ -1148,7 +1137,7 @@ int main(void)
     }
 
     // Set some attributes for this writer...
-    logWithUniversalTime(file_writer, "%Y-%m-%d/%H:%M:%S.%6N");
+    logWithUniversalTime(file_writer, "%Y-%m-%d/%H:%M:%6S");
     logWithString(file_writer, " FILE ");
     logWithFunction(file_writer);
     logWithString(file_writer, "@");
@@ -1164,7 +1153,8 @@ int main(void)
 
     // Check that the correct entry was made in the log file.
     errors += check_file(FILE_WRITER_TEST_FILE,
-            "1970-01-01/12:34:56.123457 FILE func@log.c:1 This is an error.\n");
+            "1970-01-01/12:34:56.987654 FILE func@log.c:1 "
+            "This is an error.\n");
 
     // Open a file, and create a writer to the associated FILE pointer.
     if ((fp = fopen(FP_WRITER_TEST_FILE, "w")) == NULL) {
@@ -1179,7 +1169,7 @@ int main(void)
     }
 
     // Attributes...
-    logWithUniversalTime(fp_writer, "%Y-%m-%d/%H:%M:%S.%6N");
+    logWithUniversalTime(fp_writer, "%Y-%m-%d/%H:%M:%6S");
     logWithString(fp_writer, "\tFP\t");
     logWithFunction(fp_writer);
     logWithString(fp_writer, "@");
@@ -1197,10 +1187,12 @@ int main(void)
     // Make sure the correct message was written, and that the earlier log file
     // hasn't changed.
     errors += check_file(FP_WRITER_TEST_FILE,
-            "1970-01-01/12:34:56.123457\tFP\tfunc@log.c:2\tThis is an info message.\n");
+            "1970-01-01/12:34:56.987654\tFP\tfunc@log.c:2\t"
+            "This is an info message.\n");
 
     errors += check_file(FILE_WRITER_TEST_FILE,
-            "1970-01-01/12:34:56.123457 FILE func@log.c:1 This is an error.\n");
+            "1970-01-01/12:34:56.987654 FILE func@log.c:1 "
+            "This is an error.\n");
 
     // Same thing for a writer to a file descriptor.
     if ((fd = creat(FD_WRITER_TEST_FILE, 0666)) == -1) {
@@ -1214,7 +1206,7 @@ int main(void)
         goto quit;
     }
 
-    logWithUniversalTime(fd_writer, "%Y-%m-%d/%H:%M:%S.%6N");
+    logWithUniversalTime(fd_writer, "%Y-%m-%d/%H:%M:%6S");
     logWithString(fd_writer, ",FD,");
     logWithFunction(fd_writer);
     logWithString(fd_writer, "@");
@@ -1229,13 +1221,16 @@ int main(void)
 
     // Again, check the log file we just made and the earlier ones.
     errors += check_file(FD_WRITER_TEST_FILE,
-            "1970-01-01/12:34:56.123457,FD,func@log.c:3,This is a debug message.\n");
+            "1970-01-01/12:34:56.987654,FD,func@log.c:3,"
+            "This is a debug message.\n");
 
     errors += check_file(FP_WRITER_TEST_FILE,
-            "1970-01-01/12:34:56.123457\tFP\tfunc@log.c:2\tThis is an info message.\n");
+            "1970-01-01/12:34:56.987654\tFP\tfunc@log.c:2\t"
+            "This is an info message.\n");
 
     errors += check_file(FILE_WRITER_TEST_FILE,
-            "1970-01-01/12:34:56.123457 FILE func@log.c:1 This is an error.\n");
+            "1970-01-01/12:34:56.987654 FILE func@log.c:1 "
+            "This is an error.\n");
 
     // Finally create a writer to a Buffer.
     Buffer log_buffer = { 0 };
@@ -1262,15 +1257,19 @@ int main(void)
 
     // And also in the FD writer.
     errors += check_file(FD_WRITER_TEST_FILE,
-            "1970-01-01/12:34:56.123457,FD,func@log.c:3,This is a debug message.\n"
-            "1970-01-01/12:34:56.123457,FD,func@log.c:4,This is another debug message.\n");
+            "1970-01-01/12:34:56.987654,FD,func@log.c:3,"
+            "This is a debug message.\n"
+            "1970-01-01/12:34:56.987654,FD,func@log.c:4,"
+            "This is another debug message.\n");
 
     // And make sure the others haven't changed.
     errors += check_file(FP_WRITER_TEST_FILE,
-            "1970-01-01/12:34:56.123457\tFP\tfunc@log.c:2\tThis is an info message.\n");
+            "1970-01-01/12:34:56.987654\tFP\tfunc@log.c:2\t"
+            "This is an info message.\n");
 
     errors += check_file(FILE_WRITER_TEST_FILE,
-            "1970-01-01/12:34:56.123457 FILE func@log.c:1 This is an error.\n");
+            "1970-01-01/12:34:56.987654 FILE func@log.c:1 "
+            "This is an error.\n");
 
 quit:
     logReset();
