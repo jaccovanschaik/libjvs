@@ -28,7 +28,7 @@
  *
  * Copyright: (c) 2019-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2019-07-29
- * Version:   $Id: log.c 420 2021-06-24 13:28:36Z jacco $
+ * Version:   $Id: log.c 421 2021-06-24 20:08:08Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -151,7 +151,8 @@ static void log_get_time(struct timespec *ts)
  * number of sub-second digits to follow the decimal point. "%0S" gives the same
  * output as "%S": only the seconds without a decimal point.
  */
-static void log_add_time(Buffer *buf, struct tm *tm, struct timespec *ts, const char *fmt)
+static void log_add_time(Buffer *buf,
+        struct tm *tm, struct timespec *ts, const char *fmt)
 {
     static regex_t *regex = NULL;
 
@@ -713,7 +714,8 @@ LogWriter *logUDPWriter(const char *host, uint16_t port)
  * Get a log writer that sends log messages to syslog, using the given
  * parameters. See "man 3 syslog" for more information on them.
  */
-LogWriter *logSyslogWriter(const char *ident, int option, int facility, int priority)
+LogWriter *logSyslogWriter(const char *ident, int option,
+        int facility, int priority)
 {
     return log_add_syslog_writer(ident, option, facility, priority);
 }
@@ -722,7 +724,8 @@ LogWriter *logSyslogWriter(const char *ident, int option, int facility, int prio
  * Get a log writer that calls <handler> for every log message, passing in the
  * message as <msg> and the same <udata> that was given here.
  */
-LogWriter *logFunctionWriter(void (*handler)(const char *msg, void *udata), void *udata)
+LogWriter *logFunctionWriter(void (*handler)(const char *msg, void *udata),
+        void *udata)
 {
     LogWriter *writer;
 
@@ -867,14 +870,16 @@ void logConnect(uint64_t channels, LogWriter *writer)
 
 /*
  * Write a log message to <channels>, defined by the printf-compatible
- * format string <fmt> and the subsequent parameters. If necessary, <file>,
- * <line> and <func> will be used to fill the appropriate prefixes.
+ * format string <fmt> and the subsequent parameters. If <with_prefixes> is
+ * true, the message will be preceded by the requested prefixes. <file>,
+ * <line> and <func> will be used to fill the appropriate prefixes, if
+ * necessary.
  *
  * Call this function through the logWrite macro, which will fill in <file>,
  * <line> and <func> for you.
  */
-__attribute__((format (printf, 5, 6)))
-void _logWrite(uint64_t channels,
+__attribute__((format (printf, 6, 7)))
+void _logWrite(uint64_t channels, bool with_prefixes,
         const char *file, int line, const char *func,
         const char *fmt, ...)
 {
@@ -882,11 +887,12 @@ void _logWrite(uint64_t channels,
 
     for (int i = 0; i < max_channels; i++) {
         LogChannel *chan;
+        LogWriterRef *ref;
 
-        if (((1ULL << i) & channels) == 0     ||    // Don't want to write to this channel
+        if (((1ULL << i) & channels) == 0     ||    // Don't want to write here
             !(chan = paGet(&log_channels, i)) ||    // Don't know this channel
-            listIsEmpty(&chan->writer_refs))        // Channel is unconnected (shouldn't happen)
-            continue;
+            listIsEmpty(&chan->writer_refs))        // Channel is unconnected
+            continue;                               // (shouldn't happen)
 
         // Only build the message if we have to...
 
@@ -902,59 +908,24 @@ void _logWrite(uint64_t channels,
 
         // Send the message out to all connected writers.
 
-        for (LogWriterRef *ref = listHead(&chan->writer_refs); ref; ref = listNext(ref)) {
+        for (ref = listHead(&chan->writer_refs); ref; ref = listNext(ref)) {
             LogWriter *writer = ref->writer;
 
-            Buffer str = { 0 };
+            if (with_prefixes) {
+                Buffer str = { 0 };
 
-            log_add_prefixes(&writer->prefixes, &str, writer->separator, file, line, func);
+                log_add_prefixes(&writer->prefixes, &str, writer->separator,
+                        file, line, func);
 
-            bufAdd(&str, bufGet(msg), bufLen(msg));
+                bufAdd(&str, bufGet(msg), bufLen(msg));
 
-            log_write(writer, bufGet(&str));
+                log_write(writer, bufGet(&str));
 
-            bufClear(&str);
-        }
-    }
-
-    if (msg) bufDestroy(msg);
-}
-
-/*
- * Continue a previous log message using the printf-compatible format string
- * <fmt> and the subsequent parameters.
- */
-__attribute__((format (printf, 2, 3)))
-void logContinue(uint64_t channels, const char *fmt, ...)
-{
-    Buffer *msg = NULL;
-
-    for (int i = 0; i < max_channels; i++) {
-        LogChannel *chan;
-
-        if (((1ULL << i) & channels) == 0     ||    // Don't want to write to this channel
-            !(chan = paGet(&log_channels, i)) ||    // Don't know this channel
-            listIsEmpty(&chan->writer_refs))        // Channel is unconnected (shouldn't happen)
-            continue;
-
-        // Only build the message if we have to...
-
-        if (msg == NULL) {
-            msg = bufCreate();
-
-            va_list ap;
-
-            va_start(ap, fmt);
-            bufAddV(msg, fmt, ap);
-            va_end(ap);
-        }
-
-        // Send the message out to all connected writers.
-
-        for (LogWriterRef *ref = listHead(&chan->writer_refs); ref; ref = listNext(ref)) {
-            LogWriter *writer = ref->writer;
-
-            log_write(writer, bufGet(msg));
+                bufClear(&str);
+            }
+            else {
+                log_write(writer, bufGet(msg));
+            }
         }
     }
 
@@ -1149,7 +1120,7 @@ int main(void)
     logConnect(CH_ERR, file_writer);
 
     // And write a log message to CH_ERR.
-    _logWrite(CH_ERR, "log.c", 1, "func", "This is an error.\n");
+    _logWrite(CH_ERR, true, "log.c", 1, "func", "This is an error.\n");
 
     // Check that the correct entry was made in the log file.
     errors += check_file(FILE_WRITER_TEST_FILE,
@@ -1182,7 +1153,7 @@ int main(void)
     logConnect(CH_INFO, fp_writer);
 
     // And write a message.
-    _logWrite(CH_INFO, "log.c", 2, "func", "This is an info message.\n");
+    _logWrite(CH_INFO, true, "log.c", 2, "func", "This is an info message.\n");
 
     // Make sure the correct message was written, and that the earlier log file
     // hasn't changed.
@@ -1217,7 +1188,7 @@ int main(void)
 
     logConnect(CH_DEBUG, fd_writer);
 
-    _logWrite(CH_DEBUG, "log.c", 3, "func", "This is a debug message.\n");
+    _logWrite(CH_DEBUG, true, "log.c", 3, "func", "This is a debug message.\n");
 
     // Again, check the log file we just made and the earlier ones.
     errors += check_file(FD_WRITER_TEST_FILE,
@@ -1249,7 +1220,8 @@ int main(void)
     logConnect(CH_DEBUG, buf_writer);
 
     // Write a message to CH_DEBUG...
-    _logWrite(CH_DEBUG, "log.c", 4, "func", "This is another debug message.\n");
+    _logWrite(CH_DEBUG, true, "log.c", 4, "func",
+            "This is another debug message.\n");
 
     // Make sure it ended up in the log buffer...
     errors += check_string(bufGet(&log_buffer),

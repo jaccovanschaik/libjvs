@@ -31,7 +31,7 @@
  *
  * Copyright: (c) 2019-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2019-07-29
- * Version:   $Id: log.h 375 2019-11-12 13:26:08Z jacco $
+ * Version:   $Id: log.h 421 2021-06-24 20:08:08Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -63,10 +63,22 @@ enum {
     CH_DEBUG   = 1 << LOG_DEBUG,    /* debug-level messages */
 };
 
-#define logWrite(channels, ...) \
-    _logWrite(channels, __FILE__, __LINE__, __func__, __VA_ARGS__)
-
 typedef struct LogWriter LogWriter;
+
+/*
+ * Write a log message to <channels>, defined by the printf-compatible
+ * format string <fmt> and the subsequent parameters. If necessary, <file>,
+ * <line> and <func> will be used to fill the appropriate prefixes.
+ */
+#define logWrite(channels, ...) \
+    _logWrite(channels, true, __FILE__, __LINE__, __func__, __VA_ARGS__)
+
+/*
+ * Continue a previous log message using the printf-compatible format string
+ * <fmt> and the subsequent parameters.
+ */
+#define logContinue(channels, ...) \
+    _logWrite(channels, false, __FILE__, __LINE__, __func__, __VA_ARGS__)
 
 /*
  * Get a log writer that writes to the file whose name is given by <fmt> and the
@@ -99,13 +111,15 @@ LogWriter *logUDPWriter(const char *host, uint16_t port);
  * Get a log writer that sends log messages to syslog, using the given
  * parameters. See "man 3 syslog" for more information on them.
  */
-LogWriter *logSyslogWriter(const char *ident, int option, int facility, int priority);
+LogWriter *logSyslogWriter(const char *ident, int option,
+        int facility, int priority);
 
 /*
  * Get a log writer that calls <handler> for every log message, passing in the
  * message as <msg> and the same <udata> that was given here.
  */
-LogWriter *logFunctionWriter(void (*handler)(const char *msg, void *udata), void *udata);
+LogWriter *logFunctionWriter(void (*handler)(const char *msg, void *udata),
+        void *udata);
 
 /*
  * Get a log writer that writes into Buffer <buf>.
@@ -114,19 +128,21 @@ LogWriter *logBufferWriter(Buffer *buf);
 
 /*
  * Prefix log messages to <writer> with the local time, formatted using the
- * strftime-compatible format <fmt>. <fmt> supports an additional format
- * specifier "%<n>N" which is replaced with <n> sub-second digits (i.e. 2 gives
- * hundredths, 3 gives thousands, 6 gives millionths etc.) The number of digits
- * can be 0 to 9. If <n> is not given, the default is 9.
+ * strftime-compatible format <fmt>. <fmt> supports an additional digit in the
+ * %S specifier (i.e. "%<n>S") where <n> is the number of sub-second digits to
+ * add after the decimal point. If <n> is left out altogether, the result is
+ * identical to the usual "%S" specifier, where the current seconds value is
+ * shown. If <n> is 0, the seconds value is rounded to the nearest whole second.
  */
 void logWithLocalTime(LogWriter *writer, const char *fmt);
 
 /*
  * Prefix log messages to <writer> with the UTC time, formatted using the
- * strftime-compatible format <fmt>. <fmt> supports an additional format
- * specifier "%<n>N" which is replaced with <n> sub-second digits (i.e. 2 gives
- * hundredths, 3 gives thousands, 6 gives millionths etc.) The number of digits
- * can be 0 to 9. If <n> is not given, the default is 9.
+ * strftime-compatible format <fmt>. <fmt> supports an additional digit in the
+ * %S specifier (i.e. "%<n>S") where <n> is the number of sub-second digits to
+ * add after the decimal point. If <n> is left out altogether, the result is
+ * identical to the usual "%S" specifier, where the current seconds value is
+ * shown. If <n> is 0, the seconds value is rounded to the nearest whole second.
  */
 void logWithUniversalTime(LogWriter *writer, const char *fmt);
 
@@ -170,23 +186,18 @@ void logConnect(uint64_t channels, LogWriter *writer);
 
 /*
  * Write a log message to <channels>, defined by the printf-compatible
- * format string <fmt> and the subsequent parameters. If necessary, <file>,
- * <line> and <func> will be used to fill the appropriate prefixes.
+ * format string <fmt> and the subsequent parameters. If <with_prefixes> is
+ * true, the message will be preceded by the requested prefixes. <file>,
+ * <line> and <func> will be used to fill the appropriate prefixes, if
+ * necessary.
  *
  * Call this function through the logWrite macro, which will fill in <file>,
  * <line> and <func> for you.
  */
-__attribute__((format (printf, 5, 6)))
-void _logWrite(uint64_t channels,
+__attribute__((format (printf, 6, 7)))
+void _logWrite(uint64_t channels, bool with_prefixes,
         const char *file, int line, const char *func,
         const char *fmt, ...);
-
-/*
- * Continue a previous log message using the printf-compatible format string
- * <fmt> and the subsequent parameters.
- */
-__attribute__((format (printf, 2, 3)))
-void logContinue(uint64_t channels, const char *fmt, ...);
 
 /*
  * Reset all logging. Disconnects all channels and deletes all writers.
