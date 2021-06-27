@@ -5,7 +5,7 @@
  * buffer.c is part of libjvs.
  *
  * Copyright:   (c) 2007-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: buffer.c 416 2021-05-22 13:38:27Z jacco $
+ * Version:     $Id: buffer.c 422 2021-06-27 12:49:46Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -71,7 +71,8 @@ Buffer *bufInit(Buffer *buf)
     buf->used = 0;
 
     dbgAssert(stderr, buf->data != NULL || buf->size == 0,
-            "Could not allocate initial buffer data (%zd bytes requested)", buf->size);
+            "Could not allocate initial buffer data (%zd bytes requested)",
+            buf->size);
 
     return buf;
 }
