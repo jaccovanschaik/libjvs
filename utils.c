@@ -4,7 +4,7 @@
  * utils.c is part of libjvs.
  *
  * Copyright:   (c) 2012-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: utils.c 426 2021-06-27 14:13:32Z jacco $
+ * Version:     $Id: utils.c 428 2021-06-27 14:48:56Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -278,8 +278,9 @@ const char *t_format_c(int32_t sec, int32_t nsec,
     }
 
     struct tm tm = { .tm_isdst = -1 };
+    time_t sec_copy = sec;
 
-    localtime_r(&sec, &tm);
+    localtime_r(&sec_copy, &tm);
 
     char *cur_fmt, *new_fmt = NULL;
     asprintf(&cur_fmt, "X%s", fmt);
