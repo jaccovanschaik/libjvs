@@ -14,19 +14,19 @@
  *
  * Copyright: (c) 2020 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2020-09-08
- * Version:   $Id: path.h 419 2021-06-06 11:13:46Z jacco $
+ * Version:   $Id: path.h 429 2021-06-27 22:20:40Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
  */
 
-#include "tree.h"
+#include "hashlist.h"
 
 #include <stdio.h>
 
 typedef struct {
-    Tree dirs;
-    Tree files;
+    HashList dirs;
+    HashList files;
 } Path;
 
 /*

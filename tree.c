@@ -3,7 +3,7 @@
  *
  * Copyright: (c) 2019 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2019-11-07
- * Version:   $Id: tree.c 399 2020-09-08 15:01:21Z jacco $
+ * Version:   $Id: tree.c 429 2021-06-27 22:20:40Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -16,10 +16,11 @@
 #include <string.h>
 
 /*
- * Find the branch with id <id> in <tree>. Search only in the range of branches between <low_index>
- * and <high_index>, inclusive.
+ * Find the branch with id <id> in <tree>. Search only in the range of
+ * branches between <low_index> and <high_index>, inclusive.
  */
-static int find_branch_between(const Tree *tree, uint8_t id, int low_index, int high_index)
+static int find_branch_between(const Tree *tree, uint8_t id,
+        int low_index, int high_index)
 {
     if (low_index > high_index) return -1;
 
@@ -157,6 +158,20 @@ static Tree *find_or_add_leaf(Tree *tree, const void *key, size_t key_size)
     return find_or_add_leaf(branch, ((uint8_t *) key) + 1, key_size - 1);
 }
 
+static void tree_prune(Tree *tree)
+{
+    for (int i = 0; i < tree->branch_count; i++) {
+        Tree *branch = tree->branch[i];
+
+        tree_prune(branch);
+
+        if (branch->data == NULL && branch->branch_count == 0) {
+            remove_branch(tree, i);
+            free(branch);
+        }
+    }
+}
+
 /*
  * Delete the leaf for key <key> (with length <key_size>) in <tree>. Again, the
  * key may be the end portion of a longer key that describes the path to go from
@@ -164,7 +179,33 @@ static Tree *find_or_add_leaf(Tree *tree, const void *key, size_t key_size)
  */
 static int delete_leaf(Tree *tree, const void *key, size_t key_size)
 {
-    if (key_size == 0) {
+    if (key_size > 0) {
+        // We are on our way to the leaf, but we're not there yet. Take the
+        // next branch on our path there and call ourselves recursively.
+
+        uint8_t id = ((uint8_t *) key)[0];
+
+        int index = find_branch(tree, id);
+
+        if (index == -1) return 1;
+
+        Tree *branch = tree->branch[index];
+
+        if (delete_leaf(branch, ((uint8_t *) key) + 1, key_size - 1) != 0) {
+            return 1;
+        }
+
+        // If that branch now has no sub-branches and it has no data (i.e. is
+        // not a leaf) it can be cut.
+
+        if (branch->data == NULL && branch->branch_count == 0) {
+            remove_branch(tree, index);
+            free(branch);
+        }
+
+        return 0;
+    }
+    else {
         if (tree->data == NULL) {
             return 1;
         }
@@ -173,50 +214,6 @@ static int delete_leaf(Tree *tree, const void *key, size_t key_size)
             return 0;
         }
     }
-
-    uint8_t id = ((uint8_t *) key)[0];
-
-    int index = find_branch(tree, id);
-
-    if (index == -1) return 1;
-
-    Tree *branch = tree->branch[index];
-
-    if (delete_leaf(branch, ((uint8_t *) key) + 1, key_size - 1) != 0) {
-        return 1;
-    }
-    else if (branch->data == NULL && branch->branch_count == 0) {
-        remove_branch(tree, index);
-        free(branch);
-    }
-
-    return 0;
-}
-
-/*
- * Helper function for treeTraverse. Traverse the tree that has its root at
- * <root>, starting at <branch>. The key that lead us to <branch> is <key> with
- * size <key_size>. Call function <func> for all branches (including this one)
- * if they have data associated with them.
- */
-static void tree_traverse(Tree *root, Tree *branch, uint8_t *key, size_t key_size,
-        void (*func)(Tree *tree, void *data, const void *key, size_t key_size))
-{
-    if (branch->data != NULL) {
-        func(branch, (void *) branch->data, key, key_size);
-    }
-
-    uint8_t *sub_key = calloc(key_size + 1, sizeof(uint8_t));
-
-    memcpy(sub_key, key, key_size);
-
-    for (int i = 0; i < branch->branch_count; i++) {
-        sub_key[key_size] = branch->branch[i]->id;
-
-        tree_traverse(root, branch->branch[i], sub_key, key_size + 1, func);
-    }
-
-    free(sub_key);
 }
 
 /*
@@ -260,20 +257,10 @@ void treeSet(Tree *tree, const void *data, const void *key, size_t key_size)
 {
     Tree *leaf = find_leaf(tree, key, key_size);
 
-    dbgAssert(stderr, leaf != NULL && leaf->data != NULL, "Key doesn't exist.\n");
+    dbgAssert(stderr,
+            leaf != NULL && leaf->data != NULL, "Key doesn't exist.\n");
 
     leaf->data = data;
-}
-
-/*
- * Traverse the tree at <tree>. Function <func> will be called for all data
- * items in the tree, passing in a pointer to this tree and to the data for the
- * item, and also the key and key size for the item.
- */
-void treeTraverse(Tree *tree,
-        void (*func)(Tree *tree, void *data, const void *key, size_t key_size))
-{
-    tree_traverse(tree, tree, (uint8_t *) "", 0, func);
 }
 
 /*
@@ -285,6 +272,8 @@ void treeDrop(Tree *tree, const void *key, size_t key_size)
     int r = delete_leaf(tree, key, key_size);
 
     dbgAssert(stderr, r == 0, "Key doesn't exist.\n");
+
+    tree_prune(tree);
 }
 
 /*
@@ -321,7 +310,9 @@ void treeDestroy(Tree *tree)
 
 static int errors = 0;
 
-static void check_entry(Tree *tree, void *data, const void *key, size_t key_size)
+#if 0
+static void check_entry(Tree *tree,
+        void *data, const void *key, size_t key_size)
 {
     UNUSED(tree);
 
@@ -329,6 +320,7 @@ static void check_entry(Tree *tree, void *data, const void *key, size_t key_size
 
     make_sure_that(memcmp(data, key, 3) == 0);
 }
+#endif
 
 int main(void)
 {
@@ -528,38 +520,6 @@ int main(void)
     make_sure_that(tree->data == NULL);
     make_sure_that(tree->branch == NULL);
     make_sure_that(tree->branch_count == 0);
-
-    for (int i = 0; i < 3; i++) {
-        for (int j = 0; j < 3; j++) {
-            for (int k = 0; k < 3; k++) {
-                char *key = calloc(4, 1);
-
-                key[0] = 'A' + i;
-                key[1] = 'A' + j;
-                key[2] = 'A' + k;
-
-                treeAdd(tree, key, key, 3);
-            }
-        }
-    }
-
-    treeTraverse(tree, check_entry);
-
-    for (int i = 0; i < 3; i++) {
-        for (int j = 0; j < 3; j++) {
-            for (int k = 0; k < 3; k++) {
-                char key[] = { 'A' + i, 'A' + j, 'A' + k };
-
-                char *data = treeGet(tree, key, 3);
-
-                make_sure_that(memcmp(data, key, 3) == 0);
-
-                treeDrop(tree, key, 3);
-
-                free(data);
-            }
-        }
-    }
 
     free(tree);
 

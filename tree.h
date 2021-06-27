@@ -6,7 +6,7 @@
  *
  * Copyright: (c) 2019 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2019-11-07
- * Version:   $Id: tree.h 399 2020-09-08 15:01:21Z jacco $
+ * Version:   $Id: tree.h 429 2021-06-27 22:20:40Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -57,14 +57,6 @@ void *treeGet(Tree *tree, const void *key, size_t key_size);
  * Change the data addressed by <key> (with size <key_size>) to <data>.
  */
 void treeSet(Tree *tree, const void *data, const void *key, size_t key_size);
-
-/*
- * Traverse the tree at <tree>. Function <func> will be called for all data
- * items in the tree, passing in a pointer to this tree and to the data for the
- * item, and also the key and key size for the item.
- */
-void treeTraverse(Tree *tree,
-        void (*func)(Tree *tree, void *data, const void *key, size_t key_size));
 
 /*
  * Drop the association of key <key> (with size <key_size>) with its data from

@@ -11,7 +11,7 @@
  *
  * Copyright: (c) 2020 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2020-09-08
- * Version:   $Id: path.c 419 2021-06-06 11:13:46Z jacco $
+ * Version:   $Id: path.c 429 2021-06-27 22:20:40Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -21,6 +21,7 @@
 #include "buffer.h"
 #include "defs.h"
 #include "debug.h"
+#include "hashlist.h"
 
 #include <stdio.h>
 #include <sys/types.h>
@@ -32,14 +33,19 @@
 #include <unistd.h>
 
 typedef struct {
+    ListNode _node;
     char *name;
 } PathDir;
 
 typedef struct {
+    ListNode _node;
     const PathDir *dir;
     char *name;
 } PathFile;
 
+/*
+ * Create a PathDir for <dir>.
+ */
 static PathDir *path_create_dir(const char *dirname)
 {
     PathDir *dir = calloc(1, sizeof(*dir));
@@ -49,6 +55,9 @@ static PathDir *path_create_dir(const char *dirname)
     return dir;
 }
 
+/*
+ * Create a PathFile for <filename>, which is in <dir>.
+ */
 static PathFile *path_create_file(const char *filename, const PathDir *dir)
 {
     PathFile *file = calloc(1, sizeof(*file));
@@ -59,56 +68,50 @@ static PathFile *path_create_file(const char *filename, const PathDir *dir)
     return file;
 }
 
+/*
+ * Add a PathFile entry for <filename> (and possibly a PathDir entry for
+ * <dirname>, which is where it is located) to <path>.
+ */
 static void path_add_file(Path *path, const char *dirname, const char *filename)
 {
     PathDir *dir;
     PathFile *file;
 
-    if ((dir = treeGetS(&path->dirs, dirname)) == NULL) {
-        treeAddS(&path->dirs, (dir = path_create_dir(dirname)), dirname);
+    if ((dir = hlGet(&path->dirs, HASH_STRING(dirname))) == NULL) {
+        dir = path_create_dir(dirname);
+
+        hlAdd(&path->dirs, dir, dirname, strlen(dirname));
     }
 
-    if ((file = treeGetS(&path->files, filename)) == NULL) {
-        treeAddS(&path->files, path_create_file(filename, dir), filename);
+    if ((file = hlGet(&path->files, HASH_STRING(filename))) == NULL) {
+        file = path_create_file(filename, dir);
+
+        hlAdd(&path->files, file, filename, strlen(filename));
     }
 }
 
 /*
- * Create a path, using <initial> as its initial value. <initial> will be
- * handled as described in pathAdd() below, but here it may also be NULL.
+ * Scan path string <path_str> and add the files found there to <path>.
  */
-Path *pathCreate(const char *initial)
+static void path_scan(Path *path, const char *path_str)
 {
-    Path *path = calloc(1, sizeof(*path));
-
-    if (initial) pathAdd(path, initial);
-
-    return path;
-}
-
-/*
- * Add one or more directories to <path>. <addition> may be a single directory,
- * or multiple directories separated by colons. Any names that don't exist or
- * aren't a directory will be silently ignored. <addition> may not be NULL.
- */
-void pathAdd(Path *path, const char *addition)
-{
-    dbgAssert(stderr, addition != NULL, "<addition> may not be NULL");
-
     Buffer dirname = { 0 };
 
-    const char *end = addition - 1;
+    const char *end = path_str - 1;
 
     do {
         DIR *dir;
         struct dirent *entry;
         const char *begin = end + 1;
+        size_t length;
 
-        for (end = begin; *end != ':' && *end != '\0'; end++) ;
+        if ((end = strchr(begin, ':')) == NULL) {
+            end = path_str + strlen(path_str);
+        }
 
-        int length = end - begin;
-
-        if (length == 0) continue;
+        if ((length = end - begin) == 0) {
+            continue;
+        }
 
         bufSet(&dirname, begin, length);
 
@@ -134,7 +137,7 @@ void pathAdd(Path *path, const char *addition)
         }
 
         closedir(dir);
-    } while (*end == ':');
+    } while (*end != '\0');
 
     bufClear(&dirname);
 }
@@ -143,19 +146,55 @@ void pathAdd(Path *path, const char *addition)
  * Get the full name for the first file in <path> that has name <filename>.
  * Returns NULL if no such file exists.
  */
-const char *pathGet(Path *path, const char *filename)
+static const char *path_get(Path *path, const char *filename)
 {
     static Buffer namebuf = { 0 };
 
     PathFile *file;
 
-    if ((file = treeGetS(&path->files, filename)) == NULL) return NULL;
+    if ((file = hlGet(&path->files, HASH_STRING(filename))) == NULL) {
+        return NULL;
+    }
 
     bufSetS(&namebuf, file->dir->name);
     bufAddS(&namebuf, "/");
     bufAddS(&namebuf, file->name);
 
     return bufGet(&namebuf);
+}
+
+/*
+ * Create a path, using <initial> as its initial value. <initial> will be
+ * handled as described in pathAdd() below, but here it may also be NULL.
+ */
+Path *pathCreate(const char *initial)
+{
+    Path *path = calloc(1, sizeof(*path));
+
+    if (initial) pathAdd(path, initial);
+
+    return path;
+}
+
+/*
+ * Add one or more directories to <path>. <addition> may be a single directory,
+ * or multiple directories separated by colons. Any names that don't exist or
+ * aren't a directory will be silently ignored. <addition> may not be NULL.
+ */
+void pathAdd(Path *path, const char *addition)
+{
+    dbgAssert(stderr, addition != NULL, "<addition> may not be NULL");
+
+    path_scan(path, addition);
+}
+
+/*
+ * Get the full name for the first file in <path> that has name <filename>.
+ * Returns NULL if no such file exists.
+ */
+const char *pathGet(Path *path, const char *filename)
+{
+    return path_get(path, filename);
 }
 
 /*
@@ -204,32 +243,28 @@ int pathOpen(Path *path, const char *filename, int flags)
     }
 }
 
-static void path_free_dir(Tree *tree, void *data, const void *key, size_t key_size)
+void pathClear(Path *path)
 {
-    UNUSED(tree);
-    UNUSED(key);
-    UNUSED(key_size);
+    PathDir *dir, *next_dir;
+    PathFile *file, *next_file;
 
-    PathDir *dir = data;
+    for (file = hlHead(&path->files); file; file = next_file) {
+        next_file = hlNext(file);
 
-    treeDrop(tree, key, key_size);
+        hlDel(&path->files, file->name, strlen(file->name));
 
-    free(dir->name);
-    free(dir);
-}
+        free(file->name);
+        free(file);
+    }
 
-static void path_free_file(Tree *tree, void *data, const void *key, size_t key_size)
-{
-    UNUSED(tree);
-    UNUSED(key);
-    UNUSED(key_size);
+    for (dir = hlHead(&path->dirs); dir; dir = next_dir) {
+        next_dir = hlNext(dir);
 
-    PathFile *file = data;
+        hlDel(&path->dirs, dir->name, strlen(dir->name));
 
-    treeDrop(tree, key, key_size);
-
-    free(file->name);
-    free(file);
+        free(dir->name);
+        free(dir);
+    }
 }
 
 /*
@@ -237,11 +272,9 @@ static void path_free_file(Tree *tree, void *data, const void *key, size_t key_s
  */
 void pathDestroy(Path *path)
 {
-    treeTraverse(&path->dirs, path_free_dir);
-    treeTraverse(&path->files, path_free_file);
+    pathClear(path);
 
-    treeDestroy(&path->dirs);
-    treeDestroy(&path->files);
+    free(path);
 }
 
 #ifdef TEST
