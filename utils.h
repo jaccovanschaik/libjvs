@@ -7,7 +7,7 @@
  * utils.h is part of libjvs.
  *
  * Copyright:   (c) 2012-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: utils.h 425 2021-06-27 14:10:09Z jacco $
+ * Version:     $Id: utils.h 426 2021-06-27 14:13:32Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -141,14 +141,14 @@ const struct timespec *tsnow(void);
  * modify. If you need a string to call your own, use strdup() or call
  * t_format() below.
  */
-const char *t_format_c(int64_t sec, int64_t nsec,
+const char *t_format_c(int32_t sec, int32_t nsec,
         const char *tz, const char *fmt);
 
 /*
  * Identical to t_format_c() above, but returns a dynamically allocated
  * string that you should free() when you're done with it.
  */
-char *t_format(int64_t sec, int64_t nsec, const char *tz, const char *fmt);
+char *t_format(int32_t sec, int32_t nsec, const char *tz, const char *fmt);
 
 /*
  * Pack data from <ap> into <str>, which has size <size>.
