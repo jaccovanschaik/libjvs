@@ -7,7 +7,7 @@
  * utils.h is part of libjvs.
  *
  * Copyright:   (c) 2012-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: utils.h 424 2021-06-27 12:52:02Z jacco $
+ * Version:     $Id: utils.h 425 2021-06-27 14:10:09Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -21,6 +21,7 @@ extern "C" {
 
 #include <stdio.h>
 #include <stdarg.h>
+#include <stdint.h>
 #include <iconv.h>
 
 #ifndef __WIN32
@@ -32,10 +33,14 @@ extern "C" {
 #define hexdump(fp, data, size) ihexdump(fp, 0, data, size)
 #define hexstr(spp, data, size) ihexstr(spp, 0, data, size)
 
-#define make_sure_that(expr) _make_sure_that(__FILE__, __LINE__, &errors, #expr, (expr))
-
-#define check_timespec(t, sec, nsec) _check_timespec(__FILE__, __LINE__, #t, &errors, t, sec, nsec)
-#define check_timeval(t, sec, usec) _check_timeval(__FILE__, __LINE__, #t, &errors, t, sec, usec)
+#define make_sure_that(expr) \
+    _make_sure_that(__FILE__, __LINE__, &errors, #expr, (expr))
+#define check_string(s1, s2) \
+    _check_string(__FILE__, __LINE__, &errors, s1, s2);
+#define check_timespec(t, sec, nsec) \
+    _check_timespec(__FILE__, __LINE__, #t, &errors, t, sec, nsec)
+#define check_timeval(t, sec, usec) \
+    _check_timeval(__FILE__, __LINE__, #t, &errors, t, sec, usec)
 
 /*
  * "Packable" types.
@@ -122,16 +127,28 @@ double dnow(void);
 const struct timespec *tsnow(void);
 
 /*
- * Format the timespec given in <ts> to a string, using the strftime-compatible
- * format <fmt> and timezone <tz>. If <tz> is NULL, local time (according to the
- * TZ environment variable) is used. This function supports an extension to
- * the %S format specifier: an optional single digit between the '%' and 'S'
- * gives the number of sub-second digits to add to the seconds value. Leaving
- * out the digit altogether reverts back to the default strftime seconds
- * value; giving it as 0 rounds it to the nearest second, based on the sub-
- * second part of <ts>.
+ * Format the timestamp given by <sec> and <nsec> to a string, using the
+ * strftime-compatible format <fmt> and timezone <tz>. If <tz> is NULL, local
+ * time (according to the TZ environment variable) is used.
+ *
+ * This function supports an extension to the %S format specifier: an optional
+ * single digit between the '%' and 'S' gives the number of sub-second digits
+ * to add to the seconds value. Leaving out the digit altogether reverts back
+ * to the default strftime seconds value; giving it as 0 rounds it to the
+ * nearest second, based on the value of <nsec>.
+ *
+ * Returns a statically allocated string that the caller isn't supposed to
+ * modify. If you need a string to call your own, use strdup() or call
+ * t_format() below.
  */
-const char *tsformat(const struct timespec *ts, const char *tz, const char *fmt);
+const char *t_format_c(int64_t sec, int64_t nsec,
+        const char *tz, const char *fmt);
+
+/*
+ * Identical to t_format_c() above, but returns a dynamically allocated
+ * string that you should free() when you're done with it.
+ */
+char *t_format(int64_t sec, int64_t nsec, const char *tz, const char *fmt);
 
 /*
  * Pack data from <ap> into <str>, which has size <size>.
@@ -241,8 +258,15 @@ int close_to(double actual, double expected);
  * error occurred in <file> and <line> to stderr, and increase <*errors> by 1.
  * Called by the make_sure_that() macro, less useful on its own.
  */
-void _make_sure_that(const char *file, int line,
+int _make_sure_that(const char *file, int line,
                      int *errors, const char *str, int val);
+
+/*
+ * Check that strings <s1> and <s2> are identical. Complain and return 1 if
+ * they're not, otherwise return 0.
+ */
+int _check_string(const char *file, int line,
+        int *errors, const char *s1, const char *s2);
 
 /*
  * Check that the timespec in <t> contains <sec> and <nsec>. If not, print a

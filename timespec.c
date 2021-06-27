@@ -3,13 +3,14 @@
  *
  * Copyright: (c) 2020 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2020-10-22
- * Version:   $Id: timespec.c 417 2021-05-23 12:34:55Z jacco $
+ * Version:   $Id: timespec.c 425 2021-06-27 14:10:09Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
  */
 
 #include "timespec.h"
+#include "utils.h"
 
 #include <stdlib.h>
 #include <unistd.h>
@@ -183,6 +184,17 @@ struct timespec tsFromTimeval(struct timeval t)
     };
 
     return ts;
+}
+
+const char *tsFormatC(const struct timespec *ts, const char *tz,
+        const char *fmt)
+{
+    return t_format_c(ts->tv_sec, ts->tv_nsec, tz, fmt);
+}
+
+char *tsFormat(const struct timespec *ts, const char *tz, const char *fmt)
+{
+    return t_format(ts->tv_sec, ts->tv_nsec, tz, fmt);
 }
 
 #ifdef TEST

@@ -6,7 +6,7 @@
  *
  * Copyright: (c) 2020 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2020-10-22
- * Version:   $Id: timespec.h 417 2021-05-23 12:34:55Z jacco $
+ * Version:   $Id: timespec.h 425 2021-06-27 14:10:09Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -76,7 +76,5 @@ struct timeval tsToTimeval(struct timespec t);
  * Return a timespec struct derived from timeval <t>.
  */
 struct timespec tsFromTimeval(struct timeval t);
-
-int main(void);
 
 #endif

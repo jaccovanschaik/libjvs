@@ -28,7 +28,7 @@
  *
  * Copyright: (c) 2019-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2019-07-29
- * Version:   $Id: log.c 423 2021-06-27 12:50:46Z jacco $
+ * Version:   $Id: log.c 425 2021-06-27 14:10:09Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -966,31 +966,6 @@ void logReset(void)
 #include <fcntl.h>
 
 static int errors = 0;
-
-#define check_string(s1, s2) _check_string(__FILE__, __LINE__, s1, s2);
-
-/*
- * Check that strings <s1> and <s2> are identical. Complain and return 1 if
- * they're not, otherwise return 0.
- */
-static int _check_string(const char *file, int line,
-        const char *s1, const char *s2)
-{
-    if (strcmp(s1, s2) != 0) {
-        fprintf(stderr, "%s:%d: String does not match expectation.\n",
-                file, line);
-        fprintf(stderr, "Expected:\n");
-        fprintf(stderr, "<%s>\n", s1);
-        fprintf(stderr, "Actual:\n");
-        fprintf(stderr, "<%s>\n", s2);
-
-        errors++;
-
-        return 1;
-    }
-
-    return 0;
-}
 
 /*
  * Test the extended time format.

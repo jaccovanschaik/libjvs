@@ -4,7 +4,7 @@
  * utils.c is part of libjvs.
  *
  * Copyright:   (c) 2012-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: utils.c 424 2021-06-27 12:52:02Z jacco $
+ * Version:     $Id: utils.c 425 2021-06-27 14:10:09Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -240,27 +240,29 @@ const struct timespec *tsnow(void)
 }
 
 /*
- * Format the timespec given in <ts> to a string, using the strftime-compatible
- * format <fmt> and timezone <tz>. If <tz> is NULL, local time (according to the
- * TZ environment variable) is used. This function supports an extension to
- * the %S format specifier: an optional single digit between the '%' and 'S'
- * gives the number of sub-second digits to add to the seconds value. Leaving
- * out the digit altogether reverts back to the default strftime seconds
- * value; giving it as 0 rounds it to the nearest second, based on the sub-
- * second part of <ts>.
+ * Format the timestamp given by <sec> and <nsec> to a string, using the
+ * strftime-compatible format <fmt> and timezone <tz>. If <tz> is NULL, local
+ * time (according to the TZ environment variable) is used.
+ *
+ * This function supports an extension to the %S format specifier: an optional
+ * single digit between the '%' and 'S' gives the number of sub-second digits
+ * to add to the seconds value. Leaving out the digit altogether reverts back
+ * to the default strftime seconds value; giving it as 0 rounds it to the
+ * nearest second, based on the value of <nsec>.
+ *
+ * Returns a statically allocated string that the caller isn't supposed to
+ * modify. If you need a string to call your own, use strdup() or call
+ * t_format() below.
  */
-const char *tsformat(const struct timespec *ts, const char *tz, const char *fmt)
+const char *t_format_c(int64_t sec, int64_t nsec,
+        const char *tz, const char *fmt)
 {
-    static regex_t *regex = NULL;
-
-    const size_t nmatch = 2;
-    regmatch_t pmatch[nmatch];
-
     int precision;
     char sec_string[13]; // "00.987654321\0"
 
-    char *new_str = NULL;
-    char *cur_str = strdup(fmt);
+    static regex_t *regex = NULL;
+    const size_t nmatch = 2;
+    regmatch_t pmatch[nmatch];
 
     if (regex == NULL) {
         regex = calloc(1, sizeof(*regex));
@@ -277,32 +279,46 @@ const char *tsformat(const struct timespec *ts, const char *tz, const char *fmt)
 
     struct tm tm = { .tm_isdst = -1 };
 
-    localtime_r(&ts->tv_sec, &tm);
+    localtime_r(&sec, &tm);
 
-    while (regexec(regex, cur_str, nmatch, pmatch, 0) == 0) {
-        sscanf(cur_str + pmatch[1].rm_so, "%d", &precision);
+    char *cur_fmt, *new_fmt = NULL;
+    asprintf(&cur_fmt, "X%s", fmt);
+
+    while (regexec(regex, cur_fmt, nmatch, pmatch, 0) == 0) {
+        sscanf(cur_fmt + pmatch[1].rm_so, "%d", &precision);
 
         int field_width = precision == 0 ? 2 : 3 + precision;
 
         snprintf(sec_string, sizeof(sec_string), "%0*.*f",
                 field_width, precision,
-                tm.tm_sec + ts->tv_nsec / 1000000000.0);
+                tm.tm_sec + nsec / 1000000000.0);
 
-        if (asprintf(&new_str, "%.*s%s%s",
-                pmatch[0].rm_so, cur_str,
+        if (asprintf(&new_fmt, "%.*s%s%s",
+                pmatch[0].rm_so, cur_fmt,
                 sec_string,
-                cur_str + pmatch[0].rm_eo) == -1) {
+                cur_fmt + pmatch[0].rm_eo) == -1) {
             break;
         }
 
-        cur_str = strdup(new_str);
+        cur_fmt = strdup(new_fmt);
 
-        free(new_str);
+        free(new_fmt);
     }
 
-    new_str = malloc(80);
+    static char *result_str = NULL;
+    static int  result_size = 0;
 
-    strftime(new_str, 80, cur_str, &tm);
+    if (result_str == NULL) {
+        result_size = 8;
+        result_str = calloc(1, result_size);
+    }
+
+    while (strftime(result_str, result_size, cur_fmt, &tm) == 0) {
+        result_size *= 2;
+        result_str = realloc(result_str, result_size);
+    }
+
+    free(cur_fmt);
 
     if (tz != NULL) {
         if (saved_tz == NULL) {
@@ -314,54 +330,16 @@ const char *tsformat(const struct timespec *ts, const char *tz, const char *fmt)
         tzset();
     }
 
-    free(cur_str);
+    return result_str + 1;
+}
 
-    return new_str;
-
-#if 0
-    static char str[80];
-    char sub[12];
-
-    struct tm tm;
-
-    if (tz == NULL) {
-        localtime_r(&ts->tv_sec, &tm);
-    }
-    else {
-        char *saved_tz;
-
-        if ((saved_tz = getenv("TZ")) != NULL) {
-            saved_tz = strdup(saved_tz);
-        }
-
-        setenv("TZ", tz, 1);
-        tzset();
-
-        localtime_r(&ts->tv_sec, &tm);
-
-        if (saved_tz) {
-            setenv("TZ", tz, 1);
-            free(saved_tz);
-        }
-        else {
-            unsetenv("TZ");
-        }
-
-        tzset();
-    }
-
-    strftime(str, sizeof(str), fmt, &tm);
-
-    size_t len = strlen(str);
-
-    digits = CLAMP(digits, 0, 9);
-
-    snprintf(sub, sizeof(sub), "%.*f", digits, ts->tv_nsec / 1000000000.0);
-
-    strncpy(str + len, sub + 1, sizeof(str) - len);
-
-    return str;
-#endif
+/*
+ * Identical to t_format_c() above, but returns a dynamically allocated
+ * string that you should free() when you're done with it.
+ */
+char *t_format(int64_t sec, int64_t nsec, const char *tz, const char *fmt)
+{
+    return strdup(t_format_c(sec, nsec, tz, fmt));
 }
 
 /*
@@ -818,13 +796,41 @@ int close_to(double actual, double expected)
  * error occurred in <file> and <line> to stderr, and increase <*errors> by 1.
  * Called by the make_sure_that() macro, less useful on its own.
  */
-void _make_sure_that(const char *file, int line,
+int _make_sure_that(const char *file, int line,
                      int *errors, const char *str, int val)
 {
     if (!val) {
         fprintf(stderr, "%s:%d: Expression \"%s\" failed\n", file, line, str);
+
         (*errors)++;
+
+        return 1;
     }
+
+    return 0;
+}
+
+/*
+ * Check that strings <s1> and <s2> are identical. Complain and return 1 if
+ * they're not, otherwise return 0.
+ */
+int _check_string(const char *file, int line,
+        int *errors, const char *s1, const char *s2)
+{
+    if (strcmp(s1, s2) != 0) {
+        fprintf(stderr, "%s:%d: String does not match expectation.\n",
+                file, line);
+        fprintf(stderr, "Expected:\n");
+        fprintf(stderr, "<%s>\n", s1);
+        fprintf(stderr, "Actual:\n");
+        fprintf(stderr, "<%s>\n", s2);
+
+        (*errors)++;
+
+        return 1;
+    }
+
+    return 0;
 }
 
 /*
@@ -1072,30 +1078,36 @@ int main(void)
 
     free(result);
 
-    struct timespec ts = {  // 12:00:00.123456789 UTC, 1970-01-01
-        .tv_sec = 43200,
-        .tv_nsec = 123456789
-    };
+    int32_t sec  = 43200;       // 12:00:00.987654321 UTC, 1970-01-01
+    int32_t nsec = 987654321;
 
-    make_sure_that(strcmp(
-                tsformat(&ts, NULL, "%Y-%m-%d/%H:%M:%S"),
-                "1970-01-01/13:00:00") == 0);
+    check_string(
+            t_format_c(sec, nsec, "UTC", "%Y-%m-%d/%H:%M:%S"),
+            "1970-01-01/12:00:00");
 
-    make_sure_that(strcmp(
-                tsformat(&ts, "UTC", "%Y-%m-%d/%H:%M:%1S"),
-                "1970-01-01/12:00:00.1") == 0);
+    check_string(
+            t_format_c(sec, nsec, "UTC", "%Y-%m-%d/%H:%M:%0S"),
+            "1970-01-01/12:00:01");
 
-    make_sure_that(strcmp(
-                tsformat(&ts, "Europe/Amsterdam", "%Y-%m-%d/%H:%M:%4S"),
-                "1970-01-01/13:00:00.1235") == 0);
+    check_string(
+            t_format_c(sec, nsec, "UTC", "%Y-%m-%d/%H:%M:%1S"),
+            "1970-01-01/12:00:01.0");
 
-    make_sure_that(strcmp(
-                tsformat(&ts, "America/New_York", "%Y-%m-%d/%H:%M:%5S"),
-                "1970-01-01/07:00:00.12346") == 0);
+    check_string(
+            t_format_c(sec, nsec, "UTC", "%Y-%m-%d/%H:%M:%2S"),
+            "1970-01-01/12:00:00.99");
 
-    make_sure_that(strcmp(
-                tsformat(&ts, "Asia/Shanghai", "%Y-%m-%d/%H:%M:%9S"),
-                "1970-01-01/20:00:00.123456789") == 0);
+    check_string(
+            t_format_c(sec, nsec, "Europe/Amsterdam", "%Y-%m-%d/%H:%M:%4S"),
+            "1970-01-01/13:00:00.9877");
+
+    check_string(
+            t_format_c(sec, nsec, "America/New_York", "%Y-%m-%d/%H:%M:%5S"),
+            "1970-01-01/07:00:00.98765");
+
+    check_string(
+            t_format_c(sec, nsec, "Asia/Shanghai", "%Y-%m-%d/%H:%M:%9S"),
+            "1970-01-01/20:00:00.987654321");
 
     char *door_win = "T\xFCr";
     char *door_utf = "T\xC3\xBCr";
