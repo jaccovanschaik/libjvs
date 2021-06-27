@@ -4,7 +4,7 @@
  * utils.c is part of libjvs.
  *
  * Copyright:   (c) 2012-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: utils.c 414 2021-03-01 12:36:57Z jacco $
+ * Version:     $Id: utils.c 424 2021-06-27 12:52:02Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -23,6 +23,7 @@
 #include <assert.h>
 #include <iconv.h>
 #include <errno.h>
+#include <regex.h>
 
 #include "defs.h"
 #include "utils.h"
@@ -241,11 +242,83 @@ const struct timespec *tsnow(void)
 /*
  * Format the timespec given in <ts> to a string, using the strftime-compatible
  * format <fmt> and timezone <tz>. If <tz> is NULL, local time (according to the
- * TZ environment variable) is used. If <digits> is greater than 0, this many
- * sub-second digits are added to the end of the string.
+ * TZ environment variable) is used. This function supports an extension to
+ * the %S format specifier: an optional single digit between the '%' and 'S'
+ * gives the number of sub-second digits to add to the seconds value. Leaving
+ * out the digit altogether reverts back to the default strftime seconds
+ * value; giving it as 0 rounds it to the nearest second, based on the sub-
+ * second part of <ts>.
  */
-const char *tsformat(const struct timespec *ts, const char *tz, const char *fmt, int digits)
+const char *tsformat(const struct timespec *ts, const char *tz, const char *fmt)
 {
+    static regex_t *regex = NULL;
+
+    const size_t nmatch = 2;
+    regmatch_t pmatch[nmatch];
+
+    int precision;
+    char sec_string[13]; // "00.987654321\0"
+
+    char *new_str = NULL;
+    char *cur_str = strdup(fmt);
+
+    if (regex == NULL) {
+        regex = calloc(1, sizeof(*regex));
+        regcomp(regex, "%([0-9])S", REG_EXTENDED);
+    }
+
+    char *saved_tz = NULL;
+
+    if (tz != NULL) {
+        saved_tz = getenv("TZ");
+        setenv("TZ", tz, true);
+        tzset();
+    }
+
+    struct tm tm = { .tm_isdst = -1 };
+
+    localtime_r(&ts->tv_sec, &tm);
+
+    while (regexec(regex, cur_str, nmatch, pmatch, 0) == 0) {
+        sscanf(cur_str + pmatch[1].rm_so, "%d", &precision);
+
+        int field_width = precision == 0 ? 2 : 3 + precision;
+
+        snprintf(sec_string, sizeof(sec_string), "%0*.*f",
+                field_width, precision,
+                tm.tm_sec + ts->tv_nsec / 1000000000.0);
+
+        if (asprintf(&new_str, "%.*s%s%s",
+                pmatch[0].rm_so, cur_str,
+                sec_string,
+                cur_str + pmatch[0].rm_eo) == -1) {
+            break;
+        }
+
+        cur_str = strdup(new_str);
+
+        free(new_str);
+    }
+
+    new_str = malloc(80);
+
+    strftime(new_str, 80, cur_str, &tm);
+
+    if (tz != NULL) {
+        if (saved_tz == NULL) {
+            unsetenv("TZ");
+        }
+        else {
+            setenv("TZ", saved_tz, 1);
+        }
+        tzset();
+    }
+
+    free(cur_str);
+
+    return new_str;
+
+#if 0
     static char str[80];
     char sub[12];
 
@@ -288,6 +361,7 @@ const char *tsformat(const struct timespec *ts, const char *tz, const char *fmt,
     strncpy(str + len, sub + 1, sizeof(str) - len);
 
     return str;
+#endif
 }
 
 /*
@@ -1004,23 +1078,23 @@ int main(void)
     };
 
     make_sure_that(strcmp(
-                tsformat(&ts, NULL, "%Y-%m-%d/%H:%M:%S", 0),
+                tsformat(&ts, NULL, "%Y-%m-%d/%H:%M:%S"),
                 "1970-01-01/13:00:00") == 0);
 
     make_sure_that(strcmp(
-                tsformat(&ts, "UTC", "%Y-%m-%d/%H:%M:%S", 1),
+                tsformat(&ts, "UTC", "%Y-%m-%d/%H:%M:%1S"),
                 "1970-01-01/12:00:00.1") == 0);
 
     make_sure_that(strcmp(
-                tsformat(&ts, "Europe/Amsterdam", "%Y-%m-%d/%H:%M:%S", 4),
+                tsformat(&ts, "Europe/Amsterdam", "%Y-%m-%d/%H:%M:%4S"),
                 "1970-01-01/13:00:00.1235") == 0);
 
     make_sure_that(strcmp(
-                tsformat(&ts, "America/New_York", "%Y-%m-%d/%H:%M:%S", 5),
+                tsformat(&ts, "America/New_York", "%Y-%m-%d/%H:%M:%5S"),
                 "1970-01-01/07:00:00.12346") == 0);
 
     make_sure_that(strcmp(
-                tsformat(&ts, "Asia/Shanghai", "%Y-%m-%d/%H:%M:%S", 9),
+                tsformat(&ts, "Asia/Shanghai", "%Y-%m-%d/%H:%M:%9S"),
                 "1970-01-01/20:00:00.123456789") == 0);
 
     char *door_win = "T\xFCr";
