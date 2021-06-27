@@ -6,11 +6,15 @@
  *
  * Copyright: (c) 2020 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2020-10-22
- * Version:   $Id: timespec.h 425 2021-06-27 14:10:09Z jacco $
+ * Version:   $Id: timespec.h 427 2021-06-27 14:47:51Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
  */
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #include <sys/time.h>
 
@@ -76,5 +80,33 @@ struct timeval tsToTimeval(struct timespec t);
  * Return a timespec struct derived from timeval <t>.
  */
 struct timespec tsFromTimeval(struct timeval t);
+
+/*
+ * Format the timestamp given by <ts> to a string, using the
+ * strftime-compatible format <fmt> and timezone <tz>. If <tz> is NULL, local
+ * time (according to the TZ environment variable) is used.
+ *
+ * This function supports an extension to the %S format specifier: an optional
+ * single digit between the '%' and 'S' gives the number of sub-second digits
+ * to add to the seconds value. Leaving out the digit altogether reverts back
+ * to the default strftime seconds value; giving it as 0 rounds it to the
+ * nearest second, based on the value of <nsec>.
+ *
+ * Returns a statically allocated string that the caller isn't supposed to
+ * modify. If you need a string to call your own, use strdup() or call
+ * t_format() below.
+ */
+const char *tsFormatC(const struct timespec *ts, const char *tz,
+        const char *fmt);
+
+/*
+ * Identical to tsFormatC() above, but returns a dynamically allocated string
+ * that you should free() when you're done with it.
+ */
+char *tsFormat(const struct timespec *ts, const char *tz, const char *fmt);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
