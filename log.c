@@ -28,7 +28,7 @@
  *
  * Copyright: (c) 2019-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2019-07-29
- * Version:   $Id: log.c 421 2021-06-24 20:08:08Z jacco $
+ * Version:   $Id: log.c 423 2021-06-27 12:50:46Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -148,8 +148,10 @@ static void log_get_time(struct timespec *ts)
  * Add the timestamp data in <tm> and <ts> to <buf>, using the
  * strftime-compatible format string in <fmt>. This function also supports an
  * additional digit (and only one digit) in the %S specifier, which gives the
- * number of sub-second digits to follow the decimal point. "%0S" gives the same
- * output as "%S": only the seconds without a decimal point.
+ * number of sub-second digits to follow the decimal point. If <n> is left out
+ * altogether, the result is identical to the usual "%S" specifier, where the
+ * current seconds value is shown. If <n> is given but 0, the seconds value is
+ * rounded to the nearest whole second.
  */
 static void log_add_time(Buffer *buf,
         struct tm *tm, struct timespec *ts, const char *fmt)
