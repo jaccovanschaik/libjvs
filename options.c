@@ -4,7 +4,7 @@
  * options.c is part of libjvs.
  *
  * Copyright:   (c) 2013-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: options.c 398 2020-09-08 13:09:18Z jacco $
+ * Version:     $Id: options.c 430 2021-06-28 13:21:27Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -56,8 +56,8 @@ static void dump_args(FILE *fp, const char *msg, int argc, char *argv[])
 #endif
 
 /*
- * Find the option with short name <short_name> in options and return it, or return NULL if it
- * couldn't be found.
+ * Find the option with short name <short_name> in options and return it, or
+ * return NULL if it couldn't be found.
  */
 static Option *opt_find_short(Options *options, char short_name)
 {
@@ -73,8 +73,8 @@ static Option *opt_find_short(Options *options, char short_name)
 }
 
 /*
- * Find the option with long name <long_name> in options and return it, or return NULL if it
- * couldn't be found.
+ * Find the option with long name <long_name> in options and return it, or
+ * return NULL if it couldn't be found.
  */
 static Option *opt_find_long(Options *options, const char *long_name)
 {
@@ -90,14 +90,16 @@ static Option *opt_find_long(Options *options, const char *long_name)
 }
 
 /*
- * Add a parse result for option <opt> (with associated argument <arg>) to <options>. <argv0> is
- * used for an error message if the option was given more than once.
+ * Add a parse result for option <opt> (with associated argument <arg>) to
+ * <options>. <argv0> is used for an error message if the option was given
+ * more than once.
  */
 static void opt_add_result(Options *options,
         const Option *opt, const char *arg)
 {
     if (hlContains(&options->results, HASH_STRING(opt->long_name))) {
-        bufAddF(&options->errors, "Option '--%s' or '-%c' given more than once.\n",
+        bufAddF(&options->errors,
+                "Option '--%s' or '-%c' given more than once.\n",
                 opt->long_name, opt->short_name);
         options->err = -4;
         return;
@@ -120,14 +122,17 @@ Options *optCreate(void)
 }
 
 /*
- * Add an option with long name <long_name> and short name <short_name> to <options>. <argument>
- * specifies whether the option can, may, or can not have an argument.
+ * Add an option with long name <long_name> and short name <short_name> to
+ * <options>. <argument> specifies whether the option can, may, or can not
+ * have an argument.
  */
-void optAdd(Options *options, const char *long_name, char short_name, OPT_Argument argument)
+void optAdd(Options *options,
+        const char *long_name, char short_name, OPT_Argument argument)
 {
     if ((short_name != 0 && opt_find_short(options, short_name) != NULL) ||
         opt_find_long(options, long_name) != NULL) {
-        bufAddF(&options->errors, "Option '--%s' or '-%c' specified more than once.\n",
+        bufAddF(&options->errors,
+                "Option '--%s' or '-%c' specified more than once.\n",
                 long_name, short_name);
         options->err = -3;
         return;
@@ -156,7 +161,8 @@ int optParse(Options *options, int argc, char *argv[])
 
     if (options->err != 0) return options->err;
 
-    struct option *long_options = calloc(paCount(&options->options) + 1, sizeof(struct option));
+    struct option *long_options =
+        calloc(paCount(&options->options) + 1, sizeof(struct option));
 
     bufAddC(&opt_string, ':');
 
@@ -188,17 +194,21 @@ int optParse(Options *options, int argc, char *argv[])
         Option *opt;
         int option_index = 0;
 
-        c = getopt_long(argc, argv, bufGet(&opt_string), long_options, &option_index);
+        c = getopt_long(argc, argv, bufGet(&opt_string),
+                long_options, &option_index);
 
         if (c == -1) {
             break;
         }
         else if (c == '?') {
-            bufAddF(&options->errors, "Unknown option or argument in \"%s\".\n", argv[optind - 1]);
+            bufAddF(&options->errors,
+                    "Unknown option or argument in \"%s\".\n",
+                    argv[optind - 1]);
             break;
         }
         else if (c == ':') {
-            bufAddF(&options->errors, "Missing argument for \"%s\".\n", argv[optind - 1]);
+            bufAddF(&options->errors,
+                    "Missing argument for \"%s\".\n", argv[optind - 1]);
             break;
         }
         else if (c == 0) {
@@ -244,10 +254,12 @@ int optIsSet(const Options *options, const char *long_name)
 }
 
 /*
- * Return the argument given for the option with <long_name>. Returns NULL if the option was not set
- * on the command line, or if it didn't have an argument.
+ * Return the argument given for the option with <long_name>. Returns NULL if
+ * the option was not set on the command line, or if it didn't have an
+ * argument.
  */
-const char *optArg(Options *options, const char *long_name, const char *fallback)
+const char *optArg(Options *options, const char *long_name,
+        const char *fallback)
 {
     OptionResult *result = hlGet(&options->results, HASH_STRING(long_name));
 
@@ -428,7 +440,8 @@ static void test6(void)
     r = optParse(opts, argc, argv);
 
     make_sure_that(r == -1);
-    make_sure_that(strcmp(optErrors(opts), "Unknown option or argument in \"-ab\".\n") == 0);
+    make_sure_that(strcmp(optErrors(opts),
+                "Unknown option or argument in \"-ab\".\n") == 0);
 
     optDestroy(opts);
 }
@@ -641,7 +654,7 @@ static void test16(void)
 
     make_sure_that(r == -3);
     make_sure_that(strcmp(optErrors(opts),
-                "Option '--option-a' or '-a' specified more than once.\n") == 0);
+            "Option '--option-a' or '-a' specified more than once.\n") == 0);
 
     optDestroy(opts);
 }

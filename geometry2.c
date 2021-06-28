@@ -3,7 +3,7 @@
  *
  * Copyright: (c) 2019 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2019-10-14
- * Version:   $Id: geometry2.c 360 2019-11-01 13:13:26Z jacco $
+ * Version:   $Id: geometry2.c 430 2021-06-28 13:21:27Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -21,7 +21,8 @@
  */
 double g2LineLineIntersect(Line2 l, Line2 m)
 {
-    double num = (m.dv.r[1] * (l.pv.r[0] - m.pv.r[0]) - m.dv.r[0] * (l.pv.r[1] - m.pv.r[1]));
+    double num = (m.dv.r[1] * (l.pv.r[0] - m.pv.r[0]) - m.dv.r[0]
+               * (l.pv.r[1] - m.pv.r[1]));
     double den = (m.dv.r[0] * l.dv.r[1] - l.dv.r[0] * m.dv.r[1]);
 
     return num / den;
@@ -46,7 +47,8 @@ Vector2 g2LineLineIntersection(Line2 l, Line2 m)
  */
 double g2PointLineProject(Vector2 p, Line2 l)
 {
-    double num = l.dv.r[0] * (p.r[0] - l.pv.r[0]) + l.dv.r[1] * (p.r[1] - l.pv.r[1]);
+    double num = l.dv.r[0] * (p.r[0] - l.pv.r[0]) + l.dv.r[1]
+               * (p.r[1] - l.pv.r[1]);
     double den = l.dv.r[0] * l.dv.r[0] + l.dv.r[1] * l.dv.r[1];
 
     return num / den;

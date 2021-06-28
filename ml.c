@@ -1,10 +1,11 @@
-/* ml.c: A package for handling multiple linked lists. Differs from list in that items can be in
- * more than one list at the same time.
+/*
+ * ml.c: A package for handling multiple linked lists. Differs from list in
+ *       that items can be in more than one list at the same time.
  *
  * ml.c is part of libjvs.
  *
  * Copyright:   (c) 2005-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: ml.c 398 2020-09-08 13:09:18Z jacco $
+ * Version:     $Id: ml.c 430 2021-06-28 13:21:27Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -20,17 +21,17 @@
 /*
    The data structures we're using may be seen as follows:
 
-         MListNode1  MListNode2  MListNode3  MListNode4  MListNode5  MListNode6 ...
+         MListNode1  MListNode2  MListNode3  MListNode4  MListNode5
    MList1     +
-   MList2     +----------+----------+----------+----------+----------+
-   MList3     +----------|----------|----------+          |          |
-   MList4                +----------|---------------------|----------+
-   MList5     +---------------------+---------------------+
+   MList2     +-----------+-----------+-----------+-----------+
+   MList3     +-----------|-----------|-----------+           |
+   MList4                 +           |                       |
+   MList5     +-----------------------+-----------------------+
 
    Every '+' represents a Link: a connection of a node (and thereby a listed
    node) to a list. The {prev/next}_in_list pointers are the horizontal lines,
-   the {prev/next}_in_node pointers are the vertical lines. Every Link also has a
-   pointer back to the list and the node that it's connected to.
+   the {prev/next}_in_node pointers are the vertical lines. Every Link also
+   has a pointer back to the list and the node that it's connected to.
  */
 
 struct Link {

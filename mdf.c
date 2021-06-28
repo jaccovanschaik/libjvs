@@ -21,7 +21,7 @@
  * mdf.c is part of libjvs.
  *
  * Copyright:   (c) 2013-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: mdf.c 398 2020-09-08 13:09:18Z jacco $
+ * Version:     $Id: mdf.c 430 2021-06-28 13:21:27Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -87,9 +87,9 @@ static void mdf_unget_char(MDF_Stream *stream, int c)
     if (stream->type == MDF_ST_STRING) {
         stream->u.str--;
 
-        /* We can't overwrite the string that the user has given us since it's declared const, so
-         * we'll just assert that the character we're pushing back is the same that was already
-         * there. */
+        /* We can't overwrite the string that the user has given us since it's
+         * declared const, so we'll just assert that the character we're
+         * pushing back is the same that was already there. */
 
         assert(c == *stream->u.str);
     }
@@ -137,7 +137,8 @@ static int mdf_get_char(MDF_Stream *stream)
 }
 
 /*
- * Generate an error message about unexpected character <c> (which may be EOF) on <stream>.
+ * Generate an error message about unexpected character <c> (which may be EOF)
+ * on <stream>.
  */
 static void mdf_unexpected(MDF_Stream *stream, int c)
 {
@@ -195,9 +196,10 @@ static MDF_Object *mdf_new_object(MDF_Type type)
 }
 
 /*
- * Create an object with type <type> and name <name>, which was found in file <file> on line <line>.
- * <root> and <last> are pointers to the addresses of the first and last elements in the list to
- * which the new object must be added.
+ * Create an object with type <type> and name <name>, which was found in file
+ * <file> on line <line>. <root> and <last> are pointers to the addresses of
+ * the first and last elements in the list to which the new object must be
+ * added.
  */
 static MDF_Object *mdf_add_object(MDF_Type type, const Buffer *name,
                                 const char *file, int line,
@@ -208,16 +210,16 @@ static MDF_Object *mdf_add_object(MDF_Type type, const Buffer *name,
     obj->line = line;
     obj->file = file;
 
-    /* If a name was given use it. Otherwise, if there is a preceding object copy its name.
-     * Otherwise simply set the name to NULL. */
+    /* If a name was given use it. Otherwise, if there is a preceding object
+     * copy its name. Otherwise simply set the name to NULL. */
 
     if (name != NULL && bufLen(name) != 0)
         obj->name = strdup(bufGet(name));
     else if (*last != NULL && (*last)->name != NULL)
         obj->name = strdup((*last)->name);
 
-    /* If there is no preceding object, this new object is the first in a new list which makes it
-     * the root of the new list. */
+    /* If there is no preceding object, this new object is the first in a new
+     * list which makes it the root of the new list. */
 
     if (*last == NULL)
         *root = obj;
@@ -232,17 +234,18 @@ static MDF_Object *mdf_add_object(MDF_Type type, const Buffer *name,
 }
 
 /*
- * Parse input stream <stream> and return the first element in the list of objects that was found.
- * <nesting_level> is the nesting level (w.r.t. braces) we're currently at.
+ * Parse input stream <stream> and return the first element in the list of
+ * objects that was found. <nesting_level> is the nesting level (w.r.t.
+ * braces) we're currently at.
  */
 static MDF_Object *mdf_parse(MDF_Stream *stream, int nesting_level)
 {
     int c;
 
-    MDF_State state = MDF_STATE_NONE;     /* Current parser state. */
+    MDF_State state = MDF_STATE_NONE;   /* Current parser state. */
 
-    MDF_Object *root = NULL;             /* Root (i.e. first) element of current object list. */
-    MDF_Object *last = NULL;             /* Last added element of current object list. */
+    MDF_Object *root = NULL;            /* First element of current obj list. */
+    MDF_Object *last = NULL;            /* Last element of current obj list. */
 
     Buffer name = { 0 };                /* Name of current object. */
     Buffer value = { 0 };               /* Value of current object. */
@@ -272,21 +275,29 @@ static MDF_Object *mdf_parse(MDF_Stream *stream, int nesting_level)
                 bufClear(&value);
             }
             else if (c == '{') {
-                /* Parse the remainder of this container, including the closing brace. */
+                /* Parse the remainder of this container, including the
+                 * closing brace. */
 
                 MDF_Object *obj =
-                    mdf_add_object(MDF_CONTAINER, &name, stream->file, stream->line, &root, &last);
+                    mdf_add_object(MDF_CONTAINER, &name,
+                            stream->file, stream->line, &root, &last);
 
                 if ((obj->u.c = mdf_parse(stream, nesting_level + 1)) == NULL) {
-                    state = bufIsEmpty(&stream->error) ?  MDF_STATE_NONE : MDF_STATE_ERROR;
+                    if (bufIsEmpty(&stream->error)) {
+                        state = MDF_STATE_NONE;
+                    }
+                    else {
+                        state = MDF_STATE_ERROR;
+                    }
                 }
             }
             else if (c == '}') {
                 if (nesting_level > 0) {    /* OK, end of this container. */
                     state = MDF_STATE_END;
                 }
-                else {                      /* We're at top-level, what's this doing here?! */
-                    bufSetF(&stream->error, "%s:%d: unbalanced '}'", stream->file, stream->line);
+                else {  /* We're at top-level, what's this doing here?! */
+                    bufSetF(&stream->error, "%s:%d: unbalanced '}'",
+                            stream->file, stream->line);
                     state = MDF_STATE_ERROR;
                 }
             }
@@ -302,7 +313,8 @@ static MDF_Object *mdf_parse(MDF_Stream *stream, int nesting_level)
             }
             break;
         case MDF_STATE_COMMENT:
-            /* We're in a comment. Just keep going until the end of the line, or the file. */
+            /* We're in a comment. Just keep going until the end of the line,
+             * or the file. */
 
             if (c == '\n') {
                 state = MDF_STATE_NONE;
@@ -330,14 +342,16 @@ static MDF_Object *mdf_parse(MDF_Stream *stream, int nesting_level)
             }
             break;
         case MDF_STATE_STRING:
-            /* We're in a string. Keep going until the closing quote (but: escape sequences!) */
+            /* We're in a string. Keep going until the closing quote (but:
+             * escape sequences!) */
 
             if (c == '\\') {
                 state = MDF_STATE_ESCAPE;
             }
             else if (c == '"') {
                 MDF_Object *obj =
-                    mdf_add_object(MDF_STRING, &name, stream->file, stream->line, &root, &last);
+                    mdf_add_object(MDF_STRING, &name,
+                            stream->file, stream->line, &root, &last);
 
                 obj->u.s = strdup(bufGet(&value));
                 state = MDF_STATE_NONE;
@@ -375,13 +389,15 @@ static MDF_Object *mdf_parse(MDF_Stream *stream, int nesting_level)
             }
             else {
                 bufSetF(&stream->error,
-                        "%s:%d: invalid escape sequence \"\\%c\"", stream->file, stream->line, c);
+                        "%s:%d: invalid escape sequence \"\\%c\"",
+                        stream->file, stream->line, c);
                 state = MDF_STATE_ERROR;
             }
             break;
         case MDF_STATE_NUMBER:
-            /* A number (float or int). Accept anything that can occur in a number (floating point,
-             * octal or hex) and let strtod or strtol sort it out later. */
+            /* A number (float or int). Accept anything that can occur in a
+             * number (floating point, octal or hex) and let strtod or strtol
+             * sort it out later. */
 
             if (isxdigit(c) || c == 'x' || c == '.' ||
                 c == 'e' || c == 'E' || c == '+' || c == '-') {
@@ -390,7 +406,8 @@ static MDF_Object *mdf_parse(MDF_Stream *stream, int nesting_level)
             else if (isspace(c) || c == '{' || c == '}' || c == EOF) {
                 MDF_Object *obj =
                     mdf_add_object(MDF_INT, &name, stream->file,
-                            c == '\n' ? stream->line - 1 : stream->line, &root, &last);
+                            c == '\n' ? stream->line - 1 : stream->line,
+                            &root, &last);
 
                 if (mdf_interpret_number(bufGet(&value), obj) == 0) {
                     state = MDF_STATE_NONE;
@@ -554,7 +571,8 @@ const char *mdfTypeName(const MDF_Type type)
 }
 
 /*
- * Retrieve an error text from <stream>, in case any function has returned an error.
+ * Retrieve an error text from <stream>, in case any function has returned an
+ * error.
  */
 const char *mdfError(const MDF_Stream *stream)
 {
@@ -710,10 +728,14 @@ static Test test[] = {
          "Test { (null) 123 } Test { (null) \"ABC\" }" },
     { 0, "Test { Test1 123 } { Test2 \"ABC\" }",
          "Test { Test1 123 } Test { Test2 \"ABC\" }" },
-    { 1, "123ABC",                 "<string>:1: unrecognized value \"123ABC\"" },
-    { 1, "123XYZ",                 "<string>:1: unexpected character 'X' (ascii 88)" },
-    { 1, "ABC$",                   "<string>:1: unexpected character '$' (ascii 36)" },
-    { 1, "123$",                   "<string>:1: unexpected character '$' (ascii 36)" },
+    { 1, "123ABC",
+         "<string>:1: unrecognized value \"123ABC\"" },
+    { 1, "123XYZ",
+         "<string>:1: unexpected character 'X' (ascii 88)" },
+    { 1, "ABC$",
+         "<string>:1: unexpected character '$' (ascii 36)" },
+    { 1, "123$",
+         "<string>:1: unexpected character '$' (ascii 36)" },
     { 1, "Test {\n\tTest1 123\n\tTest2 1.3\n\tTest3 \"ABC\\0\"\n}",
          "<string>:4: invalid escape sequence \"\\0\"" },
     { 1, "Test { Test2 { Test3 123 Test4 1.3 Test5 \"ABC\" }",

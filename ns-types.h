@@ -7,7 +7,7 @@
  * ns-types.h is part of libjvs.
  *
  * Copyright:   (c) 2013-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: ns-types.h 343 2019-08-27 08:39:24Z jacco $
+ * Version:     $Id: ns-types.h 430 2021-06-28 13:21:27Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -41,7 +41,8 @@ struct NS {
     void (*on_error_cb)(NS *ns, int fd, int error, void *udata);
     void *on_error_udata;
 
-    void (*on_socket_cb)(NS *ns, int fd, const char *buffer, int size, void *udata);
+    void (*on_socket_cb)(NS *ns, int fd, const char *buffer, int size,
+            void *udata);
     void *on_socket_udata;
 };
 

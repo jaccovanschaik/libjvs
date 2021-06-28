@@ -3,7 +3,7 @@
  *
  * Copyright: (c) 2019 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2019-11-07
- * Version:   $Id: tree.c 429 2021-06-27 22:20:40Z jacco $
+ * Version:   $Id: tree.c 430 2021-06-28 13:21:27Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -129,7 +129,8 @@ static Tree *find_leaf(Tree *tree, const void *key, size_t key_size)
         return NULL;
     }
     else {
-        return find_leaf(tree->branch[index], ((uint8_t *) key) + 1, key_size - 1);
+        return find_leaf(tree->branch[index],
+                         ((uint8_t *) key) + 1, key_size - 1);
     }
 }
 

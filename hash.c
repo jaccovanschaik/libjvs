@@ -4,7 +4,7 @@
  * hash.h is part of libjvs.
  *
  * Copyright:   (c) 2007-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: hash.c 398 2020-09-08 13:09:18Z jacco $
+ * Version:     $Id: hash.c 430 2021-06-28 13:21:27Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -55,14 +55,14 @@ typedef uint64_t HashKey;
  */
 static HashKey hash(const char *key, int key_len)
 {
-   int i;
-   HashKey hash_key = 1;
+    int i;
+    HashKey hash_key = 1;
 
-   for (i = 0; i < key_len; i++) {
-     hash_key = hash_key * 317 + (unsigned char) key[i];
-   }
+    for (i = 0; i < key_len; i++) {
+        hash_key = hash_key * 317 + (unsigned char) key[i];
+    }
 
-   return hash_key & (HASH_BUCKETS - 1);
+    return hash_key & (HASH_BUCKETS - 1);
 }
 
 /*
@@ -70,13 +70,13 @@ static HashKey hash(const char *key, int key_len)
  */
 static HashEntry *find_entry_in_bucket(const List *bucket, const char *key, int key_len)
 {
-   HashEntry *entry;
+    HashEntry *entry;
 
-   for (entry = listHead(bucket); entry; entry = listNext(entry)) {
-     if (entry->key_len == key_len && memcmp(entry->key, key, key_len) == 0) return entry;
-   }
+    for (entry = listHead(bucket); entry; entry = listNext(entry)) {
+        if (entry->key_len == key_len && memcmp(entry->key, key, key_len) == 0) return entry;
+    }
 
-   return NULL;
+    return NULL;
 }
 
 /*
@@ -92,7 +92,7 @@ void hashInitTable(HashTable *table)
  */
 HashTable *hashCreateTable(void)
 {
-   return calloc(1, sizeof(HashTable));
+    return calloc(1, sizeof(HashTable));
 }
 
 /*
@@ -101,15 +101,15 @@ HashTable *hashCreateTable(void)
  */
 void hashClear(HashTable *tbl)
 {
-   int i;
-   HashEntry *entry;
+    int i;
+    HashEntry *entry;
 
-   for (i = 0; i < HASH_BUCKETS; i++) {
-      while ((entry = listRemoveHead(&tbl->bucket[i])) != NULL) {
-         free(entry->key);
-         free(entry);
-      }
-   }
+    for (i = 0; i < HASH_BUCKETS; i++) {
+        while ((entry = listRemoveHead(&tbl->bucket[i])) != NULL) {
+            free(entry->key);
+            free(entry);
+        }
+    }
 }
 
 /*
@@ -125,36 +125,36 @@ void hashDestroy(HashTable *tbl)
 
 /*
  * Add an entry that points to <data> to <tbl>. Associate it with <key>, whose
- * length is <key_len>. <tbl>, <data> and <key> must not be NULL, <key_len> must
- * be greater than 0. If an entry with the same key already exists this function
- * calls abort().
+ * length is <key_len>. <tbl>, <data> and <key> must not be NULL, <key_len>
+ * must be greater than 0. If an entry with the same key already exists this
+ * function calls abort().
  */
 void hashAdd(HashTable *tbl, const void *data, const void *key, int key_len)
 {
-   HashEntry *entry;
-   HashKey hash_key;
+    HashEntry *entry;
+    HashKey hash_key;
 
-   dbgAssert(stderr, key != NULL, "Key pointer is NULL");
-   dbgAssert(stderr, key != NULL, "Key length <= 0");
+    dbgAssert(stderr, key != NULL, "Key pointer is NULL");
+    dbgAssert(stderr, key != NULL, "Key length <= 0");
 
-   hash_key = hash(key, key_len);
+    hash_key = hash(key, key_len);
 
-   if (find_entry_in_bucket(&tbl->bucket[hash_key], key, key_len) != NULL) {
-      /* Entry *must not* exist. */
-      dbgPrint(stderr, "hashAdd for an existing key:\n");
-      hexdump(stderr, key, key_len);
-      abort();
-   }
+    if (find_entry_in_bucket(&tbl->bucket[hash_key], key, key_len) != NULL) {
+        /* Entry *must not* exist. */
+        dbgPrint(stderr, "hashAdd for an existing key:\n");
+        hexdump(stderr, key, key_len);
+        abort();
+    }
 
-   entry = calloc(1, sizeof(HashEntry));
+    entry = calloc(1, sizeof(HashEntry));
 
-   entry->data    = data;
-   entry->key     = malloc(key_len);
-   entry->key_len = key_len;
+    entry->data    = data;
+    entry->key     = malloc(key_len);
+    entry->key_len = key_len;
 
-   memcpy(entry->key, key, key_len);
+    memcpy(entry->key, key, key_len);
 
-   listAppendTail(&tbl->bucket[hash_key], entry);
+    listAppendTail(&tbl->bucket[hash_key], entry);
 }
 
 /*
@@ -164,40 +164,41 @@ void hashAdd(HashTable *tbl, const void *data, const void *key, int key_len)
  */
 void hashSet(HashTable *tbl, const void *data, const void *key, int key_len)
 {
-   HashEntry *entry;
-   HashKey hash_key;
+    HashEntry *entry;
+    HashKey hash_key;
 
-   dbgAssert(stderr, key != NULL, "Key pointer is NULL");
-   dbgAssert(stderr, key != NULL, "Key length <= 0");
+    dbgAssert(stderr, key != NULL, "Key pointer is NULL");
+    dbgAssert(stderr, key != NULL, "Key length <= 0");
 
-   hash_key = hash(key, key_len);
+    hash_key = hash(key, key_len);
 
-   if (!(entry = find_entry_in_bucket(&tbl->bucket[hash_key], key, key_len))) {
-      /* Entry *must* exist. */
-      dbgPrint(stderr, "hashSet for a non-existing key:\n");
-      hexdump(stderr, key, key_len);
-      abort();
-   }
+    if (!(entry = find_entry_in_bucket(&tbl->bucket[hash_key], key, key_len))) {
+        /* Entry *must* exist. */
+        dbgPrint(stderr, "hashSet for a non-existing key:\n");
+        hexdump(stderr, key, key_len);
+        abort();
+    }
 
-   entry->data = data;
+    entry->data = data;
 }
 
 /*
- * Return TRUE if <tbl> has an entry for <key> with length <key_len>, FALSE otherwise. <tbl> and
- * <key> must not be NULL, <key_len> must be greater than 0.
+ * Return TRUE if <tbl> has an entry for <key> with length <key_len>, FALSE
+ * otherwise. <tbl> and <key> must not be NULL, <key_len> must be greater than
+ * 0.
  */
 int hashContains(const HashTable *tbl, const void *key, int key_len)
 {
-   HashEntry *entry;
-   HashKey hash_key = hash(key, key_len);
+    HashEntry *entry;
+    HashKey hash_key = hash(key, key_len);
 
-   dbgAssert(stderr, tbl != NULL, "Table pointer is NULL");
-   dbgAssert(stderr, key != NULL, "Key pointer is NULL");
-   dbgAssert(stderr, key != NULL, "Key length <= 0");
+    dbgAssert(stderr, tbl != NULL, "Table pointer is NULL");
+    dbgAssert(stderr, key != NULL, "Key pointer is NULL");
+    dbgAssert(stderr, key != NULL, "Key length <= 0");
 
-   entry = find_entry_in_bucket(&tbl->bucket[hash_key], key, key_len);
+    entry = find_entry_in_bucket(&tbl->bucket[hash_key], key, key_len);
 
-   return (entry != NULL);
+    return (entry != NULL);
 }
 
 /*
@@ -207,16 +208,16 @@ int hashContains(const HashTable *tbl, const void *key, int key_len)
  */
 void *hashGet(const HashTable *tbl, const void *key, int key_len)
 {
-   HashEntry *entry;
-   HashKey hash_key = hash(key, key_len);
+    HashEntry *entry;
+    HashKey hash_key = hash(key, key_len);
 
-   dbgAssert(stderr, tbl != NULL, "Table pointer is NULL");
-   dbgAssert(stderr, key != NULL, "Key pointer is NULL");
-   dbgAssert(stderr, key != NULL, "Key length <= 0");
+    dbgAssert(stderr, tbl != NULL, "Table pointer is NULL");
+    dbgAssert(stderr, key != NULL, "Key pointer is NULL");
+    dbgAssert(stderr, key != NULL, "Key length <= 0");
 
-   entry = find_entry_in_bucket(&tbl->bucket[hash_key], key, key_len);
+    entry = find_entry_in_bucket(&tbl->bucket[hash_key], key, key_len);
 
-   return entry ? (void *) entry->data : NULL;
+    return entry ? (void *) entry->data : NULL;
 }
 
 /*
@@ -226,21 +227,21 @@ void *hashGet(const HashTable *tbl, const void *key, int key_len)
  */
 void hashDrop(HashTable *tbl, const void *key, int key_len)
 {
-   HashEntry *entry;
-   HashKey hash_key = hash(key, key_len);
+    HashEntry *entry;
+    HashKey hash_key = hash(key, key_len);
 
-   dbgAssert(stderr, tbl != NULL, "Table pointer is NULL");
-   dbgAssert(stderr, key != NULL, "Key pointer is NULL");
-   dbgAssert(stderr, key != NULL, "Key length <= 0");
+    dbgAssert(stderr, tbl != NULL, "Table pointer is NULL");
+    dbgAssert(stderr, key != NULL, "Key pointer is NULL");
+    dbgAssert(stderr, key != NULL, "Key length <= 0");
 
-   entry = find_entry_in_bucket(&tbl->bucket[hash_key], key, key_len);
+    entry = find_entry_in_bucket(&tbl->bucket[hash_key], key, key_len);
 
-   assert(entry);
+    assert(entry);
 
-   listRemove(&tbl->bucket[hash_key], entry);
+    listRemove(&tbl->bucket[hash_key], entry);
 
-   free(entry->key);
-   free(entry);
+    free(entry->key);
+    free(entry);
 }
 
 /*

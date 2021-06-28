@@ -23,7 +23,7 @@
  * mdf.h is part of libjvs.
  *
  * Copyright:   (c) 2013-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: mdf.h 383 2019-11-26 21:03:02Z jacco $
+ * Version:     $Id: mdf.h 430 2021-06-28 13:21:27Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -59,7 +59,8 @@ struct MDF_Object {
         char       *s;      /* Pointer to a string (if type == MDF_STRING) */
         long int    i;      /* An integer (if type == MDF_INT) */
         double      f;      /* A float (if type == MDF_FLOAT) */
-        MDF_Object *c;      /* First in a sub-list of objects (if type == MDF_CONTAINER) */
+        MDF_Object *c;      /* First in a sub-list of objects
+                               (if type == MDF_CONTAINER) */
     } u;
 };
 
@@ -94,7 +95,8 @@ MDF_Object *mdfParse(MDF_Stream *stream);
 const char *mdfTypeName(const MDF_Type type);
 
 /*
- * Retrieve an error text from <stream>, in case any function has returned an error.
+ * Retrieve an error text from <stream>, in case any function has returned an
+ * error.
  */
 const char *mdfError(const MDF_Stream *stream);
 

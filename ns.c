@@ -4,7 +4,7 @@
  * ns.c is part of libjvs.
  *
  * Copyright:   (c) 2013-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: ns.c 398 2020-09-08 13:09:18Z jacco $
+ * Version:     $Id: ns.c 430 2021-06-28 13:21:27Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -49,7 +49,8 @@ static void ns_handle_data(Dispatcher *dis, int fd, __attribute__((unused)) void
             P dbgPrint(stderr, "Calling on_socket_cb.\n");
 
             ns->on_socket_cb(ns, fd,
-                    bufGet(&conn->incoming), bufLen(&conn->incoming), ns->on_socket_udata);
+                    bufGet(&conn->incoming), bufLen(&conn->incoming),
+                    ns->on_socket_udata);
         }
     }
     else if (n == 0) {
@@ -87,7 +88,8 @@ static void ns_add_connection(NS *ns, int fd)
     disOnData(&ns->dis, fd, ns_handle_data, NULL);
 }
 
-static void ns_accept_connection(Dispatcher *dis, int fd, __attribute__((unused)) void *udata)
+static void ns_accept_connection(Dispatcher *dis, int fd,
+        __attribute__((unused)) void *udata)
 {
     NS *ns = (NS *) dis;
 
@@ -121,11 +123,12 @@ NS *nsCreate(void)
 }
 
 /*
- * Open a listen socket on port <port>, address <host> and return its file descriptor. If <port> <=
- * 0, a random port will be opened (find out which using netLocalPort() on the returned file
- * descriptor). If <host> is NULL, the socket will listen on all interfaces. Connection requests
- * will be accepted automatically. Data coming in on the resulting socket will be reported via the
- * callback installed using nsOnSocket().
+ * Open a listen socket on port <port>, address <host> and return its file
+ * descriptor. If <port> <= 0, a random port will be opened (find out which
+ * using netLocalPort() on the returned file descriptor). If <host> is NULL,
+ * the socket will listen on all interfaces. Connection requests will be
+ * accepted automatically. Data coming in on the resulting socket will be
+ * reported via the callback installed using nsOnSocket().
  */
 int nsListen(NS *ns, const char *host, uint16_t port)
 {
@@ -150,7 +153,8 @@ void nsOnConnect(NS *ns, void (*cb)(NS *ns, int fd, void *udata), void *udata)
 }
 
 /*
- * Arrange for <cb> to be called when a connection is lost. *Not* called on nsDisconnect().
+ * Arrange for <cb> to be called when a connection is lost. *Not* called on
+ * nsDisconnect().
  */
 void nsOnDisconnect(NS *ns, void (*cb)(NS *ns, int fd, void *udata), void *udata)
 {
@@ -159,9 +163,9 @@ void nsOnDisconnect(NS *ns, void (*cb)(NS *ns, int fd, void *udata), void *udata
 }
 
 /*
- * Arrange for <cb> to be called when data comes in on any connected socket. <cb> will be called
- * with the <ns>, <fd> and <udata> given here, and with a pointer to the collected data so far in
- * <buffer> with its size in <size>.
+ * Arrange for <cb> to be called when data comes in on any connected socket.
+ * <cb> will be called with the <ns>, <fd> and <udata> given here, and with a
+ * pointer to the collected data so far in <buffer> with its size in <size>.
  */
 void nsOnSocket(NS *ns, void (*cb)(NS *ns, int fd, const char *buffer, int size, void *udata),
         void *udata)
@@ -171,7 +175,8 @@ void nsOnSocket(NS *ns, void (*cb)(NS *ns, int fd, const char *buffer, int size,
 }
 
 /*
- * Arrange for <cb> to be called when a connection is lost. *Not* called on nsDisconnect().
+ * Arrange for <cb> to be called when a connection is lost. *Not* called on
+ * nsDisconnect().
  */
 void nsOnError(NS *ns, void (*cb)(NS *ns, int fd, int error, void *udata), void *udata)
 {
@@ -180,8 +185,8 @@ void nsOnError(NS *ns, void (*cb)(NS *ns, int fd, int error, void *udata), void 
 }
 
 /*
- * Make a connection to the given <host> and <port>. Incoming data on this 
- * socket is reported using the callback installed with nsOnSocket(). The new 
+ * Make a connection to the given <host> and <port>. Incoming data on this
+ * socket is reported using the callback installed with nsOnSocket(). The new
  * file descriptor is returned, or -1 if an error occurred.
  */
 int nsConnect(NS *ns, const char *host, uint16_t port)
@@ -196,7 +201,8 @@ int nsConnect(NS *ns, const char *host, uint16_t port)
 }
 
 /*
- * Disconnect from a file descriptor that was returned earlier using nsConnect().
+ * Disconnect from a file descriptor that was returned earlier using
+ * nsConnect().
  */
 void nsDisconnect(NS *ns, int fd)
 {
@@ -216,13 +222,16 @@ void nsDisconnect(NS *ns, int fd)
 }
 
 /*
- * Arrange for <cb> to be called when there is data available on file descriptor <fd>. <cb> will be
- * called with the given <ns>, <fd> and <udata>, which is a pointer to "user data" that will be
- * returned <cb> as it was given here, and that will not be accessed by dis in any way.
+ * Arrange for <cb> to be called when there is data available on file
+ * descriptor <fd>. <cb> will be called with the given <ns>, <fd> and <udata>,
+ * which is a pointer to "user data" that will be returned <cb> as it was
+ * given here, and that will not be accessed by dis in any way.
  */
-void nsOnData(NS *ns, int fd, void (*cb)(NS *ns, int fd, void *udata), const void *udata)
+void nsOnData(NS *ns, int fd, void (*cb)(NS *ns, int fd, void *udata),
+        const void *udata)
 {
-    disOnData(&ns->dis, fd, (void(*)(Dispatcher *dis, int fd, void *udata)) cb, udata);
+    disOnData(&ns->dis, fd,
+            (void(*)(Dispatcher *dis, int fd, void *udata)) cb, udata);
 }
 
 /*
@@ -236,9 +245,10 @@ void nsDropData(NS *ns, int fd)
 }
 
 /*
- * Write the first <size> bytes of <data> to <fd>, which must be known to <ns>. You may write to
- * <fd> via any other means, but if you use this function the data will be written out, possibly
- * piece by piece but always without blocking, when the given file descriptor becomes writable.
+ * Write the first <size> bytes of <data> to <fd>, which must be known to
+ * <ns>. You may write to <fd> via any other means, but if you use this
+ * function the data will be written out, possibly piece by piece but always
+ * without blocking, when the given file descriptor becomes writable.
  */
 void nsWrite(NS *ns, int fd, const char *data, size_t size)
 {
@@ -246,8 +256,8 @@ void nsWrite(NS *ns, int fd, const char *data, size_t size)
 }
 
 /*
- * Pack the arguments following <fd> according to the strpack interface from utils.h and send the
- * resulting string to <fd> via <ns>.
+ * Pack the arguments following <fd> according to the strpack interface from
+ * utils.h and send the resulting string to <fd> via <ns>.
  */
 void nsPack(NS *ns, int fd, ...)
 {
@@ -259,8 +269,8 @@ void nsPack(NS *ns, int fd, ...)
 }
 
 /*
- * Pack the arguments contained in <ap> according to the strpack interface from utils.h and send the
- * resulting string to <fd> via <ns>.
+ * Pack the arguments contained in <ap> according to the strpack interface
+ * from utils.h and send the resulting string to <fd> via <ns>.
  */
 void nsVaPack(NS *ns, int fd, va_list ap)
 {
@@ -294,8 +304,8 @@ int nsAvailable(NS *ns, int fd)
 }
 
 /*
- * Discard the first <length> bytes of the incoming buffer for file descriptor <fd> (becuase you've
- * processed them).
+ * Discard the first <length> bytes of the incoming buffer for file descriptor
+ * <fd> (becuase you've processed them).
  */
 void nsDiscard(NS *ns, int fd, int length)
 {
@@ -305,13 +315,16 @@ void nsDiscard(NS *ns, int fd, int length)
 }
 
 /*
- * Arrange for <cb> to be called at time <t>, which is the (double precision floating point) number
- * of seconds since 00:00:00 UTC on 1970-01-01 (aka. the UNIX epoch). <cb> will be called with the
- * given <ns>, <t> and <udata>. You can get the current time using nowd() from utils.c.
+ * Arrange for <cb> to be called at time <t>, which is the (double precision
+ * floating point) number of seconds since 00:00:00 UTC on 1970-01-01 (aka.
+ * the UNIX epoch). <cb> will be called with the given <ns>, <t> and <udata>.
+ * You can get the current time using nowd() from utils.c.
  */
-void nsOnTime(NS *ns, double t, void (*cb)(NS *ns, double t, void *udata), const void *udata)
+void nsOnTime(NS *ns, double t, void (*cb)(NS *ns, double t, void *udata),
+        const void *udata)
 {
-    disOnTime(&ns->dis, t, (void(*)(Dispatcher *dis, double t, void *udata)) cb, udata);
+    disOnTime(&ns->dis, t,
+            (void(*)(Dispatcher *dis, double t, void *udata)) cb, udata);
 }
 
 /*
@@ -319,11 +332,13 @@ void nsOnTime(NS *ns, double t, void (*cb)(NS *ns, double t, void *udata), const
  */
 void nsDropTime(NS *ns, double t, void (*cb)(NS *ns, double t, void *udata))
 {
-    disDropTime(&ns->dis, t, (void(*)(Dispatcher *dis, double t, void *udata)) cb);
+    disDropTime(&ns->dis, t,
+            (void(*)(Dispatcher *dis, double t, void *udata)) cb);
 }
 
 /*
- * Return the number of file descriptors that <ns> is monitoring (i.e. max_fd - 1).
+ * Return the number of file descriptors that <ns> is monitoring
+ * (i.e. max_fd - 1).
  */
 int nsFdCount(NS *ns)
 {
@@ -339,14 +354,17 @@ int nsOwnsFd(NS *ns, int fd)
 }
 
 /*
- * Prepare a call to select() based on the files and timeouts set in <ns>. The necessary parameters
- * to select() are returned through <nfds>, <rfds>, <wfds> and <tv> (exception-fds should be set to
- * NULL). <*tv> is set to point to an appropriate timeout value, or NULL if no timeout is to be set.
- * This function will clear <rfds> and <wfds>, so if callers want to add their own file descriptors,
- * they should do so after calling this function. This function returns -1 if the first timeout
- * should already have occurred, otherwise 0.
+ * Prepare a call to select() based on the files and timeouts set in <ns>. The
+ * necessary parameters to select() are returned through <nfds>, <rfds>,
+ * <wfds> and <tv> (exception-fds should be set to NULL). <*tv> is set to
+ * point to an appropriate timeout value, or NULL if no timeout is to be set.
+ * This function will clear <rfds> and <wfds>, so if callers want to add their
+ * own file descriptors, they should do so after calling this function. This
+ * function returns -1 if the first timeout should already have occurred,
+ * otherwise 0.
  */
-int nsPrepareSelect(NS *ns, int *nfds, fd_set *rfds, fd_set *wfds, struct timeval **tv)
+int nsPrepareSelect(NS *ns, int *nfds, fd_set *rfds, fd_set *wfds,
+        struct timeval **tv)
 {
     return disPrepareSelect(&ns->dis, nfds, rfds, wfds, tv);
 }
@@ -360,8 +378,9 @@ void nsHandleTimer(NS *ns)
 }
 
 /*
- * Handle readable and writable file descriptors in <rfds> and <wfds>, with <nfds> set to the
- * maximum number of file descriptors that may be set in <rfds> or <wfds>.
+ * Handle readable and writable file descriptors in <rfds> and <wfds>, with
+ * <nfds> set to the maximum number of file descriptors that may be set in
+ * <rfds> or <wfds>.
  */
 void nsHandleFiles(NS *ns, int nfds, fd_set *rfds, fd_set *wfds)
 {
@@ -385,9 +404,10 @@ void nsHandleWritable(NS *ns, int fd)
 }
 
 /*
- * Process the results of a call to select(). <r> is select's return value, <rfds> and <wfds>
- * contain the file descriptors that select has marked as readable or writable and <nfds> is the
- * maximum number of file descriptors that may be set in <rfds> or <wfds>.
+ * Process the results of a call to select(). <r> is select's return value,
+ * <rfds> and <wfds> contain the file descriptors that select has marked as
+ * readable or writable and <nfds> is the maximum number of file descriptors
+ * that may be set in <rfds> or <wfds>.
  */
 void nsProcessSelect(NS *ns, int r, int nfds, fd_set *rfds, fd_set *wfds)
 {
@@ -395,9 +415,9 @@ void nsProcessSelect(NS *ns, int r, int nfds, fd_set *rfds, fd_set *wfds)
 }
 
 /*
- * Wait for file or timer events and handle them. This function returns 1 if there are no files or
- * timers to wait for, -1 if some error occurred, or 0 if any number of events was successfully
- * handled.
+ * Wait for file or timer events and handle them. This function returns 1 if
+ * there are no files or timers to wait for, -1 if some error occurred, or 0
+ * if any number of events was successfully handled.
  */
 int nsHandleEvents(NS *ns)
 {
@@ -413,8 +433,8 @@ int nsRun(NS *ns)
 }
 
 /*
- * Close the network server <ns>. This removes all file descriptors and timers, which will cause
- * nsRun() to return.
+ * Close the network server <ns>. This removes all file descriptors and
+ * timers, which will cause nsRun() to return.
  */
 void nsClose(NS *ns)
 {
@@ -432,8 +452,9 @@ void nsClear(NS *ns)
 }
 
 /*
- * Clear the contents of <ns> and then free <ns> itself. Do not call this from inside the nsRun()
- * loop. Instead, call nsClose(), wait for nsRun() to return and then call nsDestroy().
+ * Clear the contents of <ns> and then free <ns> itself. Do not call this from
+ * inside the nsRun() loop. Instead, call nsClose(), wait for nsRun() to
+ * return and then call nsDestroy().
  */
 void nsDestroy(NS *ns)
 {
@@ -447,7 +468,7 @@ void nsDestroy(NS *ns)
 
 int errors = 0;
 
-void on_time(NS *ns, double t, void *udata)
+static void on_time(NS *ns, double t, void *udata)
 {
     uint16_t port = *((uint16_t *) udata);
     static int fd, step = 0;
@@ -472,7 +493,7 @@ void on_time(NS *ns, double t, void *udata)
     nsOnTime(ns, t + 0.1, on_time, udata);
 }
 
-void tester(uint16_t port)
+static void tester(uint16_t port)
 {
     int r;
 
@@ -487,7 +508,7 @@ void tester(uint16_t port)
     nsDestroy(ns);
 }
 
-void on_connect(NS *ns, int fd, void *udata)
+static void on_connect(NS *ns, int fd, void *udata)
 {
     UNUSED(ns);
     UNUSED(udata);
@@ -495,7 +516,7 @@ void on_connect(NS *ns, int fd, void *udata)
     P dbgPrint(stderr, "fd = %d\n", fd);
 }
 
-void on_disconnect(NS *ns, int fd, void *udata)
+static void on_disconnect(NS *ns, int fd, void *udata)
 {
     UNUSED(udata);
 
@@ -504,7 +525,7 @@ void on_disconnect(NS *ns, int fd, void *udata)
     nsClose(ns);
 }
 
-void on_socket(NS *ns, int fd, const char *data, int size, void *udata)
+static void on_socket(NS *ns, int fd, const char *data, int size, void *udata)
 {
     UNUSED(udata);
 
@@ -523,7 +544,7 @@ void on_socket(NS *ns, int fd, const char *data, int size, void *udata)
     P dbgPrint(stderr, "fd = %d, str = \"%s\", n = %d\n", fd, str, n);
 }
 
-void testee(NS *ns)
+static void testee(NS *ns)
 {
     int r;
 

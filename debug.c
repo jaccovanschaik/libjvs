@@ -4,7 +4,7 @@
  * debug.c is part of libjvs.
  *
  * Copyright:   (c) 2004-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: debug.c 364 2019-11-08 12:30:12Z jacco $
+ * Version:     $Id: debug.c 430 2021-06-28 13:21:27Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -26,7 +26,8 @@ static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 /*
  * Print the current position.
  */
-static void print_position(FILE *fp, const char *file, int line, const char *func)
+static void print_position(FILE *fp,
+        const char *file, int line, const char *func)
 {
    if (func) fprintf(fp, "%s ", func);
 
@@ -37,7 +38,8 @@ static void print_position(FILE *fp, const char *file, int line, const char *fun
  * Print the given debugging message, indented to the current stack depth/
  */
 __attribute__((format (printf, 5, 6)))
-void _dbgTrace(FILE *fp, const char *file, int line, const char *func, const char *fmt, ...)
+void _dbgTrace(FILE *fp, const char *file, int line, const char *func,
+        const char *fmt, ...)
 {
    va_list ap;
 
@@ -61,7 +63,8 @@ void _dbgTrace(FILE *fp, const char *file, int line, const char *func, const cha
  */
 __attribute__ ((noreturn))
 __attribute__((format (printf, 5, 6)))
-void _dbgAbort(FILE *fp, const char *file, int line, const char *func, const char *fmt, ...)
+void _dbgAbort(FILE *fp, const char *file, int line, const char *func,
+        const char *fmt, ...)
 {
    va_list ap;
 
@@ -84,7 +87,8 @@ void _dbgAbort(FILE *fp, const char *file, int line, const char *func, const cha
  * Print the given debugging message on <fp>.
  */
 __attribute__((format (printf, 5, 6)))
-void _dbgPrint(FILE *fp, const char *file, int line, const char *func, const char *fmt, ...)
+void _dbgPrint(FILE *fp, const char *file, int line, const char *func,
+        const char *fmt, ...)
 {
    va_list ap;
 
@@ -105,7 +109,8 @@ void _dbgPrint(FILE *fp, const char *file, int line, const char *func, const cha
  * Check <cond> and, if false, print the given message and call abort().
  */
 __attribute__((format (printf, 6, 7)))
-void _dbgAssert(FILE *fp, int cond, const char *file, int line, const char *func,
+void _dbgAssert(FILE *fp, int cond,
+        const char *file, int line, const char *func,
         const char *fmt, ...)
 {
    if (!cond) {
@@ -132,7 +137,8 @@ void _dbgAssert(FILE *fp, int cond, const char *file, int line, const char *func
  * message associated with the current value of errno.
  */
 __attribute__((format (printf, 5, 6)))
-void _dbgError(FILE *fp, const char *file, int line, const char *func, const char *fmt, ...)
+void _dbgError(FILE *fp, const char *file, int line, const char *func,
+        const char *fmt, ...)
 {
    va_list ap;
 

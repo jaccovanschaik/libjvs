@@ -7,7 +7,7 @@
  * hash.h is part of libjvs.
  *
  * Copyright:   (c) 2007-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: hash.h 386 2019-12-15 17:45:57Z jacco $
+ * Version:     $Id: hash.h 430 2021-06-28 13:21:27Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -65,9 +65,9 @@ void hashDestroy(HashTable *tbl);
 
 /*
  * Add an entry that points to <data> to <tbl>. Associate it with <key>, whose
- * length is <key_len>. <tbl>, <data> and <key> must not be NULL, <key_len> must
- * be greater than 0. If an entry with the same key already exists this function
- * calls abort().
+ * length is <key_len>. <tbl>, <data> and <key> must not be NULL, <key_len>
+ * must be greater than 0. If an entry with the same key already exists this
+ * function calls abort().
  */
 void hashAdd(HashTable *tbl, const void *data, const void *key, int key_len);
 
@@ -79,8 +79,9 @@ void hashAdd(HashTable *tbl, const void *data, const void *key, int key_len);
 void hashSet(HashTable *tbl, const void *data, const void *key, int key_len);
 
 /*
- * Return TRUE if <tbl> has an entry for <key> with length <key_len>, FALSE otherwise. <tbl> and
- * <key> must not be NULL, <key_len> must be greater than 0.
+ * Return TRUE if <tbl> has an entry for <key> with length <key_len>, FALSE
+ * otherwise. <tbl> and <key> must not be NULL, <key_len> must be greater than
+ * 0.
  */
 int hashContains(const HashTable *tbl, const void *key, int key_len);
 

@@ -7,7 +7,7 @@
  * options.h is part of libjvs.
  *
  * Copyright:   (c) 2013-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: options.h 364 2019-11-08 12:30:12Z jacco $
+ * Version:     $Id: options.h 430 2021-06-28 13:21:27Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -31,10 +31,12 @@ typedef enum {
 Options *optCreate(void);
 
 /*
- * Add an option with long name <long_name> and short name <short_name> to <options>. <argument>
- * specifies whether the option can, may, or can not have an argument.
+ * Add an option with long name <long_name> and short name <short_name> to
+ * <options>. <argument> specifies whether the option can, may, or can not
+ * have an argument.
  */
-void optAdd(Options *options, const char *long_name, char short_name, OPT_Argument argument);
+void optAdd(Options *options,
+        const char *long_name, char short_name, OPT_Argument argument);
 
 /*
  * Parse <argc> and <argv> and add the found options to <options>. If no errors
@@ -56,10 +58,12 @@ const char *optErrors(const Options *options);
 int optIsSet(const Options *options, const char *long_name);
 
 /*
- * Return the argument given for the option with <long_name>. Returns NULL if the option was not set
- * on the command line, or if it didn't have an argument.
+ * Return the argument given for the option with <long_name>. Returns NULL if
+ * the option was not set on the command line, or if it didn't have an
+ * argument.
  */
-const char *optArg(Options *options, const char *long_name, const char *fallback);
+const char *optArg(Options *options, const char *long_name,
+        const char *fallback);
 
 /*
  * Clear out <options> without deleting <options> itself.

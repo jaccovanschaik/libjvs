@@ -28,7 +28,7 @@
  *
  * Copyright: (c) 2019-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2019-07-29
- * Version:   $Id: log.c 425 2021-06-27 14:10:09Z jacco $
+ * Version:   $Id: log.c 430 2021-06-28 13:21:27Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -97,16 +97,16 @@ struct LogWriter {
     ListNode _node;                     // Make it listable.
     LogWriterType type;                 // Type of this writer.
     List prefixes;                      // List of prefixes to use.
-    char *host;                         // Host name (UDP and TCP).
-    uint16_t port;                      // Port number (UDP and TCP).
-    char *file;                         // File name (FILE).
-    FILE *fp;                           // FILE pointer (FILE and FP).
-    int fd;                             // File descriptor (FD, UDP, TCP).
-    int priority;                       // Priority (SYSLOG).
+    char *host;                         // Host name (for UDP and TCP).
+    uint16_t port;                      // Port number (for UDP and TCP).
+    char *file;                         // File name (for FILE).
+    FILE *fp;                           // FILE pointer (for FILE and FP).
+    int fd;                             // File descriptor (for FD, UDP, TCP).
+    int priority;                       // Priority (for SYSLOG).
     void (*handler)(const char *msg, void *udata);
-                                        // Handler function (FUNC).
-    void *udata;                        // User data (FUNC).
-    Buffer *buffer;                     // Buffer (BUF).
+                                        // Handler function (for FUNC).
+    void *udata;                        // User data (for FUNC).
+    Buffer *buffer;                     // Buffer (for BUF).
     char *separator;                    // Field separator.
 };
 
@@ -138,7 +138,7 @@ static void log_get_time(struct timespec *ts)
 {
 #ifdef TEST
     ts->tv_sec  = 12 * 3600 + 34 * 60 + 56;
-    ts->tv_nsec = 987654321;
+    ts->tv_nsec = 987654321;                // 1970-01-01/12:34:56.987654321 UTC
 #else
     clock_gettime(CLOCK_REALTIME, ts);
 #endif

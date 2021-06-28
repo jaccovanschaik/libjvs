@@ -17,7 +17,7 @@
  * pa.c is part of libjvs.
  *
  * Copyright:   (c) 2013-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: pa.c 398 2020-09-08 13:09:18Z jacco $
+ * Version:     $Id: pa.c 430 2021-06-28 13:21:27Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -47,7 +47,8 @@ void paSet(PointerArray *pa, int index, void *ptr)
 
         pa->ptr = realloc(pa->ptr, sizeof(void *) * new_num_ptrs);
 
-        memset(pa->ptr + pa->num_ptrs, 0, sizeof(void *) * (new_num_ptrs - pa->num_ptrs));
+        memset(pa->ptr + pa->num_ptrs, 0,
+                sizeof(void *) * (new_num_ptrs - pa->num_ptrs));
 
         pa->num_ptrs = new_num_ptrs;
     }
