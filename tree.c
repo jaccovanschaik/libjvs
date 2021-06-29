@@ -3,7 +3,7 @@
  *
  * Copyright: (c) 2019 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2019-11-07
- * Version:   $Id: tree.c 430 2021-06-28 13:21:27Z jacco $
+ * Version:   $Id: tree.c 431 2021-06-29 17:08:33Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -11,9 +11,21 @@
 
 #include "tree.h"
 #include "debug.h"
+#include "list.h"
+#include "utils.h"
 
 #include <stdint.h>
 #include <string.h>
+
+typedef struct {
+    ListNode _node;
+    char *key;
+    size_t key_size;
+} TreeIterNode;
+
+struct TreeIter {
+    List nodes;
+};
 
 /*
  * Find the branch with id <id> in <tree>. Search only in the range of
@@ -265,6 +277,123 @@ void treeSet(Tree *tree, const void *data, const void *key, size_t key_size)
 }
 
 /*
+ * Destroy iterator node <node>.
+ */
+static void destroy_iter_node(TreeIterNode *node)
+{
+    free(node->key);
+    free(node);
+}
+
+/*
+ * Destroy iterator <iter>.
+ */
+static void destroy_iterator(TreeIter *iter)
+{
+    TreeIterNode *node;
+
+    while ((node = listRemoveHead(&iter->nodes)) != NULL) {
+        destroy_iter_node(node);
+    }
+
+    free(iter);
+}
+
+/*
+ * Find all leaves under <branch> and add them to <nodes>. The key and key
+ * size that got us to this level are in <key> and <key_size>.
+ */
+static void collect_leaves(const Tree *branch,
+        uint8_t *key, size_t key_size, List *nodes)
+{
+    uint8_t sub_key[key_size + 1];
+
+    memcpy(sub_key, key, key_size);
+
+    for (int i = 0; i < branch->branch_count; i++) {
+        Tree *sub_branch = branch->branch[i];
+
+        sub_key[key_size] = sub_branch->id;
+
+        if (sub_branch->data != NULL) {
+            TreeIterNode *node = calloc(1, sizeof(TreeIterNode));
+
+            node->key = memdup(sub_key, key_size + 1);
+            node->key_size = key_size + 1;
+
+            listAppendTail(nodes, node);
+        }
+
+        collect_leaves(sub_branch, sub_key, key_size + 1, nodes);
+    }
+}
+
+/*
+ * Create an iterator that we can use to traverse <tree>. This function
+ * returns an iterator that "points to" the first leaf in the tree, or NULL if
+ * the tree has no leaves at all. Use treeIterKey to get the key and key_size
+ * for this leaf. Use treeIterNext to proceed to the next leaf.
+ */
+TreeIter *treeIterate(const Tree *tree)
+{
+    TreeIter *iter = calloc(1, sizeof(TreeIter));
+
+    uint8_t *key = malloc(0);
+
+    collect_leaves(tree, key, 0, &iter->nodes);
+
+    free(key);
+
+    if (listIsEmpty(&iter->nodes)) {
+        destroy_iterator(iter);
+        return NULL;
+    }
+    else {
+        return iter;
+    }
+}
+
+/*
+ * Update <iter> to point to the next leaf in the tree. If there are no more
+ * leaves, the iterator is discarded, <*iter> is set to NULL and the iterator
+ * can no longer be used. If you want to break off *before* this happens you
+ * can use treeIterStop to discard the iterator yourself.
+ */
+void treeIterNext(TreeIter **iter)
+{
+    TreeIterNode *head = listRemoveHead(&(*iter)->nodes);
+
+    destroy_iter_node(head);
+
+    if (listIsEmpty(&(*iter)->nodes)) {
+        destroy_iterator(*iter);
+        *iter = NULL;
+    }
+}
+
+/*
+ * Return a pointer to the key for the data item that <iter> currently points
+ * to. The length of the key is returned through <key_size>.
+ */
+const void *treeIterKey(TreeIter *iter, size_t *key_size)
+{
+    TreeIterNode *head = listHead(&iter->nodes);
+
+    *key_size = head->key_size;
+
+    return head->key;
+}
+
+/*
+ * Stop iterating using <iter>. <iter> is discarded and can no longer be used
+ * after calling this function.
+ */
+void treeIterStop(TreeIter *iter)
+{
+    destroy_iterator(iter);
+}
+
+/*
  * Drop the association of key <key> (with size <key_size>) with its data from
  * <tree>. The data itself is not touched.
  */
@@ -311,17 +440,22 @@ void treeDestroy(Tree *tree)
 
 static int errors = 0;
 
-#if 0
 static void check_entry(Tree *tree,
-        void *data, const void *key, size_t key_size)
+        const void *data, const void *key, size_t key_size)
 {
+#if 0
+    fprintf(stderr,
+            "check_entry: key_size = %zd, key = \"%.*s\", data = \"%.*s\"\n",
+            key_size,
+            (int) key_size, (char *) key, (int) key_size, (char *) data);
+#endif
+
     UNUSED(tree);
 
     make_sure_that(key_size == 3);
 
     make_sure_that(memcmp(data, key, 3) == 0);
 }
-#endif
 
 int main(void)
 {
@@ -521,6 +655,48 @@ int main(void)
     make_sure_that(tree->data == NULL);
     make_sure_that(tree->branch == NULL);
     make_sure_that(tree->branch_count == 0);
+
+    for (int i = 0; i < 3; i++) {
+        for (int j = 0; j < 3; j++) {
+            for (int k = 0; k < 3; k++) {
+                char *key = calloc(4, 1);
+
+                key[0] = 'A' + i;
+                key[1] = 'A' + j;
+                key[2] = 'A' + k;
+
+#if 0
+                fprintf(stderr, "Adding \"%s\" to tree.\n", key);
+#endif
+
+                treeAdd(tree, key, key, 3);
+            }
+        }
+    }
+
+    for (TreeIter *iter = treeIterate(tree); iter; treeIterNext(&iter)) {
+        size_t key_size;
+        const char *key = treeIterKey(iter, &key_size);
+        const void *data = treeGet(tree, key, key_size);
+
+        check_entry(tree, data, key, key_size);
+    }
+
+    for (int i = 0; i < 3; i++) {
+        for (int j = 0; j < 3; j++) {
+            for (int k = 0; k < 3; k++) {
+                char key[] = { 'A' + i, 'A' + j, 'A' + k };
+
+                char *data = treeGet(tree, key, 3);
+
+                make_sure_that(memcmp(data, key, 3) == 0);
+
+                treeDrop(tree, key, 3);
+
+                free(data);
+            }
+        }
+    }
 
     free(tree);
 
