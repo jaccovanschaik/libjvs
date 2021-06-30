@@ -7,7 +7,7 @@
  * dis.h is part of libjvs.
  *
  * Copyright:   (c) 2013-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: dis.h 430 2021-06-28 13:21:27Z jacco $
+ * Version:     $Id: dis.h 435 2021-06-30 11:25:35Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -168,8 +168,6 @@ void disClear(Dispatcher *dis);
  * to return and then call disDestroy().
  */
 void disDestroy(Dispatcher *dis);
-
-int main(void);
 
 #ifdef __cplusplus
 }
