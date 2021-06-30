@@ -6,7 +6,7 @@
  *
  * Copyright: (c) 2020 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2020-10-22
- * Version:   $Id: timespec.h 427 2021-06-27 14:47:51Z jacco $
+ * Version:   $Id: timespec.h 432 2021-06-30 11:17:57Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -96,14 +96,14 @@ struct timespec tsFromTimeval(struct timeval t);
  * modify. If you need a string to call your own, use strdup() or call
  * t_format() below.
  */
-const char *tsFormatC(const struct timespec *ts, const char *tz,
+const char *tsFormatC(const struct timespec t, const char *tz,
         const char *fmt);
 
 /*
  * Identical to tsFormatC() above, but returns a dynamically allocated string
  * that you should free() when you're done with it.
  */
-char *tsFormat(const struct timespec *ts, const char *tz, const char *fmt);
+char *tsFormat(const struct timespec t, const char *tz, const char *fmt);
 
 #ifdef __cplusplus
 }
