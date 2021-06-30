@@ -3,7 +3,7 @@
  *
  * Copyright: (c) 2019 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2019-11-07
- * Version:   $Id: tree.c 431 2021-06-29 17:08:33Z jacco $
+ * Version:   $Id: tree.c 433 2021-06-30 11:20:58Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -359,15 +359,18 @@ TreeIter *treeIterate(const Tree *tree)
  * can no longer be used. If you want to break off *before* this happens you
  * can use treeIterStop to discard the iterator yourself.
  */
-void treeIterNext(TreeIter **iter)
+TreeIter *treeIterNext(TreeIter *iter)
 {
-    TreeIterNode *head = listRemoveHead(&(*iter)->nodes);
+    TreeIterNode *head = listRemoveHead(&iter->nodes);
 
     destroy_iter_node(head);
 
-    if (listIsEmpty(&(*iter)->nodes)) {
-        destroy_iterator(*iter);
-        *iter = NULL;
+    if (listIsEmpty(&iter->nodes)) {
+        destroy_iterator(iter);
+        return NULL;
+    }
+    else {
+        return iter;
     }
 }
 
@@ -674,7 +677,7 @@ int main(void)
         }
     }
 
-    for (TreeIter *iter = treeIterate(tree); iter; treeIterNext(&iter)) {
+    for (TreeIter *iter = treeIterate(tree); iter; iter = treeIterNext(iter)) {
         size_t key_size;
         const char *key = treeIterKey(iter, &key_size);
         const void *data = treeGet(tree, key, key_size);

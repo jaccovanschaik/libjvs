@@ -6,7 +6,7 @@
  *
  * Copyright: (c) 2019 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2019-11-07
- * Version:   $Id: tree.h 431 2021-06-29 17:08:33Z jacco $
+ * Version:   $Id: tree.h 433 2021-06-30 11:20:58Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -73,7 +73,7 @@ TreeIter *treeIterate(const Tree *tree);
  * can no longer be used. If you want to break off *before* this happens you
  * can use treeIterStop to discard the iterator yourself.
  */
-void treeIterNext(TreeIter **iter);
+TreeIter *treeIterNext(TreeIter *iter);
 
 /*
  * Return a pointer to the key for the data item that <iter> currently points
