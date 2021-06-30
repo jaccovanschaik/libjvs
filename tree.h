@@ -6,7 +6,7 @@
  *
  * Copyright: (c) 2019 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2019-11-07
- * Version:   $Id: tree.h 433 2021-06-30 11:20:58Z jacco $
+ * Version:   $Id: tree.h 434 2021-06-30 11:23:47Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -68,10 +68,10 @@ void treeSet(Tree *tree, const void *data, const void *key, size_t key_size);
 TreeIter *treeIterate(const Tree *tree);
 
 /*
- * Update <iter> to point to the next leaf in the tree. If there are no more
- * leaves, the iterator is discarded, <*iter> is set to NULL and the iterator
- * can no longer be used. If you want to break off *before* this happens you
- * can use treeIterStop to discard the iterator yourself.
+ * Update <iter> to point to the next leaf in the tree, and return it. If
+ * there are no more leaves, the iterator is discarded, NULL is returned and
+ * the iterator can no longer be used. If you want to break off *before* this
+ * happens you can use treeIterStop to discard the iterator yourself.
  */
 TreeIter *treeIterNext(TreeIter *iter);
 
