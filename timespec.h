@@ -6,7 +6,7 @@
  *
  * Copyright: (c) 2020 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2020-10-22
- * Version:   $Id: timespec.h 432 2021-06-30 11:17:57Z jacco $
+ * Version:   $Id: timespec.h 436 2021-06-30 11:39:08Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -17,6 +17,12 @@ extern "C" {
 #endif
 
 #include <sys/time.h>
+
+/*
+ * Return a normalized version of <t>, where t.tv_nsec lies in [0, 10^9> and
+ * t.tv_sec is adjusted accordingly.
+ */
+struct timespec tsNormalized(struct timespec t);
 
 /*
  * Normalize <t>: make sure t->tv_nsec lies in [0, 10^9> and adjust t->tv_sec

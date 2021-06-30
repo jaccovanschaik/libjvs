@@ -3,7 +3,7 @@
  *
  * Copyright: (c) 2020 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2020-10-22
- * Version:   $Id: timespec.c 432 2021-06-30 11:17:57Z jacco $
+ * Version:   $Id: timespec.c 436 2021-06-30 11:39:08Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -22,20 +22,33 @@
 #define NSEC_PER_SEC 1000000000L
 
 /*
+ * Return a normalized version of <t>, where t.tv_nsec lies in [0, 10^9> and
+ * t.tv_sec is adjusted accordingly.
+ */
+struct timespec tsNormalized(struct timespec t)
+{
+    struct timespec dup = t;
+
+    while (dup.tv_nsec < 0) {
+        dup.tv_sec--;
+        dup.tv_nsec += NSEC_PER_SEC;
+    }
+
+    while (dup.tv_nsec >= NSEC_PER_SEC) {
+        dup.tv_sec++;
+        dup.tv_nsec -= NSEC_PER_SEC;
+    }
+
+    return dup;
+}
+
+/*
  * Normalize <t>: make sure t->tv_nsec lies in [0, 10^9> and adjust t->tv_sec
  * accordingly.
  */
 void tsNormalize(struct timespec *t)
 {
-    while (t->tv_nsec < 0) {
-        t->tv_sec--;
-        t->tv_nsec += NSEC_PER_SEC;
-    }
-
-    while (t->tv_nsec >= NSEC_PER_SEC) {
-        t->tv_sec++;
-        t->tv_nsec -= NSEC_PER_SEC;
-    }
+    *t = tsNormalized(*t);
 }
 
 /*
@@ -224,6 +237,24 @@ static int errors = 0;
 int main(void)
 {
     struct timespec t0, t1;
+
+    t0 = (struct timespec) { .tv_sec = 0, .tv_nsec = 1500000000L };
+    t1 = tsNormalized(t0);
+    check_timespec(t0, 0, 1500000000L);
+    check_timespec(t1, 1,  500000000L);
+
+    t0 = (struct timespec) { .tv_sec = 1, .tv_nsec = -500000000L };
+    t1 = tsNormalized(t0);
+    check_timespec(t0, 1, -500000000L);
+    check_timespec(t1, 0,  500000000L);
+
+    t0 = (struct timespec) { .tv_sec = 0, .tv_nsec = 1500000000L };
+    tsNormalize(&t0);
+    check_timespec(t0, 1,  500000000L);
+
+    t0 = (struct timespec) { .tv_sec = 1, .tv_nsec = -500000000L };
+    tsNormalize(&t0);
+    check_timespec(t0, 0,  500000000L);
 
     t0 = tsMake(1, 500000000L);
     check_timespec(t0, 1, 500000000L);
