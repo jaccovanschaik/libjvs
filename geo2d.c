@@ -3,9 +3,9 @@
  *
  * geo2d.c is part of libjvs.
  *
- * Copyright: (c) 2018-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
+ * Copyright: (c) 2018-2021 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2018-11-04
- * Version:   $Id: geo2d.c 398 2020-09-08 13:09:18Z jacco $
+ * Version:   $Id: geo2d.c 438 2021-08-19 10:10:03Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.

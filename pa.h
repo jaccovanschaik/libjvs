@@ -19,8 +19,8 @@
  *
  * pa.h is part of libjvs.
  *
- * Copyright:   (c) 2013-2019 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: pa.h 371 2019-11-09 22:30:19Z jacco $
+ * Copyright:   (c) 2013-2021 Jacco van Schaik (jacco@jaccovanschaik.net)
+ * Version:     $Id: pa.h 438 2021-08-19 10:10:03Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.

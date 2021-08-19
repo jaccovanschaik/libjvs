@@ -1,9 +1,9 @@
 /*
  * tree.c: Store data in an addressable tree structure.
  *
- * Copyright: (c) 2019 Jacco van Schaik (jacco@jaccovanschaik.net)
+ * Copyright: (c) 2019-2021 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2019-11-07
- * Version:   $Id: tree.c 434 2021-06-30 11:23:47Z jacco $
+ * Version:   $Id: tree.c 438 2021-08-19 10:10:03Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.

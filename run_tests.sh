@@ -1,11 +1,13 @@
 #!/bin/sh
 
-# do_tests.sh: Run all available tests.
+# run_tests.sh: Run all available tests.
 #
-# Author:       Jacco van Schaik (jacco.van.schaik@dnw.aero)
-# Copyright:    (c) 2013 DNW German-Dutch Windtunnels
-# Created:      2013-08-23
-# Version:      $Id: run_tests.sh 385 2019-11-28 13:48:45Z jacco $
+# Copyright: (c) 2021 Jacco van Schaik (jacco@jaccovanschaik.net)
+# Created:   2021-01-21 20:28:57.352668070 +0100
+# Version:   $Id: run_tests.sh 438 2021-08-19 10:10:03Z jacco $
+#
+# This software is distributed under the terms of the MIT license. See
+# http://www.opensource.org/licenses/mit-license.php for details.
 
 errors=0
 
