@@ -5,7 +5,7 @@
  * buffer.c is part of libjvs.
  *
  * Copyright:   (c) 2007-2021 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: buffer.c 438 2021-08-19 10:10:03Z jacco $
+ * Version:     $Id: buffer.c 439 2021-10-04 10:15:23Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -184,20 +184,22 @@ Buffer *bufAddC(Buffer *buf, char c)
  */
 Buffer *bufAddV(Buffer *buf, const char *fmt, va_list ap)
 {
-    size_t size;
     va_list my_ap;
 
-    va_copy(my_ap, ap);
-    size = vsnprintf(NULL, 0, fmt, my_ap);
-    va_end(my_ap);
+    while (true) {
+        size_t req_size, avail_size = buf->size - buf->used;
 
-    buf_increase_by(buf, size + 1);
+        va_copy(my_ap, ap);
+        req_size = vsnprintf(buf->data + buf->used, avail_size, fmt, my_ap);
+        va_end(my_ap);
 
-    va_copy(my_ap, ap);
-    vsnprintf(buf->data + buf->used, size + 1, fmt, my_ap);
-    va_end(my_ap);
+        if (req_size < avail_size) {
+            buf->used += req_size;
+            break;
+        }
 
-    buf->used += size;
+        buf_increase_by(buf, req_size);
+    }
 
     return buf;
 }
@@ -211,9 +213,7 @@ Buffer *bufAddF(Buffer *buf, const char *fmt, ...)
     va_list ap;
 
     va_start(ap, fmt);
-
     bufAddV(buf, fmt, ap);
-
     va_end(ap);
 
     return buf;
@@ -557,6 +557,13 @@ int main(void)
 
     make_sure_that(bufLen(&buf1) == 11);
     make_sure_that(strcmp(bufGet(&buf1), "ABCD1234XYZ") == 0);
+
+    // ** Overflow the initial 16 allocated bytes.
+
+    bufAddF(&buf1, "%s", "1234567890");
+
+    make_sure_that(bufLen(&buf1) == 21);
+    make_sure_that(strcmp(bufGet(&buf1), "ABCD1234XYZ1234567890") == 0);
 
     // ** The bufSet* family
 
