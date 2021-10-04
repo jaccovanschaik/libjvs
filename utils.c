@@ -4,7 +4,7 @@
  * utils.c is part of libjvs.
  *
  * Copyright:   (c) 2012-2021 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: utils.c 438 2021-08-19 10:10:03Z jacco $
+ * Version:     $Id: utils.c 441 2021-10-04 15:06:47Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -283,43 +283,50 @@ const char *t_format_c(int32_t sec, int32_t nsec,
     localtime_r(&sec_copy, &tm);
 
     char *cur_fmt, *new_fmt = NULL;
-    asprintf(&cur_fmt, "X%s", fmt);
-
-    while (regexec(regex, cur_fmt, nmatch, pmatch, 0) == 0) {
-        sscanf(cur_fmt + pmatch[1].rm_so, "%d", &precision);
-
-        int field_width = precision == 0 ? 2 : 3 + precision;
-
-        snprintf(sec_string, sizeof(sec_string), "%0*.*f",
-                field_width, precision,
-                tm.tm_sec + nsec / 1000000000.0);
-
-        if (asprintf(&new_fmt, "%.*s%s%s",
-                pmatch[0].rm_so, cur_fmt,
-                sec_string,
-                cur_fmt + pmatch[0].rm_eo) == -1) {
-            break;
-        }
-
-        cur_fmt = strdup(new_fmt);
-
-        free(new_fmt);
-    }
+    int field_width;
 
     static char *result_str = NULL;
     static int  result_size = 0;
 
-    if (result_str == NULL) {
-        result_size = 8;
-        result_str = calloc(1, result_size);
-    }
+    if (asprintf(&cur_fmt, "X%s", fmt) != -1) {
+        while (regexec(regex, cur_fmt, nmatch, pmatch, 0) == 0) {
+            sscanf(cur_fmt + pmatch[1].rm_so, "%d", &precision);
 
-    while (strftime(result_str, result_size, cur_fmt, &tm) == 0) {
-        result_size *= 2;
-        result_str = realloc(result_str, result_size);
-    }
+            if (precision == 0) {
+                field_width = 2;
+            }
+            else {
+                field_width = 3 + precision;
+            }
 
-    free(cur_fmt);
+            snprintf(sec_string, sizeof(sec_string), "%0*.*f",
+                    field_width, precision,
+                    tm.tm_sec + nsec / 1000000000.0);
+
+            if (asprintf(&new_fmt, "%.*s%s%s",
+                    pmatch[0].rm_so, cur_fmt,
+                    sec_string,
+                    cur_fmt + pmatch[0].rm_eo) == -1) {
+                break;
+            }
+
+            cur_fmt = strdup(new_fmt);
+
+            free(new_fmt);
+        }
+
+        if (result_str == NULL) {
+            result_size = 8;
+            result_str = calloc(1, result_size);
+        }
+
+        while (strftime(result_str, result_size, cur_fmt, &tm) == 0) {
+            result_size *= 2;
+            result_str = realloc(result_str, result_size);
+        }
+
+        free(cur_fmt);
+    }
 
     if (tz != NULL) {
         if (saved_tz == NULL) {
