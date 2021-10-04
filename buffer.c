@@ -5,7 +5,7 @@
  * buffer.c is part of libjvs.
  *
  * Copyright:   (c) 2007-2021 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: buffer.c 439 2021-10-04 10:15:23Z jacco $
+ * Version:     $Id: buffer.c 440 2021-10-04 14:54:20Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -257,9 +257,7 @@ Buffer *bufSetF(Buffer *buf, const char *fmt, ...)
     va_list ap;
 
     va_start(ap, fmt);
-
     bufSetV(buf, fmt, ap);
-
     va_end(ap);
 
     return buf;
