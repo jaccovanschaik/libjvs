@@ -4,7 +4,7 @@
  * utils.c is part of libjvs.
  *
  * Copyright:   (c) 2012-2021 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: utils.c 441 2021-10-04 15:06:47Z jacco $
+ * Version:     $Id: utils.c 442 2021-10-04 15:08:56Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -338,7 +338,7 @@ const char *t_format_c(int32_t sec, int32_t nsec,
         tzset();
     }
 
-    return result_str + 1;
+    return result_str ? result_str + 1 : NULL;
 }
 
 /*
