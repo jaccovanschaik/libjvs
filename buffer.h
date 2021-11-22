@@ -8,7 +8,7 @@
  * buffer.h is part of libjvs.
  *
  * Copyright:   (c) 2007-2021 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: buffer.h 438 2021-08-19 10:10:03Z jacco $
+ * Version:     $Id: buffer.h 443 2021-11-22 11:03:44Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -23,9 +23,10 @@ extern "C" {
 #include <stdbool.h>
 
 typedef struct {
-    char  *data;    /* Pointer to buffer data. */
-    size_t used;    /* Bytes in use (excluding a trailing null byte!). */
-    size_t size;    /* Bytes allocated. */
+    char  *data;    // Pointer to buffer data.
+    size_t used;    // Bytes in use (excluding a trailing null byte, so you
+                    // have a valid, consistent buffer when all zeroed out).
+    size_t size;    // Bytes allocated.
 } Buffer;
 
 /*
@@ -139,7 +140,7 @@ const char *bufGet(const Buffer *buf);
  * Reset <buf> to an empty state. Does not free its internal data (use
  * bufClear() for that).
  */
-Buffer *bufReset(Buffer *buf);
+Buffer *bufRewind(Buffer *buf);
 
 /*
  * Get the number of valid bytes in <buf>.

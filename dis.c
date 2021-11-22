@@ -4,7 +4,7 @@
  * dis.c is part of libjvs.
  *
  * Copyright:   (c) 2013-2021 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: dis.c 438 2021-08-19 10:10:03Z jacco $
+ * Version:     $Id: dis.c 443 2021-11-22 11:03:44Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -441,7 +441,7 @@ void disClose(Dispatcher *dis)
         if (file != NULL) {
             paDrop(&dis->files, fd);
 
-            bufReset(&file->outgoing);
+            bufRewind(&file->outgoing);
 
             free(file);
         }

@@ -7,7 +7,7 @@
  * units.h is part of libjvs.
  *
  * Copyright:   (c) 2007-2021 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: units.h 438 2021-08-19 10:10:03Z jacco $
+ * Version:     $Id: units.h 443 2021-11-22 11:03:44Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -30,7 +30,7 @@ extern "C" {
  * you want to print the alt variable in feet you should say "printf(alt
  * IN_FEET)" and the equivalent altitude in feet will be printed.
 */
-                                                        /* to SI   */
+                                                        /* to...   */
 
 #define MINUTES                 * 60.0                  /* [sec]   */
 #define HOURS                   * 3600.0                /* [sec]   */
@@ -41,9 +41,9 @@ extern "C" {
 #define KNOTS                   * 0.51444               /* [m/s]   */
 #define TONS                    * 1000.0                /* [kg]    */
 #define PERCENT                 * 0.01                  /* [1]     */
-#define DEGREES                 * ( M_PI / 180 )        /* [rad]   */
-#define FT_PER_MIN              FEET / 60.0             /* [m/s]   */
-#define DEG_PER_MIN             DEGREES / 60.0          /* [rad/s] */
+#define DEGREES                 * (M_PI / 180)          /* [rad]   */
+#define FT_PER_MIN              FEET / (1 MINUTES)      /* [m/s]   */
+#define DEG_PER_MIN             DEGREES / (1 MINUTES)   /* [rad/s] */
 #define MBAR                    * 100.0                 /* [N/m2]  */
 
 #define IN_MINUTES              / 60.0
@@ -55,9 +55,9 @@ extern "C" {
 #define IN_KNOTS                / 0.51444
 #define IN_TONS                 * 0.001
 #define IN_PERCENT              * 100.0
-#define IN_DEGREES              * 180 / M_PI
-#define IN_FT_PER_MIN           * 60 / 0.3048
-#define IN_DEG_PER_MIN          * 60 * 180 / M_PI
+#define IN_DEGREES              * (180 / M_PI)
+#define IN_FT_PER_MIN           * (60 / 0.3048)
+#define IN_DEG_PER_MIN          * (60 * 180 / M_PI)
 #define IN_MBAR                 / 100.0
 
 #ifdef __cplusplus

@@ -4,7 +4,7 @@
  * net.c is part of libjvs.
  *
  * Copyright:   (c) 2007-2021 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: net.c 438 2021-08-19 10:10:03Z jacco $
+ * Version:     $Id: net.c 443 2021-11-22 11:03:44Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -60,7 +60,7 @@ uint16_t netPort(const char *service, const char *protocol)
     serv_ptr = getservbyname(service, protocol);
 
     if (serv_ptr == NULL) {
-P       dbgError(stderr, "getservbyname(%s) failed", service);
+        P dbgError(stderr, "getservbyname(%s) failed", service);
         return -1;
     }
 

@@ -5,7 +5,7 @@
  * buffer.c is part of libjvs.
  *
  * Copyright:   (c) 2007-2021 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: buffer.c 440 2021-10-04 14:54:20Z jacco $
+ * Version:     $Id: buffer.c 443 2021-11-22 11:03:44Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -18,6 +18,7 @@
 #include <string.h>
 #include <assert.h>
 #include <stdbool.h>
+#include <errno.h>
 
 #include "buffer.h"
 #include "utils.h"
@@ -232,7 +233,7 @@ Buffer *bufAddS(Buffer *buf, const char *str)
  */
 Buffer *bufSet(Buffer *buf, const void *data, size_t len)
 {
-    bufReset(buf);
+    bufRewind(buf);
 
     return bufAdd(buf, data, len);
 }
@@ -242,7 +243,7 @@ Buffer *bufSet(Buffer *buf, const void *data, size_t len)
  */
 Buffer *bufSetC(Buffer *buf, char c)
 {
-    bufReset(buf);
+    bufRewind(buf);
 
     return bufAdd(buf, &c, 1);
 }
@@ -269,7 +270,7 @@ Buffer *bufSetF(Buffer *buf, const char *fmt, ...)
  */
 Buffer *bufSetV(Buffer *buf, const char *fmt, va_list ap)
 {
-    bufReset(buf);
+    bufRewind(buf);
 
     return bufAddV(buf, fmt, ap);
 }
@@ -296,7 +297,7 @@ const char *bufGet(const Buffer *buf)
  * Reset <buf> to an empty state. Does not free its internal data (use
  * bufClear() for that).
  */
-Buffer *bufReset(Buffer *buf)
+Buffer *bufRewind(Buffer *buf)
 {
     if (buf->data != NULL) buf->data[0] = 0;
 
@@ -484,12 +485,14 @@ bool bufStartsWith(const Buffer *buf, const char *fmt, ...)
 {
     va_list ap;
     char *pat;
+    int r;
 
     va_start(ap, fmt);
-    vasprintf(&pat, fmt, ap);
+    r = vasprintf(&pat, fmt, ap);
+    dbgAssert(stderr, r >= 0, "vasprintf failed (%s)\n", strerror(errno));
     va_end(ap);
 
-    bool r = strncmp(bufGet(buf), pat, strlen(pat));
+    r = strncmp(bufGet(buf), pat, strlen(pat));
 
     free(pat);
 
@@ -505,12 +508,14 @@ bool bufEndsWith(const Buffer *buf, const char *fmt, ...)
 {
     va_list ap;
     char *pat;
+    int r;
 
     va_start(ap, fmt);
-    vasprintf(&pat, fmt, ap);
+    r = vasprintf(&pat, fmt, ap);
+    dbgAssert(stderr, r >= 0, "vasprintf failed (%s)\n", strerror(errno));
     va_end(ap);
 
-    bool r = strcmp(bufGet(buf) + bufLen(buf) - strlen(pat), pat);
+    r = strcmp(bufGet(buf) + bufLen(buf) - strlen(pat), pat);
 
     free(pat);
 
@@ -526,9 +531,9 @@ int main(void)
     Buffer buf2 = { 0 };
     Buffer *buf3;
 
-    // ** bufReset
+    // ** bufRewind
 
-    bufReset(&buf1);
+    bufRewind(&buf1);
 
     make_sure_that(bufLen(&buf1) == 0);
     make_sure_that(bufIsEmpty(&buf1));
@@ -585,9 +590,9 @@ int main(void)
     make_sure_that(bufLen(&buf1) == 6);
     make_sure_that(strcmp(bufGet(&buf1), "ABCDEF") == 0);
 
-    // ** bufReset again
+    // ** bufRewind again
 
-    bufReset(&buf1);
+    bufRewind(&buf1);
 
     make_sure_that(bufLen(&buf1) == 0);
     make_sure_that(strcmp(bufGet(&buf1), "") == 0);
@@ -623,7 +628,7 @@ int main(void)
 
     // Reset buffer (where buf->data != NULL)
     buf3 = bufSetS(bufCreate(), "ABCDEF");
-    bufReset(buf3);
+    bufRewind(buf3);
     make_sure_that(strcmp((r = bufFinish(buf3)), "") == 0);
     free(r);
 
@@ -635,7 +640,7 @@ int main(void)
 
     // Reset buffer (where buf->data != NULL)
     buf3 = bufSetS(bufCreate(), "ABCDEF");
-    bufReset(buf3);
+    bufRewind(buf3);
     make_sure_that(bufFinishN(buf3) == NULL);
 
     // ** bufTrim
@@ -727,20 +732,20 @@ int main(void)
 
     const char *name[] = { "Mills", "Berry", "Buck", "Stipe" };
 
-    bufReset(&buf1);
+    bufRewind(&buf1);
 
     bufList(&buf1, ", ", " and ", TRUE, TRUE, "%s", name[0]);
 
     make_sure_that(strcmp(bufGet(&buf1), "Mills") == 0);
 
-    bufReset(&buf1);
+    bufRewind(&buf1);
 
     bufList(&buf1, ", ", " and ", TRUE, FALSE, "%s", name[0]);
     bufList(&buf1, ", ", " and ", FALSE, TRUE, "%s", name[1]);
 
     make_sure_that(strcmp(bufGet(&buf1), "Mills and Berry") == 0);
 
-    bufReset(&buf1);
+    bufRewind(&buf1);
 
     bufList(&buf1, ", ", " and ", TRUE,  FALSE, "%s", name[0]);
     bufList(&buf1, ", ", " and ", FALSE, FALSE, "%s", name[1]);
@@ -748,7 +753,7 @@ int main(void)
 
     make_sure_that(strcmp(bufGet(&buf1), "Mills, Berry and Buck") == 0);
 
-    bufReset(&buf1);
+    bufRewind(&buf1);
 
     bufList(&buf1, ", ", " and ", TRUE,  FALSE, "%s", name[0]);
     bufList(&buf1, ", ", " and ", FALSE, FALSE, "%s", name[1]);

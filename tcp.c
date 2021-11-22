@@ -4,7 +4,7 @@
  * tcp.c is part of libjvs.
  *
  * Copyright:   (c) 2007-2021 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: tcp.c 438 2021-08-19 10:10:03Z jacco $
+ * Version:     $Id: tcp.c 443 2021-11-22 11:03:44Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -106,14 +106,14 @@ static int tcp_listen(const char *host, uint16_t port, int family)
     int lsd;
 
     if ((lsd = tcp_socket(family)) == -1) {
-P       dbgError(stderr, "tcp_socket failed");
+        P dbgError(stderr, "tcp_socket failed");
         return -1;
     }
 
     int one = 1;
 
     if (setsockopt(lsd, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one)) != 0) {
-P       dbgError(stderr, "setsockopt(REUSEADDR) failed");
+        P dbgError(stderr, "setsockopt(REUSEADDR) failed");
         return -1;
     }
     else if (tcp_bind(lsd, host, port, family) != 0) {
@@ -219,7 +219,7 @@ int tcpAccept(int sd)
     } while (csd == -1 && errno == EINTR);
 
     if (csd == -1) {
-P       dbgError(stderr, "accept failed");
+        P dbgError(stderr, "accept failed");
     }
 
     return csd;
@@ -251,7 +251,7 @@ int tcpRead(int fd, void *buf, int len)
     }
 
     if (res == -1) {
-P       dbgError(stderr, "read failed");
+        P dbgError(stderr, "read failed");
         return -1;
     }
     else {
@@ -271,7 +271,7 @@ int tcpWrite(int fd, const void *buf, int len)
     } while ((res > 0 || errno == EINTR) && (n += res) < len);
 
     if (res == -1) {
-P       dbgError(stderr, "write failed");
+        P dbgError(stderr, "write failed");
         return -1;
     }
     else {

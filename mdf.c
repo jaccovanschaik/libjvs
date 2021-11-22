@@ -21,7 +21,7 @@
  * mdf.c is part of libjvs.
  *
  * Copyright:   (c) 2013-2021 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: mdf.c 438 2021-08-19 10:10:03Z jacco $
+ * Version:     $Id: mdf.c 443 2021-11-22 11:03:44Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -199,7 +199,7 @@ static MDF_Object *mdf_new_object(MDF_Type type)
  * Create an object with type <type> and name <name>, which was found in file
  * <file> on line <line>. <root> and <last> are pointers to the addresses of
  * the first and last elements in the list to which the new object must be
- * added.
+ * added, and they will be updated as necessary.
  */
 static MDF_Object *mdf_add_object(MDF_Type type, const Buffer *name,
                                 const char *file, int line,
@@ -614,7 +614,7 @@ void mdfClose(MDF_Stream *stream)
         if (stream->u.fp != NULL) fclose(stream->u.fp);
     }
 
-    bufReset(&stream->error);
+    bufRewind(&stream->error);
     free(stream->file);
 
     free(stream);
@@ -703,7 +703,7 @@ static void do_test(int index, Test *test)
 
     mdfClose(stream);
     mdfFree(object);
-    bufReset(&output);
+    bufRewind(&output);
 }
 
 static Test test[] = {
