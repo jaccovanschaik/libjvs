@@ -28,7 +28,7 @@
  *
  * Copyright: (c) 2019-2021 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2019-07-29
- * Version:   $Id: log.c 446 2021-12-18 08:30:16Z jacco $
+ * Version:   $Id: log.c 447 2021-12-18 08:35:29Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -1078,7 +1078,7 @@ int main(void)
     errors += test_time_format();
 
     // Open a writer to file FILE_WRITER_TEST_FILE...
-    if ((file_writer = logFileWriter(FILE_WRITER_TEST_FILE)) == NULL) {
+    if ((file_writer = logFileWriter("%s", FILE_WRITER_TEST_FILE)) == NULL) {
         fprintf(stderr, "Couldn't open %s.\n", FILE_WRITER_TEST_FILE);
         errors++;
         goto quit;
