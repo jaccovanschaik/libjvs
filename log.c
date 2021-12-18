@@ -28,7 +28,7 @@
  *
  * Copyright: (c) 2019-2021 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2019-07-29
- * Version:   $Id: log.c 438 2021-08-19 10:10:03Z jacco $
+ * Version:   $Id: log.c 446 2021-12-18 08:30:16Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -632,20 +632,20 @@ LogWriter *logFileWriter(const char *fmt, ...)
     va_list ap;
 
     va_start(ap, fmt);
-    int r = asprintf(&filename, fmt, ap);
+    int r = vasprintf(&filename, fmt, ap);
     va_end(ap);
 
     if (r == -1) return NULL;
 
     LogWriter *writer;
 
-    if ((writer = log_find_file_writer(filename)) == NULL &&
-        (writer = log_add_file_writer(filename)) == NULL) {
-        return NULL;
+    if ((writer = log_find_file_writer(filename)) == NULL) {
+        writer = log_add_file_writer(filename);
     }
-    else {
-        return writer;
-    }
+
+    free(filename);
+
+    return writer;
 }
 
 /*
@@ -823,7 +823,7 @@ void logWithString(LogWriter *writer, const char *fmt, ...)
     va_list ap;
 
     va_start(ap, fmt);
-    int r = asprintf(&str, fmt, ap);
+    int r = vasprintf(&str, fmt, ap);
     va_end(ap);
 
     if (r != -1) {
