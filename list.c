@@ -6,7 +6,7 @@
  * list.c is part of libjvs.
  *
  * Copyright:   (c) 2004-2022 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: list.c 448 2022-02-09 10:30:34Z jacco $
+ * Version:     $Id: list.c 449 2022-02-09 12:07:05Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -166,7 +166,10 @@ void _listAppend(List *list, ListNode *node, ListNode *after)
 /*
  * Insert <node> into <list>, maintaining the order in the list according to
  * <cmp>. If there are already one or more entries in the list with the same
- * "rank" as <node>, <node> will be inserted *before* those entries.
+ * "rank" as <node>, <node> will be inserted *before* those entries. Also,
+ * this function starts searching from the head of the list, so if you suspect
+ * <node> will end up near the head of the list this might be the best
+ * function to use.
  */
 void _listInsertOrdered(List *list, ListNode *node,
         int(*cmp)(const void *, const void *))
@@ -182,7 +185,7 @@ void _listInsertOrdered(List *list, ListNode *node,
     ListNode *cursor;
 
     for (cursor = list->head; cursor; cursor = cursor->next) {
-        if (cmp(node, cursor) <= 0) break;
+        if (cmp(cursor, node) >= 0) break;
     }
 
     _listInsert(list, node, cursor);
@@ -191,7 +194,10 @@ void _listInsertOrdered(List *list, ListNode *node,
 /*
  * Insert <node> into <list>, maintaining the order in the list according to
  * <cmp>. If there are already one or more entries in the list with the same
- * "rank" as <node>, <node> will be inserted *after* those entries.
+ * "rank" as <node>, <node> will be inserted *after* those entries. Also, this
+ * function starts searching from the tail of the list, so if you suspect
+ * <node> will end up near the tail of the list this might be the best
+ * function to use.
  */
 void _listAppendOrdered(List *list, ListNode *node,
         int(*cmp)(const void *, const void *))
@@ -206,11 +212,11 @@ void _listAppendOrdered(List *list, ListNode *node,
 
     ListNode *cursor;
 
-    for (cursor = list->head; cursor; cursor = cursor->next) {
-        if (cmp(node, cursor) < 0) break;
+    for (cursor = list->tail; cursor; cursor = cursor->prev) {
+        if (cmp(node, cursor) >= 0) break;
     }
 
-    _listInsert(list, node, cursor);
+    _listAppend(list, node, cursor);
 }
 
 /*
@@ -401,6 +407,7 @@ void listSort(List *list, int(*cmp)(const void *, const void *))
 #ifdef TEST
 
 #include <stdarg.h>
+#include "utils.h"
 
 typedef struct {
     ListNode _node;
@@ -426,9 +433,6 @@ typedef struct {
         errors++; \
     } \
 }
-
-#define TRUE  (0 == 0)
-#define FALSE (1 == 0)
 
 static int cmp(const void *a, const void *b)
 {
@@ -597,41 +601,41 @@ int main(void)
     data[5]->i = 3;
 
     listInsertOrdered(&list, data[1], cmp);
-    errors += test_list(&list, data[1], NULL);
+    make_sure_that(test_list(&list, data[1], NULL) == 0);
 
     listInsertOrdered(&list, data[0], cmp);
-    errors += test_list(&list, data[0], data[1], NULL);
+    make_sure_that(test_list(&list, data[0], data[1], NULL) == 0);
 
     listInsertOrdered(&list, data[2], cmp);
-    errors += test_list(&list, data[0], data[1], data[2], NULL);
+    make_sure_that(test_list(&list, data[0], data[1], data[2], NULL) == 0);
 
     listInsertOrdered(&list, data[3], cmp);
-    errors += test_list(&list,
-            data[0], data[1], data[3], data[2], NULL);
+    make_sure_that(test_list(&list,
+            data[0], data[1], data[3], data[2], NULL) == 0);
 
     listInsertOrdered(&list, data[4], cmp);
-    errors += test_list(&list,
-            data[0], data[1], data[4], data[3], data[2], NULL);
+    make_sure_that(test_list(&list,
+            data[0], data[1], data[4], data[3], data[2], NULL) == 0);
 
     listInsertOrdered(&list, data[5], cmp);
-    errors += test_list(&list,
-            data[0], data[1], data[5], data[4], data[3], data[2], NULL);
+    make_sure_that(test_list(&list,
+            data[0], data[1], data[5], data[4], data[3], data[2], NULL) == 0);
 
     listRemove(&list, data[3]);
     listRemove(&list, data[4]);
     listRemove(&list, data[5]);
 
     listAppendOrdered(&list, data[3], cmp);
-    errors += test_list(&list,
-            data[0], data[1], data[3], data[2], NULL);
+    make_sure_that(test_list(&list,
+            data[0], data[1], data[3], data[2], NULL) == 0);
 
     listAppendOrdered(&list, data[4], cmp);
-    errors += test_list(&list,
-            data[0], data[1], data[3], data[4], data[2], NULL);
+    make_sure_that(test_list(&list,
+            data[0], data[1], data[3], data[4], data[2], NULL) == 0);
 
     listAppendOrdered(&list, data[5], cmp);
-    errors += test_list(&list,
-            data[0], data[1], data[3], data[4], data[5], data[2], NULL);
+    make_sure_that(test_list(&list,
+            data[0], data[1], data[3], data[4], data[5], data[2], NULL) == 0);
 
     exit(errors);
 }
