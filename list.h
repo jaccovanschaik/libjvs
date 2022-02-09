@@ -8,8 +8,8 @@
  *
  * list.h is part of libjvs.
  *
- * Copyright:   (c) 2004-2021 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: list.h 438 2021-08-19 10:10:03Z jacco $
+ * Copyright:   (c) 2004-2022 Jacco van Schaik (jacco@jaccovanschaik.net)
+ * Version:     $Id: list.h 448 2022-02-09 10:30:34Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -34,14 +34,16 @@ struct List {
   int length;
 };
 
-#define listInsertHead(l, n) _listInsertHead((l), &(n)->_node)
-#define listAppendTail(l, n) _listAppendTail((l), &(n)->_node)
-#define listInsert(l, n, b)  _listInsert((l), &(n)->_node, &(b)->_node)
-#define listAppend(l, n, a)  _listAppend((l), &(n)->_node, &(a)->_node)
-#define listNext(n)          _listNext(&(n)->_node)
-#define listPrev(n)          _listPrev(&(n)->_node)
-#define listRemove(l, n)     _listRemove((l), &(n)->_node)
-#define listContaining(n)    _listContaining(&(n)->_node)
+#define listInsertHead(l, n)        _listInsertHead((l), &(n)->_node)
+#define listAppendTail(l, n)        _listAppendTail((l), &(n)->_node)
+#define listInsert(l, n, b)         _listInsert((l), &(n)->_node, &(b)->_node)
+#define listAppend(l, n, a)         _listAppend((l), &(n)->_node, &(a)->_node)
+#define listInsertOrdered(l, n, c)  _listInsertOrdered((l), &(n)->_node, (c));
+#define listAppendOrdered(l, n, c)  _listAppendOrdered((l), &(n)->_node, (c));
+#define listNext(n)                 _listNext(&(n)->_node)
+#define listPrev(n)                 _listPrev(&(n)->_node)
+#define listRemove(l, n)            _listRemove((l), &(n)->_node)
+#define listContaining(n)           _listContaining(&(n)->_node)
 
 /*
  * Create a new, empty list.
@@ -72,6 +74,22 @@ void _listInsert(List *list, ListNode *node, ListNode *before);
  * Append <node> to <after> in list <list>.
  */
 void _listAppend(List *list, ListNode *node, ListNode *after);
+
+/*
+ * Insert <node> into <list>, maintaining the order in the list according to
+ * <cmp>. If there are already one or more entries in the list with the same
+ * "rank" as <node>, <node> will be inserted *before* those entries.
+ */
+void _listInsertOrdered(List *list, ListNode *node,
+        int(*cmp)(const void *, const void *));
+
+/*
+ * Insert <node> into <list>, maintaining the order in the list according to
+ * <cmp>. If there are already one or more entries in the list with the same
+ * "rank" as <node>, <node> will be inserted *after* those entries.
+ */
+void _listAppendOrdered(List *list, ListNode *node,
+        int(*cmp)(const void *, const void *));
 
 /*
  * Remove <node> from list <list>.
