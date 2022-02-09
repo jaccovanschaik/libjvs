@@ -4,12 +4,12 @@
 /*
  * list.h: A package for handling linked lists of structs. To make a
  * struct "listable" it must have a "ListNode" struct named "_node" as
- * their first element.
+ * its first element.
  *
  * list.h is part of libjvs.
  *
  * Copyright:   (c) 2004-2022 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: list.h 448 2022-02-09 10:30:34Z jacco $
+ * Version:     $Id: list.h 450 2022-02-09 12:11:37Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
