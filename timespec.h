@@ -6,7 +6,7 @@
  *
  * Copyright: (c) 2020-2022 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2020-10-22
- * Version:   $Id: timespec.h 448 2022-02-09 10:30:34Z jacco $
+ * Version:   $Id: timespec.h 451 2022-02-12 23:09:10Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -34,12 +34,12 @@ void tsNormalize(struct timespec *t);
  * Return a pointer to a new timespec, filled with the values in <sec> and
  * <nsec>, and normalized.
  */
-struct timespec *tsCreate(long sec, long nsec);
+struct timespec *tsCreate(time_t sec, long nsec);
 
 /*
  * Return a timespec set to the values in <sec> and <nsec>, and normalized.
  */
-struct timespec tsMake(long sec, long nsec);
+struct timespec tsMake(time_t sec, long nsec);
 
 /*
  * Return the current time as a struct timespec.
@@ -100,7 +100,7 @@ struct timespec tsFromTimeval(struct timeval t);
  *
  * Returns a statically allocated string that the caller isn't supposed to
  * modify. If you need a string to call your own, use strdup() or call
- * t_format() below.
+ * tsFormat() below.
  */
 const char *tsFormatC(const struct timespec t, const char *tz,
         const char *fmt);

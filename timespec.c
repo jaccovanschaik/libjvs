@@ -3,7 +3,7 @@
  *
  * Copyright: (c) 2020-2022 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2020-10-22
- * Version:   $Id: timespec.c 438 2021-08-19 10:10:03Z jacco $
+ * Version:   $Id: timespec.c 451 2022-02-12 23:09:10Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -55,7 +55,7 @@ void tsNormalize(struct timespec *t)
  * Return a pointer to a new timespec, filled with the values in <sec> and
  * <nsec>, and normalized.
  */
-struct timespec *tsCreate(long sec, long nsec)
+struct timespec *tsCreate(time_t sec, long nsec)
 {
     struct timespec *t = calloc(1, sizeof(*t));
 
@@ -70,7 +70,7 @@ struct timespec *tsCreate(long sec, long nsec)
 /*
  * Return a timespec set to the values in <sec> and <nsec>, and normalized.
  */
-struct timespec tsMake(long sec, long nsec)
+struct timespec tsMake(time_t sec, long nsec)
 {
     struct timespec t = {
         .tv_sec = sec,
@@ -136,7 +136,7 @@ double tsDiff(struct timespec t1, struct timespec t0)
  */
 struct timespec tsSub(struct timespec t, double seconds)
 {
-    t.tv_sec  -= (long) seconds;
+    t.tv_sec  -= (time_t) seconds;
     t.tv_nsec -= (long) (NSEC_PER_SEC * fmod(seconds, 1));
 
     tsNormalize(&t);
@@ -149,7 +149,7 @@ struct timespec tsSub(struct timespec t, double seconds)
  */
 struct timespec tsAdd(struct timespec t, double seconds)
 {
-    t.tv_sec  += (long) seconds;
+    t.tv_sec  += (time_t) seconds;
     t.tv_nsec += (long) (NSEC_PER_SEC * fmod(seconds, 1));
 
     tsNormalize(&t);
@@ -212,7 +212,7 @@ struct timespec tsFromTimeval(struct timeval t)
  *
  * Returns a statically allocated string that the caller isn't supposed to
  * modify. If you need a string to call your own, use strdup() or call
- * t_format() below.
+ * tsFormat() below.
  */
 const char *tsFormatC(const struct timespec t, const char *tz,
         const char *fmt)
