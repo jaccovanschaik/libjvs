@@ -1,12 +1,12 @@
 /*
  * list.c: A package for handling linked lists of structs. To make a
  * struct "listable" it must have a "ListNode" struct named "_node" as
- * their first element.
+ * its first element.
  *
  * list.c is part of libjvs.
  *
- * Copyright:   (c) 2004-2021 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: list.c 438 2021-08-19 10:10:03Z jacco $
+ * Copyright:   (c) 2004-2022 Jacco van Schaik (jacco@jaccovanschaik.net)
+ * Version:     $Id: list.c 450 2022-02-09 12:11:37Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -164,6 +164,60 @@ void _listAppend(List *list, ListNode *node, ListNode *after)
 }
 
 /*
+ * Insert <node> into <list>, maintaining the order in the list according to
+ * comparison function <cmp>. If there are already one or more entries in the
+ * list with the same "rank" as <node>, <node> will be inserted *before* those
+ * entries. Also, this function starts searching from the head of the list, so
+ * if you suspect <node> will end up near the head this is the function to use.
+ */
+void _listInsertOrdered(List *list, ListNode *node,
+        int(*cmp)(const void *, const void *))
+{
+    assert(list != NULL);
+    assert(node != NULL);
+    assert(cmp != NULL);
+
+    assert(node->next == NULL);
+    assert(node->prev == NULL);
+    assert(node->list == NULL);
+
+    ListNode *cursor;
+
+    for (cursor = list->head; cursor; cursor = cursor->next) {
+        if (cmp(cursor, node) >= 0) break;
+    }
+
+    _listInsert(list, node, cursor);
+}
+
+/*
+ * Insert <node> into <list>, maintaining the order in the list according to
+ * comparison function <cmp>. If there are already one or more entries in the
+ * list with the same "rank" as <node>, <node> will be inserted *after* those
+ * entries. Also, this function starts searching from the tail of the list, so
+ * if you suspect <node> will end up near the tail this is the function to use.
+ */
+void _listAppendOrdered(List *list, ListNode *node,
+        int(*cmp)(const void *, const void *))
+{
+    assert(list != NULL);
+    assert(node != NULL);
+    assert(cmp != NULL);
+
+    assert(node->next == NULL);
+    assert(node->prev == NULL);
+    assert(node->list == NULL);
+
+    ListNode *cursor;
+
+    for (cursor = list->tail; cursor; cursor = cursor->prev) {
+        if (cmp(node, cursor) >= 0) break;
+    }
+
+    _listAppend(list, node, cursor);
+}
+
+/*
  * Remove <node> from list <list>.
  */
 void _listRemove(List *list, ListNode *node)
@@ -280,7 +334,8 @@ int listIsEmpty(const List *list)
 }
 
 /*
- * Return the list that contains <node>, or NULL if <node> is not contained in a list.
+ * Return the list that contains <node>, or NULL if <node> is not contained in
+ * a list.
  */
 List *_listContaining(ListNode *node)
 {
@@ -349,6 +404,9 @@ void listSort(List *list, int(*cmp)(const void *, const void *))
 
 #ifdef TEST
 
+#include <stdarg.h>
+#include "utils.h"
+
 typedef struct {
     ListNode _node;
     int i;
@@ -374,15 +432,45 @@ typedef struct {
     } \
 }
 
-#define TRUE  (0 == 0)
-#define FALSE (1 == 0)
-
-int cmp(const void *a, const void *b)
+static int cmp(const void *a, const void *b)
 {
     const Data *A = a;
     const Data *B = b;
 
     return(A->i - B->i);
+}
+
+static int test_list(List *list, ...)
+{
+    int errors = 0;
+    Data *req = NULL, *act = listHead(list);
+    va_list ap;
+
+    va_start(ap, list);
+
+    act = listHead(list);
+    req = va_arg(ap, Data *);
+
+    while (req != NULL && act != NULL) {
+        if (req != act) errors++;
+
+        act = listNext(act);
+        req = va_arg(ap, Data *);
+    }
+
+    while (act != NULL) {
+        errors++;
+        act = listNext(act);
+    }
+
+    while (req != NULL) {
+        errors++;
+        req = va_arg(ap, Data *);
+    }
+
+    va_end(ap);
+
+    return errors;
 }
 
 int main(void)
@@ -501,6 +589,51 @@ int main(void)
     TEST_PTR(listRemoveHead(&list), data[5]);
     TEST_PTR(listRemoveHead(&list), data[1]);
     TEST_PTR(listRemoveHead(&list), data[2]);
+
+    data[0]->i = 0;
+    data[1]->i = 2;
+    data[2]->i = 4;
+
+    data[3]->i = 3;
+    data[4]->i = 3;
+    data[5]->i = 3;
+
+    listInsertOrdered(&list, data[1], cmp);
+    make_sure_that(test_list(&list, data[1], NULL) == 0);
+
+    listInsertOrdered(&list, data[0], cmp);
+    make_sure_that(test_list(&list, data[0], data[1], NULL) == 0);
+
+    listInsertOrdered(&list, data[2], cmp);
+    make_sure_that(test_list(&list, data[0], data[1], data[2], NULL) == 0);
+
+    listInsertOrdered(&list, data[3], cmp);
+    make_sure_that(test_list(&list,
+            data[0], data[1], data[3], data[2], NULL) == 0);
+
+    listInsertOrdered(&list, data[4], cmp);
+    make_sure_that(test_list(&list,
+            data[0], data[1], data[4], data[3], data[2], NULL) == 0);
+
+    listInsertOrdered(&list, data[5], cmp);
+    make_sure_that(test_list(&list,
+            data[0], data[1], data[5], data[4], data[3], data[2], NULL) == 0);
+
+    listRemove(&list, data[3]);
+    listRemove(&list, data[4]);
+    listRemove(&list, data[5]);
+
+    listAppendOrdered(&list, data[3], cmp);
+    make_sure_that(test_list(&list,
+            data[0], data[1], data[3], data[2], NULL) == 0);
+
+    listAppendOrdered(&list, data[4], cmp);
+    make_sure_that(test_list(&list,
+            data[0], data[1], data[3], data[4], data[2], NULL) == 0);
+
+    listAppendOrdered(&list, data[5], cmp);
+    make_sure_that(test_list(&list,
+            data[0], data[1], data[3], data[4], data[5], data[2], NULL) == 0);
 
     exit(errors);
 }
