@@ -1,6 +1,6 @@
 # Makefile for libjvs.
 #
-# Copyright:    (c) 2007-2021 Jacco van Schaik (jacco@jaccovanschaik.net)
+# Copyright:    (c) 2007-2022 Jacco van Schaik (jacco@jaccovanschaik.net)
 # Version:      $Id$
 #
 # This software is distributed under the terms of the MIT license. See

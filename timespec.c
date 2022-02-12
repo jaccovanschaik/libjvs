@@ -1,7 +1,7 @@
 /*
  * timespec.c: calculations with struct timespec's.
  *
- * Copyright: (c) 2020-2021 Jacco van Schaik (jacco@jaccovanschaik.net)
+ * Copyright: (c) 2020-2022 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2020-10-22
  * Version:   $Id: timespec.c 438 2021-08-19 10:10:03Z jacco $
  *
@@ -236,6 +236,7 @@ static int errors = 0;
 
 int main(void)
 {
+    char *s;
     struct timespec t0, t1;
 
     t0 = (struct timespec) { .tv_sec = 0, .tv_nsec = 1500000000L };
@@ -326,6 +327,28 @@ int main(void)
     t0 = tsMake(0, 0);
 
     make_sure_that(tsCompare(t1, t0) == 0);
+
+    t0 = tsMake(12 * 3600 + 34 * 60 + 56, 987654321);
+
+    s = tsFormat(t0, "GMT", "%H:%M:%9S");
+    make_sure_that(strcmp(s, "12:34:56.987654321") == 0);
+    free(s);
+
+    s = tsFormat(t0, "GMT", "%H:%M:%3S");
+    make_sure_that(strcmp(s, "12:34:56.988") == 0);
+    free(s);
+
+    s = tsFormat(t0, "GMT", "%H:%M:%0S");
+    make_sure_that(strcmp(s, "12:34:57") == 0);
+    free(s);
+
+    s = tsFormat(t0, "GMT", "%H:%M:%S");
+    make_sure_that(strcmp(s, "12:34:56") == 0);
+    free(s);
+
+    s = tsFormat(t0, "UTC+1", "%H:%M:%S");
+    make_sure_that(strcmp(s, "11:34:56") == 0);
+    free(s);
 
     return errors;
 }
