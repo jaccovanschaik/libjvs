@@ -3,7 +3,7 @@
  *
  * Copyright: (c) 2020-2022 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2020-10-22
- * Version:   $Id: timespec.c 451 2022-02-12 23:09:10Z jacco $
+ * Version:   $Id: timespec.c 452 2022-02-12 23:11:22Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
