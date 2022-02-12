@@ -2,11 +2,11 @@
 #define TIME_H
 
 /*
- * timespec.h: calculations with struct timespec's.
+ * timeval.h: calculations with struct timeval's.
  *
  * Copyright: (c) 2020-2022 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2020-10-22
- * Version:   $Id: timespec.h 438 2021-08-19 10:10:03Z jacco $
+ * Version:   $Id: timeval.h 454 2022-02-12 23:39:20Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -19,73 +19,68 @@ extern "C" {
 #include <sys/time.h>
 
 /*
- * Return a normalized version of <t>, where t.tv_nsec lies in [0, 10^9> and
- * t.tv_sec is adjusted accordingly.
+ * Return a normalized version of <tv>, where tv_usec lies in [0, 10^9> and
+ * tv_sec is adjusted accordingly.
  */
-struct timespec tsNormalized(struct timespec t);
+struct timeval tvNormalized(struct timeval tv);
 
 /*
- * Normalize <t>: make sure t->tv_nsec lies in [0, 10^9> and adjust t->tv_sec
- * accordingly.
+ * Normalize <tv>: make sure tv->tv_usec lies in [0, 10^9> and adjust
+ * tv->tv_sec accordingly.
  */
-void tsNormalize(struct timespec *t);
+void tvNormalize(struct timeval *tv);
 
 /*
- * Return a pointer to a new timespec, filled with the values in <sec> and
- * <nsec>, and normalized.
+ * Return a pointer to a new timeval, filled with the values in <sec> and
+ * <usec>, and normalized.
  */
-struct timespec *tsCreate(long sec, long nsec);
+struct timeval *tvCreate(long sec, long usec);
 
 /*
- * Return a timespec set to the values in <sec> and <nsec>, and normalized.
+ * Return a timeval set to the values in <sec> and <usec>, and normalized.
  */
-struct timespec tsMake(long sec, long nsec);
+struct timeval tvMake(long sec, long usec);
 
 /*
- * Return the current time as a struct timespec.
+ * Return the current time as a struct timeval.
  */
-struct timespec tsNow(void);
+struct timeval tvNow(void);
 
 /*
  * Compare <t1> and <t0>. Returns -1 if <t1> is less than <t0>, 1 if <t1> is
  * greater than <t0> or 0 if they are equal.
  */
-int tsCompare(struct timespec t1, struct timespec t0);
+int tvCompare(struct timeval t1, struct timeval t0);
 
 /*
  * Return the difference between t1 and t0 (i.e. t1 - t0) as a double.
  */
-double tsDiff(struct timespec t1, struct timespec t0);
+double tvDelta(struct timeval t1, struct timeval t0);
 
 /*
- * Subtract <seconds> from <t> and return the result as a new timespec.
+ * Subtract <seconds> from <tv> and return the result as a new timeval.
  */
-struct timespec tsSub(struct timespec t, double seconds);
+struct timeval tvDec(struct timeval tv, double seconds);
 
 /*
- * Add <seconds> to <t> and return the result as a new timespec.
+ * Add <seconds> to <tv> and return the result as a new timeval.
  */
-struct timespec tsAdd(struct timespec t, double seconds);
+struct timeval tvInc(struct timeval tv, double seconds);
 
 /*
- * Return a timespec derived from the double time value in <t>.
+ * Return a timeval derived from the double time value in <t>.
  */
-struct timespec tsFromDouble(double t);
+struct timeval tvFromDouble(double t);
 
 /*
- * Return a double precision time value derived from timespec.
+ * Return a double precision time value derived from timeval.
  */
-double tsToDouble(struct timespec t);
+double tvToDouble(struct timeval tv);
 
 /*
- * Return a timeval struct derived from timespec <t>.
+ * Return a timeval struct derived from timespec <ts>.
  */
-struct timeval tsToTimeval(struct timespec t);
-
-/*
- * Return a timespec struct derived from timeval <t>.
- */
-struct timespec tsFromTimeval(struct timeval t);
+struct timeval tvFromTimespec(struct timespec ts);
 
 /*
  * Format the timestamp given by <ts> to a string, using the
@@ -96,20 +91,20 @@ struct timespec tsFromTimeval(struct timeval t);
  * single digit between the '%' and 'S' gives the number of sub-second digits
  * to add to the seconds value. Leaving out the digit altogether reverts back
  * to the default strftime seconds value; giving it as 0 rounds it to the
- * nearest second, based on the value of <nsec>.
+ * nearest second, based on the value of <usec>.
  *
  * Returns a statically allocated string that the caller isn't supposed to
  * modify. If you need a string to call your own, use strdup() or call
- * t_format() below.
+ * tvFormat() below.
  */
-const char *tsFormatC(const struct timespec t, const char *tz,
+const char *tvFormatC(const struct timeval tv, const char *tz,
         const char *fmt);
 
 /*
- * Identical to tsFormatC() above, but returns a dynamically allocated string
+ * Identical to tvFormatC() above, but returns a dynamically allocated string
  * that you should free() when you're done with it.
  */
-char *tsFormat(const struct timespec t, const char *tz, const char *fmt);
+char *tvFormat(const struct timeval tv, const char *tz, const char *fmt);
 
 #ifdef __cplusplus
 }

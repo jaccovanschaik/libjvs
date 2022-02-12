@@ -6,7 +6,7 @@
  *
  * Copyright: (c) 2020-2022 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2020-10-22
- * Version:   $Id: timespec.h 451 2022-02-12 23:09:10Z jacco $
+ * Version:   $Id: timespec.h 454 2022-02-12 23:39:20Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -19,16 +19,16 @@ extern "C" {
 #include <sys/time.h>
 
 /*
- * Return a normalized version of <t>, where t.tv_nsec lies in [0, 10^9> and
- * t.tv_sec is adjusted accordingly.
+ * Return a normalized version of <ts>, where tv_nsec lies in [0, 10^9> and
+ * tv_sec is adjusted accordingly.
  */
-struct timespec tsNormalized(struct timespec t);
+struct timespec tsNormalized(struct timespec ts);
 
 /*
- * Normalize <t>: make sure t->tv_nsec lies in [0, 10^9> and adjust t->tv_sec
- * accordingly.
+ * Normalize <ts>: make sure ts->tv_nsec lies in [0, 10^9> and adjust
+ * ts->tv_sec accordingly.
  */
-void tsNormalize(struct timespec *t);
+void tsNormalize(struct timespec *ts);
 
 /*
  * Return a pointer to a new timespec, filled with the values in <sec> and
@@ -55,17 +55,17 @@ int tsCompare(struct timespec t1, struct timespec t0);
 /*
  * Return the difference between t1 and t0 (i.e. t1 - t0) as a double.
  */
-double tsDiff(struct timespec t1, struct timespec t0);
+double tsDelta(struct timespec t1, struct timespec t0);
 
 /*
- * Subtract <seconds> from <t> and return the result as a new timespec.
+ * Subtract <seconds> from <ts> and return the result as a new timespec.
  */
-struct timespec tsSub(struct timespec t, double seconds);
+struct timespec tsDec(struct timespec ts, double seconds);
 
 /*
- * Add <seconds> to <t> and return the result as a new timespec.
+ * Add <seconds> to <ts> and return the result as a new timespec.
  */
-struct timespec tsAdd(struct timespec t, double seconds);
+struct timespec tsInc(struct timespec ts, double seconds);
 
 /*
  * Return a timespec derived from the double time value in <t>.
@@ -75,17 +75,12 @@ struct timespec tsFromDouble(double t);
 /*
  * Return a double precision time value derived from timespec.
  */
-double tsToDouble(struct timespec t);
+double tsToDouble(struct timespec ts);
 
 /*
- * Return a timeval struct derived from timespec <t>.
+ * Return a timespec struct derived from timeval <tv>.
  */
-struct timeval tsToTimeval(struct timespec t);
-
-/*
- * Return a timespec struct derived from timeval <t>.
- */
-struct timespec tsFromTimeval(struct timeval t);
+struct timespec tsFromTimeval(struct timeval tv);
 
 /*
  * Format the timestamp given by <ts> to a string, using the
@@ -102,14 +97,14 @@ struct timespec tsFromTimeval(struct timeval t);
  * modify. If you need a string to call your own, use strdup() or call
  * tsFormat() below.
  */
-const char *tsFormatC(const struct timespec t, const char *tz,
-        const char *fmt);
+const char *tsFormatC(const struct timespec ts, const char *tz,
+                      const char *fmt);
 
 /*
  * Identical to tsFormatC() above, but returns a dynamically allocated string
  * that you should free() when you're done with it.
  */
-char *tsFormat(const struct timespec t, const char *tz, const char *fmt);
+char *tsFormat(const struct timespec ts, const char *tz, const char *fmt);
 
 #ifdef __cplusplus
 }

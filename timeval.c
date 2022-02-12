@@ -3,7 +3,7 @@
  *
  * Copyright: (c) 2020-2022 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2020-10-22
- * Version:   $Id: timeval.c 438 2021-08-19 10:10:03Z jacco $
+ * Version:   $Id: timeval.c 454 2022-02-12 23:39:20Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -22,12 +22,12 @@
 #define USEC_PER_SEC 1000000L
 
 /*
- * Return a normalized version of <t>, where t.tv_usec lies in [0, 10^9> and
- * t.tv_sec is adjusted accordingly.
+ * Return a normalized version of <tv>, where tv_usec lies in [0, 10^9> and
+ * tv_sec is adjusted accordingly.
  */
-struct timeval tvNormalized(struct timeval t)
+struct timeval tvNormalized(struct timeval tv)
 {
-    struct timeval dup = t;
+    struct timeval dup = tv;
 
     while (dup.tv_usec < 0) {
         dup.tv_sec--;
@@ -43,12 +43,12 @@ struct timeval tvNormalized(struct timeval t)
 }
 
 /*
- * Normalize <t>: make sure t->tv_usec lies in [0, 10^9> and adjust t->tv_sec
- * accordingly.
+ * Normalize <tv>: make sure tv->tv_usec lies in [0, 10^9> and adjust
+ * tv->tv_sec accordingly.
  */
-void tvNormalize(struct timeval *t)
+void tvNormalize(struct timeval *tv)
 {
-    *t = tvNormalized(*t);
+    *tv = tvNormalized(*tv);
 }
 
 /*
@@ -120,36 +120,36 @@ int tvCompare(struct timeval t1, struct timeval t0)
 /*
  * Return the difference between t1 and t0 (i.e. t1 - t0) as a double.
  */
-double tvDiff(struct timeval t1, struct timeval t0)
+double tvDelta(struct timeval t1, struct timeval t0)
 {
     return t1.tv_sec - t0.tv_sec
          + (double) (t1.tv_usec - t0.tv_usec) / USEC_PER_SEC;
 }
 
 /*
- * Subtract <seconds> from <t> and return the result as a new timeval.
+ * Subtract <seconds> from <tv> and return the result as a new timeval.
  */
-struct timeval tvSub(struct timeval t, double seconds)
+struct timeval tvDec(struct timeval tv, double seconds)
 {
-    t.tv_sec  -= (long) seconds;
-    t.tv_usec -= (long) (USEC_PER_SEC * fmod(seconds, 1));
+    tv.tv_sec  -= (long) seconds;
+    tv.tv_usec -= (long) (USEC_PER_SEC * fmod(seconds, 1));
 
-    tvNormalize(&t);
+    tvNormalize(&tv);
 
-    return t;
+    return tv;
 }
 
 /*
- * Add <seconds> to <t> and return the result as a new timeval.
+ * Add <seconds> to <tv> and return the result as a new timeval.
  */
-struct timeval tvAdd(struct timeval t, double seconds)
+struct timeval tvInc(struct timeval tv, double seconds)
 {
-    t.tv_sec  += (long) seconds;
-    t.tv_usec += (long) (USEC_PER_SEC * fmod(seconds, 1));
+    tv.tv_sec  += (long) seconds;
+    tv.tv_usec += (long) (USEC_PER_SEC * fmod(seconds, 1));
 
-    tvNormalize(&t);
+    tvNormalize(&tv);
 
-    return t;
+    return tv;
 }
 
 /*
@@ -163,32 +163,19 @@ struct timeval tvFromDouble(double t)
 /*
  * Return a double precision time value derived from timeval.
  */
-double tvToDouble(struct timeval t)
+double tvToDouble(struct timeval tv)
 {
-    return (double) t.tv_sec + (double) t.tv_usec / USEC_PER_SEC;
+    return (double) tv.tv_sec + (double) tv.tv_usec / USEC_PER_SEC;
 }
 
 /*
- * Return a timespec struct derived from timeval <t>.
+ * Return a timeval struct derived from timespec <ts>.
  */
-struct timespec tvToTimespec(struct timeval t)
-{
-    struct timespec ts = {
-        .tv_sec  = t.tv_sec,
-        .tv_nsec = t.tv_usec * 1000
-    };
-
-    return ts;
-}
-
-/*
- * Return a timeval struct derived from timespec <t>.
- */
-struct timeval tvFromTimespec(struct timespec t)
+struct timeval tvFromTimespec(struct timespec ts)
 {
     struct timeval tv = {
-        .tv_sec  = t.tv_sec,
-        .tv_usec = t.tv_nsec * 1000
+        .tv_sec  = ts.tv_sec,
+        .tv_usec = ts.tv_nsec * 1000
     };
 
     return tv;
@@ -209,19 +196,19 @@ struct timeval tvFromTimespec(struct timespec t)
  * modify. If you need a string to call your own, use strdup() or call
  * t_format() below.
  */
-const char *tvFormatC(const struct timeval t, const char *tz,
+const char *tvFormatC(const struct timeval tv, const char *tz,
         const char *fmt)
 {
-    return t_format_c(t.tv_sec, 1000 * t.tv_usec, tz, fmt);
+    return t_format_c(tv.tv_sec, 1000 * tv.tv_usec, tz, fmt);
 }
 
 /*
  * Identical to tvFormatC() above, but returns a dynamically allocated string
  * that you should free() when you're done with it.
  */
-char *tvFormat(const struct timeval t, const char *tz, const char *fmt)
+char *tvFormat(const struct timeval tv, const char *tz, const char *fmt)
 {
-    return strdup(tvFormatC(t, tz, fmt));
+    return strdup(tvFormatC(tv, tz, fmt));
 }
 
 #ifdef TEST
@@ -270,33 +257,33 @@ int main(void)
     t0 = tvMake(1, 0);
     t1 = tvMake(2, 0);
 
-    make_sure_that(tvDiff(t1, t0) == 1);
+    make_sure_that(tvDelta(t1, t0) == 1);
 
     t0 = tvMake(1, 200000L);
     t1 = tvMake(1, 700000L);
 
-    make_sure_that(tvDiff(t1, t0) == 0.5);
+    make_sure_that(tvDelta(t1, t0) == 0.5);
 
     t0 = tvMake(1, 700000L);
     t1 = tvMake(1, 200000L);
 
-    make_sure_that(tvDiff(t1, t0) == -0.5);
+    make_sure_that(tvDelta(t1, t0) == -0.5);
 
     t1 = tvMake(2, 150000L);
     t0 = tvMake(1, 900000L);
 
-    make_sure_that(tvDiff(t1, t0) == 0.25);
+    make_sure_that(tvDelta(t1, t0) == 0.25);
 
     t1 = tvMake(1, 900000L);
     t0 = tvMake(2, 150000L);
 
-    make_sure_that(tvDiff(t1, t0) == -0.25);
+    make_sure_that(tvDelta(t1, t0) == -0.25);
 
     t0 = tvMake(1, 500000L);
-    check_timeval(tvAdd(t0, 1),    2, 500000L);
-    check_timeval(tvAdd(t0, 0.25), 1, 750000L);
-    check_timeval(tvSub(t0, 1),    0, 500000L);
-    check_timeval(tvSub(t0, 0.25), 1, 250000L);
+    check_timeval(tvInc(t0, 1),    2, 500000L);
+    check_timeval(tvInc(t0, 0.25), 1, 750000L);
+    check_timeval(tvDec(t0, 1),    0, 500000L);
+    check_timeval(tvDec(t0, 0.25), 1, 250000L);
 
     t1 = tvMake(1, 0);
     t0 = tvMake(2, 0);
