@@ -3,7 +3,7 @@
  *
  * Copyright: (c) 2020-2022 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2020-10-22
- * Version:   $Id: timespec.c 454 2022-02-12 23:39:20Z jacco $
+ * Version:   $Id: timespec.c 455 2022-02-13 11:36:14Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -284,11 +284,13 @@ int main(void)
 
     make_sure_that(tsDelta(t1, t0) == -0.25);
 
-    t0 = tsMake(1, 500000000L);
-    check_timespec(tsInc(t0, 1),    2, 500000000L);
-    check_timespec(tsInc(t0, 0.25), 1, 750000000L);
-    check_timespec(tsDec(t0, 1),    0, 500000000L);
-    check_timespec(tsDec(t0, 0.25), 1, 250000000L);
+    t0 = tsMake(5, 750000000L);
+    check_timespec(tsInc(t0, 0.50), 6, 250000000L);
+    check_timespec(tsInc(t0, 1.00), 6, 750000000L);
+    check_timespec(tsInc(t0, 2.00), 7, 750000000L);
+    check_timespec(tsDec(t0, 0.50), 5, 250000000L);
+    check_timespec(tsDec(t0, 1.00), 4, 750000000L);
+    check_timespec(tsDec(t0, 2.00), 3, 750000000L);
 
     t1 = tsMake(1, 0);
     t0 = tsMake(2, 0);
