@@ -3,7 +3,7 @@
  *
  * Copyright: (c) 2020-2022 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2020-10-22
- * Version:   $Id: timeval.c 454 2022-02-12 23:39:20Z jacco $
+ * Version:   $Id: timeval.c 456 2022-02-13 11:42:39Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -279,11 +279,13 @@ int main(void)
 
     make_sure_that(tvDelta(t1, t0) == -0.25);
 
-    t0 = tvMake(1, 500000L);
-    check_timeval(tvInc(t0, 1),    2, 500000L);
-    check_timeval(tvInc(t0, 0.25), 1, 750000L);
-    check_timeval(tvDec(t0, 1),    0, 500000L);
-    check_timeval(tvDec(t0, 0.25), 1, 250000L);
+    t0 = tvMake(5, 750000L);
+    check_timeval(tvInc(t0, 0.50), 6, 250000L);
+    check_timeval(tvInc(t0, 1.00), 6, 750000L);
+    check_timeval(tvInc(t0, 2.00), 7, 750000L);
+    check_timeval(tvDec(t0, 0.50), 5, 250000L);
+    check_timeval(tvDec(t0, 1.00), 4, 750000L);
+    check_timeval(tvDec(t0, 2.00), 3, 750000L);
 
     t1 = tvMake(1, 0);
     t0 = tvMake(2, 0);
