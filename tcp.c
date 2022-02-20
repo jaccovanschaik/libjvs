@@ -3,8 +3,8 @@
  *
  * tcp.c is part of libjvs.
  *
- * Copyright:   (c) 2007-2021 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: tcp.c 443 2021-11-22 11:03:44Z jacco $
+ * Copyright:   (c) 2007-2022 Jacco van Schaik (jacco@jaccovanschaik.net)
+ * Version:     $Id: tcp.c 457 2022-02-20 19:54:04Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -36,25 +36,27 @@ static int tcp_socket(int family)
     int sd;                            /* socket descriptor */
 
     if ((sd = socket(family, SOCK_STREAM, 0)) == -1) {
-        dbgError(stderr, "unable to create socket: %s", strerror(errno));
-        return -1;
+        dbgError(stderr, "socket failed");
     }
-
-    if (setsockopt(sd, SOL_SOCKET, SO_LINGER, &linger, sizeof(linger)) != 0) {
-        dbgError(stderr, "setsockopt(LINGER) failed: %s", strerror(errno));
-        return -1;
+    else if (setsockopt(sd, SOL_SOCKET, SO_LINGER,
+                        &linger, sizeof(linger)) != 0)
+    {
+        dbgError(stderr, "setsockopt(LINGER) failed");
+        close(sd);
+        sd = -1;
     }
 
     return sd;
 }
 
 /*
- * Bind the listen socket given in <sd> to <host> and <port>, using address
- * family <family>. If <host> is NULL, the socket will be bound to all
- * interfaces. If <port> is 0, a random port will be selected by the operating
- * system. Use netLocalPort to find out which port that was.
+ * Open a listen port on <host> and <port>, using address family <family>, and
+ * return the corresponding file descriptor. If <host> is NULL the socket will
+ * listen on all interfaces. If <port> is equal to 0, the socket will be bound
+ * to a random local port (use netLocalPort() on the returned fd to find out
+ * which).
  */
-static int tcp_bind(int sd, const char *host, uint16_t port, int family)
+static int tcp_listen(const char *host, uint16_t port, int family)
 {
     struct addrinfo *info = NULL;
     struct addrinfo  hint = {
@@ -70,53 +72,45 @@ static int tcp_bind(int sd, const char *host, uint16_t port, int family)
     int r;
 
     if ((r = getaddrinfo(host, port_str, &hint, &info)) != 0) {
-        dbgError(stderr, "getaddrinfo for %s:%hu failed: %s",
+        dbgPrint(stderr, "getaddrinfo for %s:%hu failed: %s",
                 host, port, gai_strerror(r));
-        r = -1;
+        return -1;
     }
-    else {
-        struct addrinfo *aip;
 
-        for (aip = info; aip != NULL; aip = aip->ai_next) {
-            if ((r = bind(sd, info->ai_addr, info->ai_addrlen)) == 0) {
-                break;
-            }
-        }
+    int lsd;
 
-        if (r != 0) {
-            dbgError(stderr, "couldn't bind to %s:%hu", host, port);
-            r = -1;
+    do {
+        if ((lsd = tcp_socket(info->ai_family)) == -1) {
+            continue;
         }
-    }
+        else if ((r = bind(lsd, info->ai_addr, info->ai_addrlen)) < 0) {
+            close(lsd);
+            continue;
+        }
+        else {
+            break;
+        }
+    } while ((info = info->ai_next) != NULL);
 
     freeaddrinfo(info);
 
-    return r;
-}
-
-/*
- * Open a listen port on <host> and <port>, using address family <family>, and
- * return the corresponding file descriptor. If <host> is NULL the socket will
- * listen on all interfaces. If <port> is equal to 0, the socket will be bound
- * to a random local port (use netLocalPort() on the returned fd to find out
- * which).
- */
-static int tcp_listen(const char *host, uint16_t port, int family)
-{
-    int lsd;
-
-    if ((lsd = tcp_socket(family)) == -1) {
-        P dbgError(stderr, "tcp_socket failed");
+    if (lsd == -1) {
+        dbgError(stderr, "socket() failed");
+        return -1;
+    }
+    else if (r == -1) {
+        dbgError(stderr, "bind() failed");
         return -1;
     }
 
     int one = 1;
 
-    if (setsockopt(lsd, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one)) != 0) {
-        P dbgError(stderr, "setsockopt(REUSEADDR) failed");
+    if (lsd == -1) {
+        P dbgError(stderr, "Could not bind socket");
         return -1;
     }
-    else if (tcp_bind(lsd, host, port, family) != 0) {
+    else if (setsockopt(lsd, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one)) != 0){
+        P dbgError(stderr, "setsockopt(REUSEADDR) failed");
         return -1;
     }
     else if (listen(lsd, SOMAXCONN) == -1) {
@@ -133,7 +127,7 @@ static int tcp_listen(const char *host, uint16_t port, int family)
  */
 static int tcp_connect(const char *host, uint16_t port, int family)
 {
-    int r;
+    int r, sd;
 
     char port_as_text[6];
     struct addrinfo *info;
@@ -146,25 +140,37 @@ static int tcp_connect(const char *host, uint16_t port, int family)
     snprintf(port_as_text, sizeof(port_as_text), "%hu", port);
 
     if ((r = getaddrinfo(host, port_as_text, &hints, &info)) != 0) {
-        dbgError(stderr, "tcpConnect: getaddrinfo failed: %s",
-                gai_strerror(r));
+        dbgPrint(stderr, "%s: getaddrinfo failed: %s",
+                __func__, gai_strerror(r));
 
-        r = -1;
+        return -1;
     }
-    else if ((r = tcp_socket(family)) < 0) {
-        r = -1;
-    }
-    else if (connect(r, info->ai_addr, info->ai_addrlen) != 0) {
-        dbgError(stderr, "tcpConnect: connect failed: %s", strerror(errno));
 
-        close(r);
-
-        r = -1;
-    }
+    do {
+        if ((sd = tcp_socket(info->ai_family)) == -1) {
+            continue;
+        }
+        else if ((r = connect(sd, info->ai_addr, info->ai_addrlen)) < 0) {
+            close(sd);
+            continue;
+        }
+        else {
+            break;
+        }
+    } while ((info = info->ai_next) != NULL);
 
     freeaddrinfo(info);
 
-    return r;
+    if (sd == -1) {
+        dbgError(stderr, "socket() failed");
+        return -1;
+    }
+    else if (r == -1) {
+        dbgError(stderr, "connect() failed");
+        return -1;
+    }
+
+    return sd;
 }
 
 /*
@@ -173,7 +179,7 @@ static int tcp_connect(const char *host, uint16_t port, int family)
  * interfaces. If <port> is equal to 0, the socket will be bound to a random
  * local port (use netLocalPort() on the returned fd to find out which).
  */
-int tcpListen(const char *host, uint16_t port)
+int tcp4Listen(const char *host, uint16_t port)
 {
     return tcp_listen(host, port, AF_INET);
 }
@@ -182,7 +188,7 @@ int tcpListen(const char *host, uint16_t port)
  * Make an IPv4 connection to <port> on <host> and return the corresponding
  * file descriptor.
  */
-int tcpConnect(const char *host, uint16_t port)
+int tcp4Connect(const char *host, uint16_t port)
 {
     return tcp_connect(host, port, AF_INET);
 }
@@ -205,6 +211,29 @@ int tcp6Listen(const char *host, uint16_t port)
 int tcp6Connect(const char *host, uint16_t port)
 {
     return tcp_connect(host, port, AF_INET6);
+}
+
+/*
+ * Open a listen socket on <host> and <port> and return the corresponding file
+ * descriptor. The socket will be IPv4 or IPv6 depending on the first usable
+ * addrinfo struct returned by getaddrinfo. If <host> is NULL the socket will
+ * listen on all interfaces. If <port> is equal to 0, the socket will be bound
+ * to a random local port (use netLocalPort() on the returned fd to find out
+ * which).
+ */
+int tcpListen(const char *host, uint16_t port)
+{
+    return tcp_listen(host, port, AF_UNSPEC);
+}
+
+/*
+ * Make a TCP connection to <port> on <host> and return the corresponding file
+ * descriptor. The connection will be IPv4 or IPv6 depending on the first
+ * usable addrinfo returned by getaddrinfo.
+ */
+int tcpConnect(const char *host, uint16_t port)
+{
+    return tcp_connect(host, port, AF_UNSPEC);
 }
 
 /*

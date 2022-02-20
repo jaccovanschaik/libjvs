@@ -6,8 +6,8 @@
  *
  * tcp.h is part of libjvs.
  *
- * Copyright:   (c) 2007-2021 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: tcp.h 438 2021-08-19 10:10:03Z jacco $
+ * Copyright:   (c) 2007-2022 Jacco van Schaik (jacco@jaccovanschaik.net)
+ * Version:     $Id: tcp.h 457 2022-02-20 19:54:04Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -25,13 +25,13 @@ extern "C" {
  * interfaces. If <port> is equal to 0, the socket will be bound to a random
  * local port (use netLocalPort() on the returned fd to find out which).
  */
-int tcpListen(const char *host, uint16_t port);
+int tcp4Listen(const char *host, uint16_t port);
 
 /*
  * Make an IPv4 connection to <port> on <host> and return the corresponding
  * file descriptor.
  */
-int tcpConnect(const char *host, uint16_t port);
+int tcp4Connect(const char *host, uint16_t port);
 
 /*
  * Open an IPv6 listen port on <host> and <port> and return the corresponding
@@ -46,6 +46,23 @@ int tcp6Listen(const char *host, uint16_t port);
  * file descriptor.
  */
 int tcp6Connect(const char *host, uint16_t port);
+
+/*
+ * Open a listen socket on <host> and <port> and return the corresponding file
+ * descriptor. The socket will be IPv4 or IPv6 depending on the first usable
+ * addrinfo struct returned by getaddrinfo. If <host> is NULL the socket will
+ * listen on all interfaces. If <port> is equal to 0, the socket will be bound
+ * to a random local port (use netLocalPort() on the returned fd to find out
+ * which).
+ */
+int tcpListen(const char *host, uint16_t port);
+
+/*
+ * Make a TCP connection to <port> on <host> and return the corresponding file
+ * descriptor. The connection will be IPv4 or IPv6 depending on the first
+ * usable addrinfo returned by getaddrinfo.
+ */
+int tcpConnect(const char *host, uint16_t port);
 
 /*
  * Accept an incoming (IPv4 or IPv6) connection request on a listen socket.
