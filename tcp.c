@@ -4,7 +4,7 @@
  * tcp.c is part of libjvs.
  *
  * Copyright:   (c) 2007-2022 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: tcp.c 457 2022-02-20 19:54:04Z jacco $
+ * Version:     $Id: tcp.c 458 2022-02-21 13:33:47Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -78,9 +78,17 @@ static int tcp_listen(const char *host, uint16_t port, int family)
     }
 
     int lsd;
+    int one = 1;
 
     do {
         if ((lsd = tcp_socket(info->ai_family)) == -1) {
+            continue;
+        }
+        else if (family == AF_INET6 &&
+                 setsockopt(lsd, IPPROTO_IPV6, IPV6_V6ONLY,
+                            &one, sizeof(one)) != 0)
+        {
+            P dbgError(stderr, "setsockopt(IPV6_V6ONLY) failed");
             continue;
         }
         else if ((r = bind(lsd, info->ai_addr, info->ai_addrlen)) < 0) {
@@ -102,8 +110,6 @@ static int tcp_listen(const char *host, uint16_t port, int family)
         dbgError(stderr, "bind() failed");
         return -1;
     }
-
-    int one = 1;
 
     if (lsd == -1) {
         P dbgError(stderr, "Could not bind socket");
