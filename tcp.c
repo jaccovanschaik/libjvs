@@ -4,7 +4,7 @@
  * tcp.c is part of libjvs.
  *
  * Copyright:   (c) 2007-2022 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: tcp.c 458 2022-02-21 13:33:47Z jacco $
+ * Version:     $Id: tcp.c 459 2022-03-24 18:59:45Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -36,12 +36,12 @@ static int tcp_socket(int family)
     int sd;                            /* socket descriptor */
 
     if ((sd = socket(family, SOCK_STREAM, 0)) == -1) {
-        dbgError(stderr, "socket failed");
+        P dbgError(stderr, "socket failed");
     }
     else if (setsockopt(sd, SOL_SOCKET, SO_LINGER,
                         &linger, sizeof(linger)) != 0)
     {
-        dbgError(stderr, "setsockopt(LINGER) failed");
+        P dbgError(stderr, "setsockopt(LINGER) failed");
         close(sd);
         sd = -1;
     }
@@ -58,7 +58,7 @@ static int tcp_socket(int family)
  */
 static int tcp_listen(const char *host, uint16_t port, int family)
 {
-    struct addrinfo *info = NULL;
+    struct addrinfo *info = NULL, *first_info = NULL;
     struct addrinfo  hint = {
         .ai_family   = family,
         .ai_socktype = SOCK_STREAM,
@@ -71,58 +71,53 @@ static int tcp_listen(const char *host, uint16_t port, int family)
 
     int r;
 
-    if ((r = getaddrinfo(host, port_str, &hint, &info)) != 0) {
+    if ((r = getaddrinfo(host, port_str, &hint, &first_info)) != 0) {
         dbgPrint(stderr, "getaddrinfo for %s:%hu failed: %s",
                 host, port, gai_strerror(r));
         return -1;
     }
 
-    int lsd;
-    int one = 1;
+    int lsd = -1;
+    int one =  1;
 
-    do {
+    for (info = first_info; lsd == -1 && info != NULL; info = info->ai_next) {
         if ((lsd = tcp_socket(info->ai_family)) == -1) {
+            P dbgError(stderr, "tcp_socket failed");
             continue;
         }
-        else if (family == AF_INET6 &&
-                 setsockopt(lsd, IPPROTO_IPV6, IPV6_V6ONLY,
-                            &one, sizeof(one)) != 0)
+
+        if (family == AF_INET6 &&
+            setsockopt(lsd, IPPROTO_IPV6, IPV6_V6ONLY, &one, sizeof(one)) != 0)
         {
             P dbgError(stderr, "setsockopt(IPV6_V6ONLY) failed");
-            continue;
-        }
-        else if ((r = bind(lsd, info->ai_addr, info->ai_addrlen)) < 0) {
             close(lsd);
+            lsd = -1;
             continue;
         }
-        else {
-            break;
+
+        if (setsockopt(lsd, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one)) != 0) {
+            P dbgError(stderr, "setsockopt(REUSEADDR) failed");
+            close(lsd);
+            lsd = -1;
+            continue;
         }
-    } while ((info = info->ai_next) != NULL);
 
-    freeaddrinfo(info);
+        if (bind(lsd, info->ai_addr, info->ai_addrlen) < 0) {
+            P dbgAbort(stderr, "bind failed");
+            close(lsd);
+            lsd = -1;
+            continue;
+        }
 
-    if (lsd == -1) {
-        dbgError(stderr, "socket() failed");
-        return -1;
-    }
-    else if (r == -1) {
-        dbgError(stderr, "bind() failed");
-        return -1;
+        if (listen(lsd, SOMAXCONN) == -1) {
+            P dbgError(stderr, "listen failed");
+            close(lsd);
+            lsd = -1;
+            continue;
+        }
     }
 
-    if (lsd == -1) {
-        P dbgError(stderr, "Could not bind socket");
-        return -1;
-    }
-    else if (setsockopt(lsd, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one)) != 0){
-        P dbgError(stderr, "setsockopt(REUSEADDR) failed");
-        return -1;
-    }
-    else if (listen(lsd, SOMAXCONN) == -1) {
-        dbgError(stderr, "listen failed");
-        return -1;
-    }
+    freeaddrinfo(first_info);
 
     return lsd;
 }
@@ -168,11 +163,11 @@ static int tcp_connect(const char *host, uint16_t port, int family)
     freeaddrinfo(info);
 
     if (sd == -1) {
-        dbgError(stderr, "socket() failed");
+        P dbgError(stderr, "socket() failed");
         return -1;
     }
     else if (r == -1) {
-        dbgError(stderr, "connect() failed");
+        P dbgError(stderr, "connect() failed");
         return -1;
     }
 
