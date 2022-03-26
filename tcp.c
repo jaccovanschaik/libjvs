@@ -4,7 +4,7 @@
  * tcp.c is part of libjvs.
  *
  * Copyright:   (c) 2007-2022 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: tcp.c 459 2022-03-24 18:59:45Z jacco $
+ * Version:     $Id: tcp.c 460 2022-03-26 12:08:04Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -82,38 +82,30 @@ static int tcp_listen(const char *host, uint16_t port, int family)
 
     for (info = first_info; lsd == -1 && info != NULL; info = info->ai_next) {
         if ((lsd = tcp_socket(info->ai_family)) == -1) {
-            P dbgError(stderr, "tcp_socket failed");
-            continue;
+            P dbgError(stderr, "tcp_socket() failed");
         }
-
-        if (family == AF_INET6 &&
-            setsockopt(lsd, IPPROTO_IPV6, IPV6_V6ONLY, &one, sizeof(one)) != 0)
-        {
+        else if (family == AF_INET6 &&
+                 setsockopt(lsd, IPPROTO_IPV6, IPV6_V6ONLY,
+                            &one, sizeof(one)) != 0) {
             P dbgError(stderr, "setsockopt(IPV6_V6ONLY) failed");
             close(lsd);
             lsd = -1;
-            continue;
         }
-
-        if (setsockopt(lsd, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one)) != 0) {
+        else if (setsockopt(lsd, SOL_SOCKET, SO_REUSEADDR,
+                            &one, sizeof(one)) != 0) {
             P dbgError(stderr, "setsockopt(REUSEADDR) failed");
             close(lsd);
             lsd = -1;
-            continue;
         }
-
-        if (bind(lsd, info->ai_addr, info->ai_addrlen) < 0) {
-            P dbgAbort(stderr, "bind failed");
+        else if (bind(lsd, info->ai_addr, info->ai_addrlen) < 0) {
+            P dbgAbort(stderr, "bind() failed");
             close(lsd);
             lsd = -1;
-            continue;
         }
-
-        if (listen(lsd, SOMAXCONN) == -1) {
-            P dbgError(stderr, "listen failed");
+        else if (listen(lsd, SOMAXCONN) == -1) {
+            P dbgError(stderr, "listen() failed");
             close(lsd);
             lsd = -1;
-            continue;
         }
     }
 
@@ -338,9 +330,20 @@ int main(void)
     char *client_msg = "Hello client!";
     char *server_msg = "Hello server!";
 
-    int listen_fd = tcpListen("localhost", 54321);
-    int client_fd = tcpConnect("localhost", 54321);
-    int server_fd = tcpAccept(listen_fd);
+    int listen_fd, client_fd, server_fd;
+
+    if ((listen_fd = tcpListen("localhost", 54321)) == -1) {
+        dbgError(stderr, "tcpListen() failed");
+        return 1;
+    }
+    else if ((client_fd = tcpConnect("localhost", 54321)) == -1) {
+        dbgError(stderr, "tcpConnect() failed");
+        return 1;
+    }
+    else if ((server_fd = tcpAccept(listen_fd)) == -1) {
+        dbgError(stderr, "tcpAccept() failed");
+        return 1;
+    }
 
     test_msg(client_fd, server_fd, server_msg);
     test_msg(server_fd, client_fd, client_msg);
