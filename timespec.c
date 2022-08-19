@@ -3,7 +3,7 @@
  *
  * Copyright: (c) 2020-2022 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2020-10-22
- * Version:   $Id: timespec.c 455 2022-02-13 11:36:14Z jacco $
+ * Version:   $Id: timespec.c 462 2022-08-19 06:10:50Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -162,7 +162,10 @@ struct timespec tsInc(struct timespec ts, double seconds)
  */
 struct timespec tsFromDouble(double t)
 {
-    return tsMake((int) t, fmod(NSEC_PER_SEC * t, NSEC_PER_SEC));
+    struct timespec ts =
+        tsMake((typeof(ts.tv_sec)) t, fmod(NSEC_PER_SEC * t, NSEC_PER_SEC));
+
+    return ts;
 }
 
 /*

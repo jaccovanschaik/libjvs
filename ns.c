@@ -3,8 +3,8 @@
  *
  * ns.c is part of libjvs.
  *
- * Copyright:   (c) 2013-2021 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: ns.c 443 2021-11-22 11:03:44Z jacco $
+ * Copyright:   (c) 2013-2022 Jacco van Schaik (jacco@jaccovanschaik.net)
+ * Version:     $Id: ns.c 462 2022-08-19 06:10:50Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.

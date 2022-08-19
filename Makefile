@@ -48,7 +48,7 @@ install: test libjvs.a libjvs.so
 
 tags: $(wildcard *.[ch])
 	@echo "Generating tags"
-	@ctags -R . /usr/include
+	@ctags -R --c-kinds=+p . /usr/include
 
 %.test: %.c %.h libjvs.a
 	@echo "Building tester for $*"
