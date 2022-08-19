@@ -4,7 +4,7 @@
  * ustring.c is part of libjvs.
  *
  * Copyright:   (c) 2007-2022 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: ustring.c 461 2022-08-19 06:10:43Z jacco $
+ * Version:     $Id: ustring.c 463 2022-08-19 08:17:47Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -476,15 +476,35 @@ int main(void)
     make_sure_that(!usIsEmpty(&str1));
     make_sure_that(wcscmp(usGet(&str1), L"ABC") == 0);
 
+    // Add a single wide character...
+
     usAddC(&str1, L'D');
 
     make_sure_that(usLen(&str1) == 4);
     make_sure_that(wcscmp(usGet(&str1), L"ABCD") == 0);
 
-    usAddF(&str1, L"%d", 1234);
+    // Add a formatted number...
+
+    usAddF(&str1, L"%d", 12);
+
+    make_sure_that(usLen(&str1) == 6);
+    make_sure_that(wcscmp(usGet(&str1), L"ABCD12") == 0);
+
+    // Add a formatted ASCII string...
+
+    usAddF(&str1, L"%s", "3");
+
+    make_sure_that(usLen(&str1) == 7);
+    make_sure_that(wcscmp(usGet(&str1), L"ABCD123") == 0);
+
+    // Add a formatted wide string...
+
+    usAddF(&str1, L"%ls", L"4");
 
     make_sure_that(usLen(&str1) == 8);
     make_sure_that(wcscmp(usGet(&str1), L"ABCD1234") == 0);
+
+    // Add a null-terminated wide string...
 
     usAddS(&str1, L"XYZ");
 
