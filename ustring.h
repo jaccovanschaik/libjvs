@@ -7,7 +7,7 @@
  * ustring.h is part of libjvs.
  *
  * Copyright:   (c) 2007-2022 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: ustring.h 461 2022-08-19 06:10:43Z jacco $
+ * Version:     $Id: ustring.h 464 2022-09-04 22:07:55Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
