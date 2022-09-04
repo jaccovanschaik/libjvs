@@ -15,12 +15,14 @@
 #include <stdint.h>
 #include <stdarg.h>
 #include <string.h>
-#include <assert.h>
 #include <stdbool.h>
 #include <errno.h>
 #include <wchar.h>
 #include <time.h>
+#include <iconv.h>
 
+#include "utils.h"
+#include "debug.h"
 #include "ustring.h"
 
 #define INITIAL_SIZE 16
@@ -299,6 +301,51 @@ ustring *usSetT(ustring *str, time_t t, const char *tz, const wchar_t *fmt)
     usRewind(str);
 
     return usAddT(str, t, tz, fmt);
+}
+
+/*
+ * Fill <str> using the UTF-8 text in <utf8_text>, which is <utf8_len> bytes
+ * (not necessarily characters!) long. Returns the same <str> that was passed
+ * in.
+ */
+ustring *usFromUtf8(ustring *str, const char *utf8_txt, size_t utf8_len)
+{
+    static iconv_t conv = NULL;
+
+    if (conv == NULL) {
+        conv = iconv_open("WCHAR_T", "UTF-8");
+
+        dbgAssert(stderr, conv != (iconv_t) -1,
+                "Could not create converter from UTF-8 to wchar_t");
+    }
+
+    size_t wchar_len;
+    const char *wchar_txt =
+        convert_charset(conv, utf8_txt, utf8_len, &wchar_len);
+
+    return usSet(str, wchar_txt, wchar_len / 4);
+}
+
+/*
+ * Return a UTF-8 version of <str>. The number of bytes (not necessarily
+ * characters!) in the UTF-8 string is returned through <len>. The returned
+ * pointer points to a static buffer that is overwritten on each call.
+ */
+const char *usToUtf8(const ustring *str, size_t *len)
+{
+    static iconv_t conv = NULL;
+
+    if (conv == NULL) {
+        conv = iconv_open("UTF-8", "WCHAR_T");
+
+        dbgAssert(stderr, conv != (iconv_t) -1,
+                "Could not create converter from UTF-8 to wchar_t");
+    }
+
+    const char *utf8_buf =
+        convert_charset(conv, (char *) usGet(str), 4 * usLen(str), len);
+
+    return utf8_buf;
 }
 
 /*
@@ -648,6 +695,19 @@ int main(void)
     make_sure_that(wcscmp(usGet(&str1), L"2022-08-18 17:13:56") == 0);
 
     usClear(&str1);
+
+    const char *utf8_txt = "αß¢";
+    size_t utf8_len = strlen(utf8_txt);
+
+    usFromUtf8(&str1, utf8_txt, utf8_len);
+
+    make_sure_that(wcscmp(usGet(&str1), L"αß¢") == 0);
+
+    usSetS(&str1, L"Smørrebrød i københavn");
+
+    utf8_txt = usToUtf8(&str1, &utf8_len);
+
+    make_sure_that(strcmp(utf8_txt, "Smørrebrød i københavn") == 0);
 
     return errors;
 }

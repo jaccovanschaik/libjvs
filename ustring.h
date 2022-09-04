@@ -132,6 +132,20 @@ ustring *usSetS(ustring *str, const wchar_t *s);
 ustring *usSetT(ustring *str, time_t t, const char *tz, const wchar_t *fmt);
 
 /*
+ * Fill <str> using the UTF-8 text in <utf8_text>, which is <utf8_len> bytes
+ * (not necessarily characters!) long. Returns the same <str> that was passed
+ * in.
+ */
+ustring *usFromUtf8(ustring *str, const char *utf8_txt, size_t utf8_len);
+
+/*
+ * Return a UTF-8 version of <str>. The number of bytes (not necessarily
+ * characters!) in the UTF-8 string is returned through <len>. The returned
+ * pointer points to a static buffer that is overwritten on each call.
+ */
+const char *usToUtf8(const ustring *str, size_t *len);
+
+/*
  * Get a pointer to the data from <str>. Find the size of the returned data
  * using usLen(). Note that this returns a direct pointer to the data in
  * <str>. You are not supposed to change it.
