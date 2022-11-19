@@ -9,7 +9,7 @@
  * list.h is part of libjvs.
  *
  * Copyright:   (c) 2004-2022 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: list.h 450 2022-02-09 12:11:37Z jacco $
+ * Version:     $Id: list.h 466 2022-11-19 23:49:46Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -77,16 +77,22 @@ void _listAppend(List *list, ListNode *node, ListNode *after);
 
 /*
  * Insert <node> into <list>, maintaining the order in the list according to
- * <cmp>. If there are already one or more entries in the list with the same
- * "rank" as <node>, <node> will be inserted *before* those entries.
+ * comparison function <cmp>. If there are already one or more entries in the
+ * list with the same "rank" as <node>, <node> will be inserted *before* those
+ * entries. Also, this function starts searching from the head of the list, so
+ * if you suspect <node> will end up near the head this might be the function
+ * to use.
  */
 void _listInsertOrdered(List *list, ListNode *node,
         int(*cmp)(const void *, const void *));
 
 /*
  * Insert <node> into <list>, maintaining the order in the list according to
- * <cmp>. If there are already one or more entries in the list with the same
- * "rank" as <node>, <node> will be inserted *after* those entries.
+ * comparison function <cmp>. If there are already one or more entries in the
+ * list with the same "rank" as <node>, <node> will be inserted *after* those
+ * entries. Also, this function starts searching from the tail of the list, so
+ * if you suspect <node> will end up near the tail this might be the function
+ * to use.
  */
 void _listAppendOrdered(List *list, ListNode *node,
         int(*cmp)(const void *, const void *));
@@ -137,7 +143,8 @@ int listLength(const List *list);
 int listIsEmpty(const List *list);
 
 /*
- * Return the list that contains <node>, or NULL if <node> is not contained in a list.
+ * Return the list that contains <node>, or NULL if <node> is not contained in
+ * a list.
  */
 List *_listContaining(ListNode *node);
 
