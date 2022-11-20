@@ -7,7 +7,7 @@
  * astring.h is part of libjvs.
  *
  * Copyright:   (c) 2007-2022 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: astring.h 461 2022-08-19 06:10:43Z jacco $
+ * Version:     $Id: astring.h 467 2022-11-20 00:05:38Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -92,6 +92,14 @@ astring *asAddF(astring *str, const char *fmt, ...);
 astring *asAddS(astring *str, const char *s);
 
 /*
+ * Append a formatted time to <str>, based on the UNIX timestamp in <t>, the
+ * timezone in <tz> and the strftime-compatible format string in <fmt>. If
+ * <tz> is NULL, the time zone in the environment variable TZ is used.
+ */
+__attribute__((format (strftime, 4, 0)))
+astring *asAddT(astring *str, time_t t, const char *tz, const char *fmt);
+
+/*
  * Replace <str> with the <len> bytes starting at <data>.
  */
 astring *asSet(astring *str, const void *data, size_t len);
@@ -118,6 +126,14 @@ astring *asSetV(astring *str, const char *fmt, va_list ap);
  * Set <str> to the null-terminated string <str>.
  */
 astring *asSetS(astring *str, const char *s);
+
+/*
+ * Write a formatted time to <str>, based on the UNIX timestamp in <t>, the
+ * timezone in <tz> and the strftime-compatible format string in <fmt>.
+ * If <tz> is NULL, the time zone in the environment variable TZ is used.
+ */
+__attribute__((format (strftime, 4, 0)))
+astring *asSetT(astring *str, time_t t, const char *tz, const char *fmt);
 
 /*
  * Get a pointer to the data from <str>. Find the size of the returned data

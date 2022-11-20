@@ -3,8 +3,8 @@
  *
  * debug.c is part of libjvs.
  *
- * Copyright:   (c) 2004-2021 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: debug.c 438 2021-08-19 10:10:03Z jacco $
+ * Copyright:   (c) 2004-2022 Jacco van Schaik (jacco@jaccovanschaik.net)
+ * Version:     $Id: debug.c 467 2022-11-20 00:05:38Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.

@@ -27,9 +27,9 @@
  * up to that moment it will seem like you're returning a new string buffer
  * every time.
  *
- * Copyright: (c) 2021 Jacco van Schaik (jacco@jaccovanschaik.net)
+ * Copyright: (c) 2021-2022 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2021-08-19 11:00:05.207629253 +0200
- * Version:   $Id: sc.h 437 2021-08-19 10:08:31Z jacco $
+ * Version:   $Id: sc.h 467 2022-11-20 00:05:38Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
