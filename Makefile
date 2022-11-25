@@ -85,7 +85,7 @@ matrix3.o: matrix3.c matrix2.h matrix3.h
 mdf.o: mdf.c buffer.h mdf.h utils.h 
 ml.o: ml.c debug.h defs.h ml.h 
 net.o: net.c defs.h net.h debug.h 
-ns.o: ns.c net.h tcp.h dis.h utils.h debug.h ns.h ns-types.h utils.h 
+ns.o: ns.c net.h tcp.h dis.h utils.h debug.h ns.h utils.h 
 options.o: options.c pa.h hashlist.h hash.h buffer.h utils.h debug.h options.h 
 pa.o: pa.c defs.h debug.h pa.h utils.h 
 path.o: path.c path.h buffer.h defs.h utils.h 
