@@ -73,7 +73,7 @@ commit:
 bitmask.o: bitmask.c buffer.h bitmask.h utils.h defs.h 
 buffer.o: buffer.c buffer.h utils.h defs.h debug.h 
 debug.o: debug.c debug.h utils.h 
-dis.o: dis.c list.h debug.h utils.h dis.h dis-types.h 
+dis.o: dis.c list.h debug.h utils.h dis.h
 geo2d.o: geo2d.c geo2d.h utils.h 
 geometry2.o: geometry2.c vector2.h matrix2.h geometry2.h 
 hash.o: hash.c list.h debug.h utils.h pa.h hash.h 

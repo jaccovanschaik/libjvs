@@ -7,7 +7,7 @@
  * dis.h is part of libjvs.
  *
  * Copyright:   (c) 2013-2022 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: dis.h 467 2022-11-20 00:05:38Z jacco $
+ * Version:     $Id: dis.h 468 2022-11-25 20:56:33Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -17,11 +17,18 @@
 extern "C" {
 #endif
 
+#include "pa.h"
+#include "list.h"
+
 #include <stdarg.h>
 #include <stddef.h>
 #include <sys/time.h>
 
-typedef struct Dispatcher Dispatcher;
+typedef struct {
+    PointerArray files;
+    List timers;
+    struct timeval tv;
+} Dispatcher;
 
 /*
  * Create a new dispatcher.

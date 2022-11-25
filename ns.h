@@ -7,7 +7,7 @@
  * ns.h is part of libjvs.
  *
  * Copyright:   (c) 2013-2022 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: ns.h 467 2022-11-20 00:05:38Z jacco $
+ * Version:     $Id: ns.h 468 2022-11-25 20:56:33Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -17,12 +17,33 @@
 extern "C" {
 #endif
 
+#include "dis.h"
+
 #include <sys/select.h>
 #include <stdarg.h>
 #include <stdint.h>
 #include <stdlib.h>
 
 typedef struct NS NS;
+
+struct NS {
+    Dispatcher dis;     /* Must be the first element in this struct. */
+
+    PointerArray connections;
+
+    void (*on_connect_cb)(NS *ns, int fd, void *udata);
+    void *on_connect_udata;
+
+    void (*on_disconnect_cb)(NS *ns, int fd, void *udata);
+    void *on_disconnect_udata;
+
+    void (*on_error_cb)(NS *ns, int fd, int error, void *udata);
+    void *on_error_udata;
+
+    void (*on_socket_cb)(NS *ns, int fd, const char *buffer, int size,
+            void *udata);
+    void *on_socket_udata;
+};
 
 /*
  * Initialize network server <ns>.

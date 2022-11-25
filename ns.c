@@ -4,11 +4,20 @@
  * ns.c is part of libjvs.
  *
  * Copyright:   (c) 2013-2022 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: ns.c 462 2022-08-19 06:10:50Z jacco $
+ * Version:     $Id: ns.c 468 2022-11-25 20:56:33Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
  */
+
+#include "ns.h"
+
+#include "net.h"
+#include "tcp.h"
+#include "dis.h"
+#include "utils.h"
+#include "debug.h"
+#include "buffer.h"
 
 #include <unistd.h>
 #include <stdlib.h>
@@ -16,14 +25,9 @@
 #include <string.h>
 #include <errno.h>
 
-#include "net.h"
-#include "tcp.h"
-#include "dis.h"
-#include "utils.h"
-#include "debug.h"
-
-#include "ns.h"
-#include "ns-types.h"
+typedef struct {
+    Buffer incoming;
+} NS_Connection;
 
 static void ns_handle_data(Dispatcher *dis, int fd, __attribute__((unused)) void *udata)
 {
