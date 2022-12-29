@@ -4,7 +4,7 @@
  * debug.c is part of libjvs.
  *
  * Copyright:   (c) 2004-2022 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: debug.c 467 2022-11-20 00:05:38Z jacco $
+ * Version:     $Id: debug.c 472 2022-12-29 20:18:27Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -29,9 +29,9 @@ static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 static void print_position(FILE *fp,
         const char *file, int line, const char *func)
 {
-   if (func) fprintf(fp, "%s ", func);
+   fprintf(fp, "%s:%d: ", file, line);
 
-   fprintf(fp, "(%s:%d): ", file, line);
+   if (func) fprintf(fp, "(%s) ", func);
 }
 
 /*
