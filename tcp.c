@@ -98,6 +98,7 @@ static int tcp_listen(const char *host, uint16_t port, int family)
         if ((lsd = tcp_socket(info->ai_family)) == -1) {
             P dbgError(stderr, "tcp_socket() failed");
         }
+#if 0
         else if (family == AF_INET6 && setsockopt(lsd, IPPROTO_IPV6,
                  IPV6_V6ONLY, &one, sizeof(one)) != 0)
         {
@@ -105,6 +106,7 @@ static int tcp_listen(const char *host, uint16_t port, int family)
             close(lsd);
             lsd = -1;
         }
+#endif
         else if (setsockopt(lsd, SOL_SOCKET,
                  SO_REUSEADDR, &one, sizeof(one)) != 0)
         {
