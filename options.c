@@ -3,8 +3,8 @@
  *
  * options.c is part of libjvs.
  *
- * Copyright:   (c) 2013-2022 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: options.c 449 2022-02-09 12:07:05Z jacco $
+ * Copyright:   (c) 2013-2023 Jacco van Schaik (jacco@jaccovanschaik.net)
+ * Version:     $Id: options.c 474 2023-01-15 12:19:35Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -98,9 +98,14 @@ static void opt_add_result(Options *options,
         const Option *opt, const char *arg)
 {
     if (hlContains(&options->results, HASH_STRING(opt->long_name))) {
-        bufAddF(&options->errors,
-                "Option '--%s' or '-%c' given more than once.\n",
-                opt->long_name, opt->short_name);
+        bufAddF(&options->errors, "Option '--%s' ", opt->long_name);
+
+        if (opt->short_name != 0) {
+            bufAddF(&options->errors, "or '-%c' ", opt->short_name);
+        }
+
+        bufAddF(&options->errors, "given more than once.\n");
+
         options->err = -4;
         return;
     }
@@ -129,14 +134,19 @@ Options *optCreate(void)
 void optAdd(Options *options,
         const char *long_name, char short_name, OPT_Argument argument)
 {
-    if ((short_name != 0 && opt_find_short(options, short_name) != NULL) ||
-        opt_find_long(options, long_name) != NULL) {
-        bufAddF(&options->errors,
-                "Option '--%s' or '-%c' specified more than once.\n",
-                long_name, short_name);
+    if (opt_find_long(options, long_name) != NULL) {
+        bufAddF(&options->errors, "Option '--%s' specified more than once.\n",
+                long_name);
         options->err = -3;
-        return;
     }
+
+    if (short_name != 0 && opt_find_short(options, short_name) != NULL) {
+        bufAddF(&options->errors, "Option '-%c' specified more than once.\n",
+                short_name);
+        options->err = -3;
+    }
+
+    if (options->err != 0) return;
 
     Option *option = calloc(1, sizeof(Option));
 
@@ -653,8 +663,10 @@ static void test16(void)
     r = optParse(opts, argc, argv);
 
     make_sure_that(r == -3);
+
     make_sure_that(strcmp(optErrors(opts),
-            "Option '--option-a' or '-a' specified more than once.\n") == 0);
+            "Option '--option-a' specified more than once.\n"
+            "Option '-a' specified more than once.\n") == 0);
 
     optDestroy(opts);
 }
