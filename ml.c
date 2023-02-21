@@ -4,8 +4,8 @@
  *
  * ml.c is part of libjvs.
  *
- * Copyright:   (c) 2005-2022 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: ml.c 467 2022-11-20 00:05:38Z jacco $
+ * Copyright:   (c) 2005-2023 Jacco van Schaik (jacco@jaccovanschaik.net)
+ * Version:     $Id: ml.c 475 2023-02-21 08:08:11Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.

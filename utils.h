@@ -6,8 +6,8 @@
  *
  * utils.h is part of libjvs.
  *
- * Copyright:   (c) 2012-2022 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: utils.h 459 2022-03-24 18:59:45Z jacco $
+ * Copyright:   (c) 2012-2023 Jacco van Schaik (jacco@jaccovanschaik.net)
+ * Version:     $Id: utils.h 475 2023-02-21 08:08:11Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.

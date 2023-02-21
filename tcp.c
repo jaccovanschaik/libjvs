@@ -3,8 +3,8 @@
  *
  * tcp.c is part of libjvs.
  *
- * Copyright:   (c) 2007-2022 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: tcp.c 474 2023-01-15 12:19:35Z jacco $
+ * Copyright:   (c) 2007-2023 Jacco van Schaik (jacco@jaccovanschaik.net)
+ * Version:     $Id: tcp.c 475 2023-02-21 08:08:11Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.

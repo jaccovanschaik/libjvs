@@ -9,9 +9,9 @@
  * Note that the search tree is built when you call pathCreate and pathAdd, so
  * a file created anywhere in the search path after that will not be found.
  *
- * Copyright: (c) 2020-2022 Jacco van Schaik (jacco@jaccovanschaik.net)
+ * Copyright: (c) 2020-2023 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2020-09-08
- * Version:   $Id: path.c 467 2022-11-20 00:05:38Z jacco $
+ * Version:   $Id: path.c 475 2023-02-21 08:08:11Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.

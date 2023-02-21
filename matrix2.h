@@ -6,9 +6,9 @@
  *
  * matrix2.h is part of libjvs.
  *
- * Copyright: (c) 2019-2022 Jacco van Schaik (jacco@jaccovanschaik.net)
+ * Copyright: (c) 2019-2023 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2019-08-27
- * Version:   $Id: matrix2.h 467 2022-11-20 00:05:38Z jacco $
+ * Version:   $Id: matrix2.h 475 2023-02-21 08:08:11Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.

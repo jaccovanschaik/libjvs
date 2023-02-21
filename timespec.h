@@ -4,9 +4,9 @@
 /*
  * timespec.h: calculations with struct timespec's.
  *
- * Copyright: (c) 2020-2022 Jacco van Schaik (jacco@jaccovanschaik.net)
+ * Copyright: (c) 2020-2023 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2020-10-22
- * Version:   $Id: timespec.h 454 2022-02-12 23:39:20Z jacco $
+ * Version:   $Id: timespec.h 475 2023-02-21 08:08:11Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
