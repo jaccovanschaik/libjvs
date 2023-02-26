@@ -31,7 +31,7 @@
  *
  * Copyright: (c) 2019-2023 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2019-07-29
- * Version:   $Id: log.h 475 2023-02-21 08:08:11Z jacco $
+ * Version:   $Id: log.h 476 2023-02-26 21:21:50Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -169,6 +169,11 @@ void logWithFunction(LogWriter *writer);
  */
 __attribute__((format (printf, 2, 3)))
 void logWithString(LogWriter *writer, const char *fmt, ...);
+
+/*
+ * Prefix log messages to <writer> with the current thread id.
+ */
+void logWithThreadId(LogWriter *writer);
 
 /*
  * Separate prefixes in log messages to <writer> with the separator given by

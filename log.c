@@ -28,7 +28,7 @@
  *
  * Copyright: (c) 2019-2023 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2019-07-29
- * Version:   $Id: log.c 475 2023-02-21 08:08:11Z jacco $
+ * Version:   $Id: log.c 476 2023-02-26 21:21:50Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -54,6 +54,7 @@
 #include <sys/types.h>
 #include <regex.h>
 #include <unistd.h>
+#include <pthread.h>
 
 /*
  * Types of prefixes.
@@ -64,7 +65,8 @@ typedef enum {
     LOG_PT_FILE,                        // File where logWrite was called.
     LOG_PT_LINE,                        // Line where logWrite was called.
     LOG_PT_FUNC,                        // Function where logWrite was called.
-    LOG_PT_STR                          // Fixed string.
+    LOG_PT_STR,                         // Fixed string.
+    LOG_PT_THREAD_ID                    // Thread Id
 } LogPrefixType;
 
 /*
@@ -108,6 +110,7 @@ struct LogWriter {
     void *udata;                        // User data (for FUNC).
     Buffer *buffer;                     // Buffer (for BUF).
     char *separator;                    // Field separator.
+    pthread_mutex_t mutex;
 };
 
 /*
@@ -141,6 +144,19 @@ static void log_get_time(struct timespec *ts)
     ts->tv_nsec = 987654321;                // 1970-01-01/12:34:56.987654321 UTC
 #else
     clock_gettime(CLOCK_REALTIME, ts);
+#endif
+}
+
+/*
+ * Get the current timestamp in <ts>. In case we're running tests return a fixed
+ * time that we can test against.
+ */
+static pid_t log_get_tid(void)
+{
+#ifdef TEST
+    return 12345;
+#else
+    return gettid();
 #endif
 }
 
@@ -250,6 +266,9 @@ static void log_add_prefixes(List *prefixes, Buffer *buf,
         case LOG_PT_STR:
             bufAddF(buf, "%s", pfx->str);
             break;
+        case LOG_PT_THREAD_ID:
+            bufAddF(buf, "%d", log_get_tid());
+            break;
         }
 
         // Don't insert a separator if the current or the next prefix is a
@@ -268,6 +287,8 @@ static void log_add_prefixes(List *prefixes, Buffer *buf,
  */
 static void log_write(LogWriter *writer, const char *buf)
 {
+    pthread_mutex_lock(&writer->mutex);
+
     size_t len = strlen(buf);
 
     switch(writer->type) {
@@ -291,6 +312,8 @@ static void log_write(LogWriter *writer, const char *buf)
         bufAddS(writer->buffer, buf);
         break;
     }
+
+    pthread_mutex_unlock(&writer->mutex);
 }
 
 /*
@@ -315,6 +338,8 @@ static LogWriter *log_add_writer(LogWriterType type)
     LogWriter *writer = calloc(1, sizeof(*writer));
 
     writer->type = type;
+
+    pthread_mutex_init(&writer->mutex, NULL);
 
     return writer;
 }
@@ -834,6 +859,14 @@ void logWithString(LogWriter *writer, const char *fmt, ...)
 }
 
 /*
+ * Prefix log messages to <writer> with the current thread id.
+ */
+void logWithThreadId(LogWriter *writer)
+{
+    log_add_prefix(writer, LOG_PT_THREAD_ID);
+}
+
+/*
  * Separate prefixes in log messages to <writer> with the separator given by
  * <sep>. Separators are *not* written if the prefix before or after it is a
  * string prefix (added using logWithString). The user is probably trying to set
@@ -1023,17 +1056,22 @@ static int test_time_format(void)
 #define FP_WRITER_TEST_FILE "/tmp/test_log_to_fp.log"
 #define FD_WRITER_TEST_FILE "/tmp/test_log_to_fd.log"
 
+#define check_file(filename, text) \
+    _check_file(__FILE__, __LINE__, filename, text)
+
 /*
  * Check that the file with <filename> contains exactly <text>. Complain and
  * return 1 if it doesn't, otherwise return 0.
  */
-static int check_file(const char *filename, const char *text)
+static int _check_file(const char *src, int line,
+                      const char *filename, const char *text)
 {
     int fd = open(filename, O_RDONLY);
 
     if (fd == -1) {
         fprintf(stderr,
-                "Could not open file \"%s\" for comparison.\n", filename);
+                "%s:%d: Could not open file \"%s\" for comparison.\n",
+                src, line, filename);
         return 1;
     }
 
@@ -1045,14 +1083,16 @@ static int check_file(const char *filename, const char *text)
 
     if (read(fd, content, statbuf.st_size) != statbuf.st_size) {
         fprintf(stderr,
-                "Could not read file \"%s\" for comparison.\n", filename);
+                "%s:%d: Could not read file \"%s\" for comparison.\n",
+                src, line, filename);
         return 1;
     }
 
     int r = strncmp(content, text, statbuf.st_size);
 
     if (r != 0) {
-        fprintf(stderr, "File \"%s\" does not match expectation.\n", filename);
+        fprintf(stderr, "%s:%d: File \"%s\" does not match expectation.\n",
+                src, line, filename);
         fprintf(stderr, "Expected:\n");
         fputs(text, stderr);
         fprintf(stderr, "Actual:\n");
@@ -1092,6 +1132,7 @@ int main(void)
     logWithFile(file_writer);
     logWithString(file_writer, ":");
     logWithLine(file_writer);
+    logWithThreadId(file_writer);
 
     // Connect channel CH_ERR to it...
     logConnect(CH_ERR, file_writer);
@@ -1101,7 +1142,7 @@ int main(void)
 
     // Check that the correct entry was made in the log file.
     errors += check_file(FILE_WRITER_TEST_FILE,
-            "1970-01-01/12:34:56.987654 FILE func@log.c:1 "
+            "1970-01-01/12:34:56.987654 FILE func@log.c:1 12345 "
             "This is an error.\n");
 
     // Open a file, and create a writer to the associated FILE pointer.
@@ -1139,7 +1180,7 @@ int main(void)
             "This is an info message.\n");
 
     errors += check_file(FILE_WRITER_TEST_FILE,
-            "1970-01-01/12:34:56.987654 FILE func@log.c:1 "
+            "1970-01-01/12:34:56.987654 FILE func@log.c:1 12345 "
             "This is an error.\n");
 
     // Same thing for a writer to a file descriptor.
@@ -1177,7 +1218,7 @@ int main(void)
             "This is an info message.\n");
 
     errors += check_file(FILE_WRITER_TEST_FILE,
-            "1970-01-01/12:34:56.987654 FILE func@log.c:1 "
+            "1970-01-01/12:34:56.987654 FILE func@log.c:1 12345 "
             "This is an error.\n");
 
     // Finally create a writer to a Buffer.
@@ -1217,7 +1258,7 @@ int main(void)
             "This is an info message.\n");
 
     errors += check_file(FILE_WRITER_TEST_FILE,
-            "1970-01-01/12:34:56.987654 FILE func@log.c:1 "
+            "1970-01-01/12:34:56.987654 FILE func@log.c:1 12345 "
             "This is an error.\n");
 
 quit:
