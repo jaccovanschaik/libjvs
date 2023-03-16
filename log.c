@@ -28,7 +28,7 @@
  *
  * Copyright: (c) 2019-2023 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2019-07-29
- * Version:   $Id: log.c 476 2023-02-26 21:21:50Z jacco $
+ * Version:   $Id: log.c 477 2023-03-16 10:32:07Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -587,66 +587,6 @@ static LogWriter *log_add_buffer_writer(Buffer *buf)
 }
 
 /*
- * Close writer <writer>.
- */
-static void log_close_writer(LogWriter *writer)
-{
-    // First remove it from all channels that write to it.
-
-    for (int i = 0; i < max_channels; i++) {
-        LogWriterRef *ref, *next_ref;
-        LogChannel *chan;
-
-        if ((chan = paGet(&log_channels, i)) == NULL) continue;
-
-        for (ref = listHead(&chan->writer_refs); ref; ref = next_ref) {
-            next_ref = listNext(ref);
-
-            if (ref->writer == writer) {
-                listRemove(&chan->writer_refs, ref);
-                free(ref);
-            }
-        }
-    }
-
-    // Then close it.
-
-    switch(writer->type) {
-    case LOG_OT_UDP:
-    case LOG_OT_TCP:
-        /* Opened as file descriptors. */
-        close(writer->fd);
-        break;
-    case LOG_OT_FILE:
-        /* Opened as FILE pointers. */
-        fclose(writer->fp);
-        break;
-    case LOG_OT_SYSLOG:
-        /* Opened using openlog(). */
-        closelog();
-        break;
-    default:
-        /* Nothing opened, or not opened by me, so leave them alone. */
-        break;
-    }
-
-    // Remove all prefix definitions.
-
-    LogPrefix *pfx;
-
-    while ((pfx = listRemoveHead(&writer->prefixes)) != NULL) {
-        free(pfx->str);
-        free(pfx);
-    }
-
-    free(writer->host);
-    free(writer->file);
-    free(writer->separator);
-
-    free(writer);
-}
-
-/*
  * Get a log writer that writes to the file whose name is given by <fmt> and the
  * subsequent parameters.
  */
@@ -782,6 +722,82 @@ LogWriter *logBufferWriter(Buffer *buf)
 }
 
 /*
+ * Close down writer <writer>. All channels connected to it are disconnected,
+ * and all facilities opened by the writer (files, network connections etc.)
+ * are closed.
+ */
+void logCloseWriter(LogWriter *writer)
+{
+    // First remove it from all channels that write to it.
+
+    for (int i = 0; i < max_channels; i++) {
+        LogWriterRef *ref, *next_ref;
+        LogChannel *chan;
+
+        if ((chan = paGet(&log_channels, i)) == NULL) continue;
+
+        for (ref = listHead(&chan->writer_refs); ref; ref = next_ref) {
+            next_ref = listNext(ref);
+
+            if (ref->writer == writer) {
+                listRemove(&chan->writer_refs, ref);
+                free(ref);
+            }
+        }
+    }
+
+    // Then close it.
+
+    switch(writer->type) {
+    case LOG_OT_UDP:
+    case LOG_OT_TCP:
+        /* Opened as file descriptors. */
+        close(writer->fd);
+        break;
+    case LOG_OT_FILE:
+        /* Opened as FILE pointers. */
+        fclose(writer->fp);
+        break;
+    case LOG_OT_SYSLOG:
+        /* Opened using openlog(). */
+        closelog();
+        break;
+    default:
+        /* Nothing opened, or not opened by me, so leave them alone. */
+        break;
+    }
+
+    // Remove all prefix definitions.
+
+    LogPrefix *pfx;
+
+    while ((pfx = listRemoveHead(&writer->prefixes)) != NULL) {
+        free(pfx->str);
+        free(pfx);
+    }
+
+    free(writer->host);
+    free(writer->file);
+    free(writer->separator);
+
+    free(writer);
+}
+
+/*
+ * Separate prefixes in log messages to <writer> with the separator given by
+ * <sep>. Separators are *not* written if the prefix before or after it is a
+ * string prefix (added using logWithString). The user is probably trying to set
+ * up alternative separators between certain prefixes and we don't want to mess
+ * that up. The default separator is a single space.
+ */
+void logWithSeparator(LogWriter *writer, const char *sep)
+{
+    free(writer->separator);
+
+    writer->separator = strdup(sep);
+}
+
+/*
  * Prefix log messages to <writer> with the local time, formatted using the
  * strftime-compatible format <fmt>. <fmt> supports an additional digit in the
  * %S specifier (i.e. "%<n>S") where <n> is the number of sub-second digits to
@@ -867,20 +883,6 @@ void logWithThreadId(LogWriter *writer)
 }
 
 /*
- * Separate prefixes in log messages to <writer> with the separator given by
- * <sep>. Separators are *not* written if the prefix before or after it is a
- * string prefix (added using logWithString). The user is probably trying to set
- * up alternative separators between certain prefixes and we don't want to mess
- * that up. The default separator is a single space.
- */
-void logWithSeparator(LogWriter *writer, const char *sep)
-{
-    free(writer->separator);
-
-    writer->separator = strdup(sep);
-}
-
-/*
  * Connect the log channels in <channels> to writer <writer>.
  */
 void logConnect(uint64_t channels, LogWriter *writer)
@@ -919,6 +921,8 @@ void _logWrite(uint64_t channels, bool with_prefixes,
         const char *fmt, ...)
 {
     Buffer *msg = NULL;
+
+    if (channels == 0) return;
 
     for (int i = 0; i < max_channels; i++) {
         LogChannel *chan;
@@ -977,7 +981,7 @@ void logReset(void)
     for (writer = listHead(&log_writers); writer; writer = next_writer) {
         next_writer = listNext(writer);
 
-        log_close_writer(writer);
+        logCloseWriter(writer);
     }
 
     for (int i = 0; i < max_channels; i++) {
@@ -1233,8 +1237,8 @@ int main(void)
     // We'll keep this one simple. Just a prefix.
     logWithString(buf_writer, "DEBUG: ");
 
-    // Connect it to CH_DEBUG, which means this channel is now connected to this
-    // writer and also to the earlier FD writer!
+    // Connect it to CH_DEBUG, which means the CH_DEBUG channel will now write
+    // to this Buffer writer and also to the earlier FD writer!
     logConnect(CH_DEBUG, buf_writer);
 
     // Write a message to CH_DEBUG...

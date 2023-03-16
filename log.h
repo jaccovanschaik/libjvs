@@ -31,7 +31,7 @@
  *
  * Copyright: (c) 2019-2023 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2019-07-29
- * Version:   $Id: log.h 476 2023-02-26 21:21:50Z jacco $
+ * Version:   $Id: log.h 477 2023-03-16 10:32:07Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -53,14 +53,15 @@ extern "C" {
  */
 
 enum {
-    CH_EMERG   = 1 << LOG_EMERG,    /* system is unusable */
-    CH_ALERT   = 1 << LOG_ALERT,    /* action must be taken immediately */
-    CH_CRIT    = 1 << LOG_CRIT,     /* critical conditions */
-    CH_ERR     = 1 << LOG_ERR,	    /* error conditions */
-    CH_WARNING = 1 << LOG_WARNING,  /* warning conditions */
-    CH_NOTICE  = 1 << LOG_NOTICE,   /* normal but significant condition */
-    CH_INFO    = 1 << LOG_INFO,     /* informational */
-    CH_DEBUG   = 1 << LOG_DEBUG,    /* debug-level messages */
+    CH_NONE    = 0,                 // Don't actually log anything
+    CH_EMERG   = 1 << LOG_EMERG,    // system is unusable
+    CH_ALERT   = 1 << LOG_ALERT,    // action must be taken immediately
+    CH_CRIT    = 1 << LOG_CRIT,     // critical conditions
+    CH_ERR     = 1 << LOG_ERR,	    // error conditions
+    CH_WARNING = 1 << LOG_WARNING,  // warning conditions
+    CH_NOTICE  = 1 << LOG_NOTICE,   // normal but significant condition
+    CH_INFO    = 1 << LOG_INFO,     // informational
+    CH_DEBUG   = 1 << LOG_DEBUG,    // debug-level messages
 };
 
 typedef struct LogWriter LogWriter;
@@ -75,7 +76,8 @@ typedef struct LogWriter LogWriter;
 
 /*
  * Continue a previous log message using the printf-compatible format string
- * <fmt> and the subsequent parameters.
+ * <fmt> and the subsequent parameters. This does the same as logWrite()
+ * above, but it doesn't print any prefixes.
  */
 #define logContinue(channels, ...) \
     _logWrite(channels, false, __FILE__, __LINE__, __func__, __VA_ARGS__)
@@ -127,6 +129,22 @@ LogWriter *logFunctionWriter(void (*handler)(const char *msg, void *udata),
 LogWriter *logBufferWriter(Buffer *buf);
 
 /*
+ * Close down writer <writer>. All channels connected to it are disconnected,
+ * and all facilities opened by the writer (files, network connections etc.)
+ * are closed.
+ */
+void logCloseWriter(LogWriter *writer);
+
+/*
+ * Separate prefixes in log messages to <writer> with the separator given by
+ * <sep>. Separators are *not* written if the prefix before or after it is a
+ * string prefix (added using logWithString). The user is probably trying to set
+ * up alternative separators between certain prefixes and we don't want to mess
+ * that up. The default separator is a single space.
+ */
+void logWithSeparator(LogWriter *writer, const char *sep);
+
+/*
  * Prefix log messages to <writer> with the local time, formatted using the
  * strftime-compatible format <fmt>. <fmt> supports an additional digit in the
  * %S specifier (i.e. "%<n>S") where <n> is the number of sub-second digits to
@@ -174,15 +192,6 @@ void logWithString(LogWriter *writer, const char *fmt, ...);
  * Prefix log messages to <writer> with the current thread id.
  */
 void logWithThreadId(LogWriter *writer);
-
-/*
- * Separate prefixes in log messages to <writer> with the separator given by
- * <sep>. Separators are *not* written if the prefix before or after it is a
- * string prefix (added using logWithString). The user is probably trying to set
- * up alternative separators between certain prefixes and we don't want to mess
- * that up. The default separator is a single space.
- */
-void logWithSeparator(LogWriter *writer, const char *sep);
 
 /*
  * Connect the log channels in <channels> to writer <writer>.
