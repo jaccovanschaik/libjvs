@@ -4,7 +4,7 @@
  * astring.c is part of libjvs.
  *
  * Copyright:   (c) 2007-2023 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: astring.c 475 2023-02-21 08:08:11Z jacco $
+ * Version:     $Id: astring.c 483 2023-05-07 10:04:53Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -44,11 +44,22 @@ static void as_increase_by(astring *str, size_t len)
 }
 
 /*
- * Create an empty astring.
+ * Create an astring and initialize it using the given printf-compatible <fmt>
+ * string and subsequent parameters. <fmt> may be NULL, in which case the
+ * string remains empty.
  */
-astring *asCreate(void)
+__attribute__((format (printf, 1, 2)))
+astring *asCreate(const char *fmt, ...)
 {
     astring *str = calloc(1, sizeof(*str));
+
+    if (fmt) {
+        va_list ap;
+
+        va_start(ap, fmt);
+        asSetV(str, fmt, ap);
+        va_end(ap);
+    }
 
     return str;
 }
@@ -530,17 +541,17 @@ int main(void)
     char *r;
 
     // Regular string
-    str3 = asSetS(asCreate(), "ABCDEF");
+    str3 = asCreate("ABCDEF");
     make_sure_that(strcmp((r = asFinish(str3)), "ABCDEF") == 0);
     free(r);
 
     // Empty astring (where str->data == NULL)
-    str3 = asCreate();
+    str3 = asCreate(NULL);
     make_sure_that(strcmp((r = asFinish(str3)), "") == 0);
     free(r);
 
     // Reset astring (where str->data != NULL)
-    str3 = asSetS(asCreate(), "ABCDEF");
+    str3 = asCreate("ABCDEF");
     asRewind(str3);
     make_sure_that(strcmp((r = asFinish(str3)), "") == 0);
     free(r);

@@ -2,12 +2,12 @@
 #define LIBJVS_WSTRING_H
 
 /*
- * wstring.h: handle Unicode strings.
+ * wstring.h: handle wide-character strings.
  *
  * wstring.h is part of libjvs.
  *
  * Copyright:   (c) 2007-2023 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: wstring.h 481 2023-05-07 09:14:41Z jacco $
+ * Version:     $Id: wstring.h 483 2023-05-07 10:04:53Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -28,9 +28,11 @@ typedef struct {
 } wstring;
 
 /*
- * Create an empty wstring.
+ * Create a wstring and initialize it using the given wprintf-compatible <fmt>
+ * string and subsequent parameters. <fmt> may be NULL, in which case the
+ * string remains empty.
  */
-wstring *wsCreate(void);
+wstring *wsCreate(const wchar_t *fmt, ...);
 
 /*
  * Initialize wstring <str>.

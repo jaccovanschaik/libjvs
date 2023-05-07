@@ -1,10 +1,10 @@
 /*
- * wstring.c: Handle Unicode strings.
+ * wstring.h: handle wide-character strings.
  *
  * wstring.c is part of libjvs.
  *
  * Copyright:   (c) 2007-2023 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: wstring.c 478 2023-05-07 08:33:08Z jacco $
+ * Version:     $Id: wstring.c 483 2023-05-07 10:04:53Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -47,11 +47,21 @@ static void us_increase_by(wstring *str, size_t len)
 }
 
 /*
- * Create an empty wstring.
+ * Create a wstring and initialize it using the given wprintf-compatible <fmt>
+ * string and subsequent parameters. <fmt> may be NULL, in which case the
+ * string remains empty.
  */
-wstring *wsCreate(void)
+wstring *wsCreate(const wchar_t *fmt, ...)
 {
     wstring *str = calloc(1, sizeof(*str));
+
+    if (fmt) {
+        va_list ap;
+
+        va_start(ap, fmt);
+        wsSetV(str, fmt, ap);
+        va_end(ap);
+    }
 
     return str;
 }
@@ -175,7 +185,8 @@ wstring *wsAddV(wstring *str, const wchar_t *fmt, va_list ap)
 
 /*
  * Append a string to <str>, formatted according to <fmt> and the subsequent
- * parameters. */
+ * parameters.
+ */
 wstring *wsAddF(wstring *str, const wchar_t *fmt, ...)
 {
     va_list ap;
@@ -614,17 +625,17 @@ int main(void)
     wchar_t *r;
 
     // Regular string
-    str3 = wsSetS(wsCreate(), L"ABCDEF");
+    str3 = wsCreate(L"ABCDEF");
     make_sure_that(wcscmp((r = wsFinish(str3)), L"ABCDEF") == 0);
     free(r);
 
     // Empty wstring (where str->data == NULL)
-    str3 = wsCreate();
+    str3 = wsCreate(NULL);
     make_sure_that(wcscmp((r = wsFinish(str3)), L"") == 0);
     free(r);
 
     // Reset wstring (where str->data != NULL)
-    str3 = wsSetS(wsCreate(), L"ABCDEF");
+    str3 = wsCreate(L"ABCDEF");
     wsRewind(str3);
     make_sure_that(wcscmp((r = wsFinish(str3)), L"") == 0);
     free(r);
