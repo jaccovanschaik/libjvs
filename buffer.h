@@ -1,5 +1,5 @@
-#ifndef LIBJVS_STRING_H
-#define LIBJVS_STRING_H
+#ifndef LIBJVS_BUFFER_H
+#define LIBJVS_BUFFER_H
 
 /*
  * buffer.h: provides growing byte buffers. Buffers can contain binary data, but
@@ -8,7 +8,7 @@
  * buffer.h is part of libjvs.
  *
  * Copyright:   (c) 2007-2023 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: buffer.h 475 2023-02-21 08:08:11Z jacco $
+ * Version:     $Id: buffer.h 479 2023-05-07 08:39:52Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.

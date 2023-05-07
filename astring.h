@@ -1,5 +1,5 @@
-#ifndef LIBJVS_STRING_H
-#define LIBJVS_STRING_H
+#ifndef LIBJVS_ASTRING_H
+#define LIBJVS_ASTRING_H
 
 /*
  * astring.h: provides ASCII strings.
@@ -7,7 +7,7 @@
  * astring.h is part of libjvs.
  *
  * Copyright:   (c) 2007-2023 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: astring.h 475 2023-02-21 08:08:11Z jacco $
+ * Version:     $Id: astring.h 480 2023-05-07 08:41:10Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
