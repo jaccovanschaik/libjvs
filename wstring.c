@@ -1,10 +1,10 @@
 /*
- * ustring.c: Handle Unicode strings.
+ * wstring.c: Handle Unicode strings.
  *
- * ustring.c is part of libjvs.
+ * wstring.c is part of libjvs.
  *
  * Copyright:   (c) 2007-2023 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: ustring.c 474 2023-01-15 12:19:35Z jacco $
+ * Version:     $Id: wstring.c 478 2023-05-07 08:33:08Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -23,14 +23,14 @@
 
 #include "utils.h"
 #include "debug.h"
-#include "ustring.h"
+#include "wstring.h"
 
 #define INITIAL_SIZE 16
 
 /*
  * Increase the size of <str> to allow for another <len> bytes.
  */
-static void us_increase_by(ustring *str, size_t len)
+static void us_increase_by(wstring *str, size_t len)
 {
     size_t new_len;
 
@@ -47,19 +47,19 @@ static void us_increase_by(ustring *str, size_t len)
 }
 
 /*
- * Create an empty ustring.
+ * Create an empty wstring.
  */
-ustring *usCreate(void)
+wstring *wsCreate(void)
 {
-    ustring *str = calloc(1, sizeof(*str));
+    wstring *str = calloc(1, sizeof(*str));
 
     return str;
 }
 
 /*
- * Initialize ustring <str>.
+ * Initialize wstring <str>.
  */
-ustring *usInit(ustring *str)
+wstring *wsInit(wstring *str)
 {
     str->size = INITIAL_SIZE;
     str->data = calloc(1, str->size * sizeof(wchar_t));
@@ -70,24 +70,24 @@ ustring *usInit(ustring *str)
 
 /*
  * Clear <str>, freeing its internal data. Use this if you have an automatically
- * allocated ustring and want to completely discard its contents before it goes
- * out of scope. If <str> was dynamically allocated (using usCreate() above)
+ * allocated wstring and want to completely discard its contents before it goes
+ * out of scope. If <str> was dynamically allocated (using wsCreate() above)
  * you may free() it after calling this function (or you could simply call
- * usDestroy()).
+ * wsDestroy()).
  */
-void usClear(ustring *str)
+void wsClear(wstring *str)
 {
     free(str->data);
 
-    memset(str, 0, sizeof(ustring));
+    memset(str, 0, sizeof(wstring));
 }
 
 /*
  * Detach the character string inside <str> and return it, and reinitialize
- * the ustring. The caller is responsible for the returned data after this and
+ * the wstring. The caller is responsible for the returned data after this and
  * should free() it when finished.
  */
-wchar_t *usDetach(ustring *str)
+wchar_t *wsDetach(wstring *str)
 {
     wchar_t *data = str->data;
 
@@ -102,7 +102,7 @@ wchar_t *usDetach(ustring *str)
  * Destroy <str>, but save and return its contents. The caller is responsible
  * for the returned data after this and should free() it when finished.
  */
-wchar_t *usFinish(ustring *str)
+wchar_t *wsFinish(wstring *str)
 {
     wchar_t *data = str->data;
 
@@ -114,7 +114,7 @@ wchar_t *usFinish(ustring *str)
 /*
  * Destroy <str>, together with the data it contains.
  */
-void usDestroy(ustring *str)
+void wsDestroy(wstring *str)
 {
     free(str->data);
     free(str);
@@ -123,7 +123,7 @@ void usDestroy(ustring *str)
 /*
  * Add <len> bytes, starting at <data> to <str>.
  */
-ustring *usAdd(ustring *str, const void *data, size_t len)
+wstring *wsAdd(wstring *str, const void *data, size_t len)
 {
     us_increase_by(str, len);
 
@@ -139,9 +139,9 @@ ustring *usAdd(ustring *str, const void *data, size_t len)
 /*
  * Add the single character <c> to <str>.
  */
-ustring *usAddC(ustring *str, wchar_t c)
+wstring *wsAddC(wstring *str, wchar_t c)
 {
-    usAdd(str, &c, 1);
+    wsAdd(str, &c, 1);
 
     return str;
 }
@@ -150,7 +150,7 @@ ustring *usAddC(ustring *str, wchar_t c)
  * Append a string to <str>, formatted according to <fmt> and with the
  * subsequent parameters contained in <ap>.
  */
-ustring *usAddV(ustring *str, const wchar_t *fmt, va_list ap)
+wstring *wsAddV(wstring *str, const wchar_t *fmt, va_list ap)
 {
     va_list my_ap;
 
@@ -176,12 +176,12 @@ ustring *usAddV(ustring *str, const wchar_t *fmt, va_list ap)
 /*
  * Append a string to <str>, formatted according to <fmt> and the subsequent
  * parameters. */
-ustring *usAddF(ustring *str, const wchar_t *fmt, ...)
+wstring *wsAddF(wstring *str, const wchar_t *fmt, ...)
 {
     va_list ap;
 
     va_start(ap, fmt);
-    usAddV(str, fmt, ap);
+    wsAddV(str, fmt, ap);
     va_end(ap);
 
     return str;
@@ -190,9 +190,9 @@ ustring *usAddF(ustring *str, const wchar_t *fmt, ...)
 /*
  * Append the null-terminated string <s> to <str>.
  */
-ustring *usAddS(ustring *str, const wchar_t *s)
+wstring *wsAddS(wstring *str, const wchar_t *s)
 {
-    return usAdd(str, s, wcslen(s));
+    return wsAdd(str, s, wcslen(s));
 }
 
 /*
@@ -200,7 +200,7 @@ ustring *usAddS(ustring *str, const wchar_t *s)
  * timezone in <tz> and the strftime-compatible format string in <fmt>. If
  * <tz> is NULL, the time zone in the environment variable TZ is used.
  */
-ustring *usAddT(ustring *str, time_t t, const char *tz, const wchar_t *fmt)
+wstring *wsAddT(wstring *str, time_t t, const char *tz, const wchar_t *fmt)
 {
     const char *old_tz = NULL;
 
@@ -229,7 +229,7 @@ ustring *usAddT(ustring *str, time_t t, const char *tz, const wchar_t *fmt)
 
     if (old_tz != NULL) setenv("TZ", old_tz, 1);
 
-    usAdd(str, buf + 1, wcslen(buf) - 1);
+    wsAdd(str, buf + 1, wcslen(buf) - 1);
 
     free(new_fmt);
     free(buf);
@@ -240,33 +240,33 @@ ustring *usAddT(ustring *str, time_t t, const char *tz, const wchar_t *fmt)
 /*
  * Replace <str> with the <len> bytes starting at <data>.
  */
-ustring *usSet(ustring *str, const void *data, size_t len)
+wstring *wsSet(wstring *str, const void *data, size_t len)
 {
-    usRewind(str);
+    wsRewind(str);
 
-    return usAdd(str, data, len);
+    return wsAdd(str, data, len);
 }
 
 /*
  * Set <str> to the single character <c>.
  */
-ustring *usSetC(ustring *str, wchar_t c)
+wstring *wsSetC(wstring *str, wchar_t c)
 {
-    usRewind(str);
+    wsRewind(str);
 
-    return usAdd(str, &c, 1);
+    return wsAdd(str, &c, 1);
 }
 
 /*
  * Set <str> to a string formatted according to <fmt> and the subsequent
  * parameters.
  */
-ustring *usSetF(ustring *str, const wchar_t *fmt, ...)
+wstring *wsSetF(wstring *str, const wchar_t *fmt, ...)
 {
     va_list ap;
 
     va_start(ap, fmt);
-    usSetV(str, fmt, ap);
+    wsSetV(str, fmt, ap);
     va_end(ap);
 
     return str;
@@ -276,19 +276,19 @@ ustring *usSetF(ustring *str, const wchar_t *fmt, ...)
  * Replace <str> with a string formatted according to <fmt> and the subsequent
  * parameters contained in <ap>.
  */
-ustring *usSetV(ustring *str, const wchar_t *fmt, va_list ap)
+wstring *wsSetV(wstring *str, const wchar_t *fmt, va_list ap)
 {
-    usRewind(str);
+    wsRewind(str);
 
-    return usAddV(str, fmt, ap);
+    return wsAddV(str, fmt, ap);
 }
 
 /*
  * Set <str> to the null-terminated string <str>.
  */
-ustring *usSetS(ustring *str, const wchar_t *s)
+wstring *wsSetS(wstring *str, const wchar_t *s)
 {
-    return usSet(str, s, wcslen(s));
+    return wsSet(str, s, wcslen(s));
 }
 
 /*
@@ -296,11 +296,11 @@ ustring *usSetS(ustring *str, const wchar_t *s)
  * timezone in <tz> and the strftime-compatible format string in <fmt>.
  * If <tz> is NULL, the time zone in the environment variable TZ is used.
  */
-ustring *usSetT(ustring *str, time_t t, const char *tz, const wchar_t *fmt)
+wstring *wsSetT(wstring *str, time_t t, const char *tz, const wchar_t *fmt)
 {
-    usRewind(str);
+    wsRewind(str);
 
-    return usAddT(str, t, tz, fmt);
+    return wsAddT(str, t, tz, fmt);
 }
 
 /*
@@ -308,7 +308,7 @@ ustring *usSetT(ustring *str, time_t t, const char *tz, const wchar_t *fmt)
  * (not necessarily characters!) long. Returns the same <str> that was passed
  * in.
  */
-ustring *usFromUtf8(ustring *str, const char *utf8_txt, size_t utf8_len)
+wstring *wsFromUtf8(wstring *str, const char *utf8_txt, size_t utf8_len)
 {
     static iconv_t conv = NULL;
 
@@ -323,7 +323,7 @@ ustring *usFromUtf8(ustring *str, const char *utf8_txt, size_t utf8_len)
     const char *wchar_txt =
         convert_charset(conv, utf8_txt, utf8_len, &wchar_len);
 
-    return usSet(str, wchar_txt, wchar_len / 4);
+    return wsSet(str, wchar_txt, wchar_len / 4);
 }
 
 /*
@@ -331,7 +331,7 @@ ustring *usFromUtf8(ustring *str, const char *utf8_txt, size_t utf8_len)
  * characters!) in the UTF-8 string is returned through <len>. The returned
  * pointer points to a static buffer that is overwritten on each call.
  */
-const char *usToUtf8(const ustring *str, size_t *len)
+const char *wsToUtf8(const wstring *str, size_t *len)
 {
     static iconv_t conv = NULL;
 
@@ -343,26 +343,26 @@ const char *usToUtf8(const ustring *str, size_t *len)
     }
 
     const char *utf8_buf =
-        convert_charset(conv, (char *) usGet(str), 4 * usLen(str), len);
+        convert_charset(conv, (char *) wsGet(str), 4 * wsLen(str), len);
 
     return utf8_buf;
 }
 
 /*
  * Get a pointer to the data from <str>. Find the size of the returned data
- * using usLen(). Note that this returns a direct pointer to the data in
+ * using wsLen(). Note that this returns a direct pointer to the data in
  * <str>. You are not supposed to change it.
  */
-const wchar_t *usGet(const ustring *str)
+const wchar_t *wsGet(const wstring *str)
 {
     return str->data ? str->data : L"";
 }
 
 /*
  * Reset <str> to an empty state. Does not free its internal data (use
- * usClear() for that).
+ * wsClear() for that).
  */
-ustring *usRewind(ustring *str)
+wstring *wsRewind(wstring *str)
 {
     if (str->data != NULL) str->data[0] = 0;
 
@@ -374,7 +374,7 @@ ustring *usRewind(ustring *str)
 /*
  * Get the length of <str>.
  */
-int usLen(const ustring *str)
+int wsLen(const wstring *str)
 {
     return str->used;
 }
@@ -382,7 +382,7 @@ int usLen(const ustring *str)
 /*
  * Return TRUE if <str> is empty, otherwise FALSE.
  */
-int usIsEmpty(const ustring *str)
+int wsIsEmpty(const wstring *str)
 {
     return str->used == 0;
 }
@@ -390,9 +390,9 @@ int usIsEmpty(const ustring *str)
 /*
  * Concatenate <addition> onto <base> and return <base>.
  */
-ustring *usCat(ustring *base, const ustring *addition)
+wstring *wsCat(wstring *base, const wstring *addition)
 {
-    usAdd(base, usGet(addition), usLen(addition));
+    wsAdd(base, wsGet(addition), wsLen(addition));
 
     return base;
 }
@@ -400,7 +400,7 @@ ustring *usCat(ustring *base, const ustring *addition)
 /*
  * Strip <left> bytes from the left and <right> bytes from the right of <str>.
  */
-ustring *usStrip(ustring *str, size_t left, size_t right)
+wstring *wsStrip(wstring *str, size_t left, size_t right)
 {
     if (str->data == NULL) return str;
 
@@ -422,24 +422,24 @@ ustring *usStrip(ustring *str, size_t left, size_t right)
  * <right>, either in size, or (when both have the same size) according to
  * memcmp().
  */
-int usCompare(const ustring *left, const ustring *right)
+int wsCompare(const wstring *left, const wstring *right)
 {
-    int len1 = usLen(left);
-    int len2 = usLen(right);
+    int len1 = wsLen(left);
+    int len2 = wsLen(right);
 
     if (len1 < len2)
         return -1;
     else if (len2 > len1)
         return 1;
     else
-        return memcmp(usGet(left), usGet(right), len1);
+        return memcmp(wsGet(left), wsGet(right), len1);
 }
 
 /*
  * Return true if <str> starts with the text created by <fmt> and the
  * subsequent parameters, otherwise false.
  */
-bool usStartsWith(const ustring *str, const wchar_t *fmt, ...)
+bool wsStartsWith(const wstring *str, const wchar_t *fmt, ...)
 {
     va_list ap, ap_copy;
     int r, size = 0;
@@ -459,7 +459,7 @@ bool usStartsWith(const ustring *str, const wchar_t *fmt, ...)
 
     va_end(ap);
 
-    r = wcsncmp(usGet(str), pat, wcslen(pat));
+    r = wcsncmp(wsGet(str), pat, wcslen(pat));
 
     free(pat);
 
@@ -470,7 +470,7 @@ bool usStartsWith(const ustring *str, const wchar_t *fmt, ...)
  * Return true if <str> ends with the text created by <fmt> and the
  * subsequent parameters, otherwise false.
  */
-bool usEndsWith(const ustring *str, const wchar_t *fmt, ...)
+bool wsEndsWith(const wstring *str, const wchar_t *fmt, ...)
 {
     va_list ap, ap_copy;
     int r, size = 0;
@@ -490,7 +490,7 @@ bool usEndsWith(const ustring *str, const wchar_t *fmt, ...)
 
     va_end(ap);
 
-    r = wcscmp(usGet(str) + usLen(str) - wcslen(pat), pat);
+    r = wcscmp(wsGet(str) + wsLen(str) - wcslen(pat), pat);
 
     free(pat);
 
@@ -504,208 +504,208 @@ static int errors = 0;
 
 int main(void)
 {
-    ustring str1 = { 0 };
-    ustring str2 = { 0 };
-    ustring *str3;
+    wstring str1 = { 0 };
+    wstring str2 = { 0 };
+    wstring *str3;
 
-    // ** usRewind
+    // ** wsRewind
 
-    usRewind(&str1);
+    wsRewind(&str1);
 
-    make_sure_that(usLen(&str1) == 0);
-    make_sure_that(usIsEmpty(&str1));
+    make_sure_that(wsLen(&str1) == 0);
+    make_sure_that(wsIsEmpty(&str1));
 
-    // ** The usAdd* family
+    // ** The wsAdd* family
 
-    usAdd(&str1, L"ABCDEF", 3);
+    wsAdd(&str1, L"ABCDEF", 3);
 
-    make_sure_that(usLen(&str1) == 3);
-    make_sure_that(!usIsEmpty(&str1));
-    make_sure_that(wcscmp(usGet(&str1), L"ABC") == 0);
+    make_sure_that(wsLen(&str1) == 3);
+    make_sure_that(!wsIsEmpty(&str1));
+    make_sure_that(wcscmp(wsGet(&str1), L"ABC") == 0);
 
     // Add a single wide character...
 
-    usAddC(&str1, L'D');
+    wsAddC(&str1, L'D');
 
-    make_sure_that(usLen(&str1) == 4);
-    make_sure_that(wcscmp(usGet(&str1), L"ABCD") == 0);
+    make_sure_that(wsLen(&str1) == 4);
+    make_sure_that(wcscmp(wsGet(&str1), L"ABCD") == 0);
 
     // Add a formatted number...
 
-    usAddF(&str1, L"%d", 12);
+    wsAddF(&str1, L"%d", 12);
 
-    make_sure_that(usLen(&str1) == 6);
-    make_sure_that(wcscmp(usGet(&str1), L"ABCD12") == 0);
+    make_sure_that(wsLen(&str1) == 6);
+    make_sure_that(wcscmp(wsGet(&str1), L"ABCD12") == 0);
 
     // Add a formatted ASCII string...
 
-    usAddF(&str1, L"%s", "3");
+    wsAddF(&str1, L"%s", "3");
 
-    make_sure_that(usLen(&str1) == 7);
-    make_sure_that(wcscmp(usGet(&str1), L"ABCD123") == 0);
+    make_sure_that(wsLen(&str1) == 7);
+    make_sure_that(wcscmp(wsGet(&str1), L"ABCD123") == 0);
 
     // Add a formatted wide string...
 
-    usAddF(&str1, L"%ls", L"4");
+    wsAddF(&str1, L"%ls", L"4");
 
-    make_sure_that(usLen(&str1) == 8);
-    make_sure_that(wcscmp(usGet(&str1), L"ABCD1234") == 0);
+    make_sure_that(wsLen(&str1) == 8);
+    make_sure_that(wcscmp(wsGet(&str1), L"ABCD1234") == 0);
 
     // Add a null-terminated wide string...
 
-    usAddS(&str1, L"XYZ");
+    wsAddS(&str1, L"XYZ");
 
-    make_sure_that(usLen(&str1) == 11);
-    make_sure_that(wcscmp(usGet(&str1), L"ABCD1234XYZ") == 0);
+    make_sure_that(wsLen(&str1) == 11);
+    make_sure_that(wcscmp(wsGet(&str1), L"ABCD1234XYZ") == 0);
 
     // ** Overflow the initial 16 allocated bytes.
 
-    usAddF(&str1, L"%ls", L"1234567890");
+    wsAddF(&str1, L"%ls", L"1234567890");
 
-    make_sure_that(usLen(&str1) == 21);
-    make_sure_that(wcscmp(usGet(&str1), L"ABCD1234XYZ1234567890") == 0);
+    make_sure_that(wsLen(&str1) == 21);
+    make_sure_that(wcscmp(wsGet(&str1), L"ABCD1234XYZ1234567890") == 0);
 
-    // ** The usSet* family
+    // ** The wsSet* family
 
-    usSet(&str1, L"ABCDEF", 3);
+    wsSet(&str1, L"ABCDEF", 3);
 
-    make_sure_that(usLen(&str1) == 3);
-    make_sure_that(wcscmp(usGet(&str1), L"ABC") == 0);
+    make_sure_that(wsLen(&str1) == 3);
+    make_sure_that(wcscmp(wsGet(&str1), L"ABC") == 0);
 
-    usSetC(&str1, L'D');
+    wsSetC(&str1, L'D');
 
-    make_sure_that(usLen(&str1) == 1);
-    make_sure_that(wcscmp(usGet(&str1), L"D") == 0);
+    make_sure_that(wsLen(&str1) == 1);
+    make_sure_that(wcscmp(wsGet(&str1), L"D") == 0);
 
-    usSetF(&str1, L"%d", 1234);
+    wsSetF(&str1, L"%d", 1234);
 
-    make_sure_that(usLen(&str1) == 4);
-    make_sure_that(wcscmp(usGet(&str1), L"1234") == 0);
+    make_sure_that(wsLen(&str1) == 4);
+    make_sure_that(wcscmp(wsGet(&str1), L"1234") == 0);
 
-    usSetS(&str1, L"ABCDEF");
+    wsSetS(&str1, L"ABCDEF");
 
-    make_sure_that(usLen(&str1) == 6);
-    make_sure_that(wcscmp(usGet(&str1), L"ABCDEF") == 0);
+    make_sure_that(wsLen(&str1) == 6);
+    make_sure_that(wcscmp(wsGet(&str1), L"ABCDEF") == 0);
 
-    // ** usRewind again
+    // ** wsRewind again
 
-    usRewind(&str1);
+    wsRewind(&str1);
 
-    make_sure_that(usLen(&str1) == 0);
-    make_sure_that(wcscmp(usGet(&str1), L"") == 0);
+    make_sure_that(wsLen(&str1) == 0);
+    make_sure_that(wcscmp(wsGet(&str1), L"") == 0);
 
-    // ** usCat
+    // ** wsCat
 
-    usSet(&str1, L"ABC", 3);
-    usSet(&str2, L"DEF", 3);
+    wsSet(&str1, L"ABC", 3);
+    wsSet(&str2, L"DEF", 3);
 
-    str3 = usCat(&str1, &str2);
+    str3 = wsCat(&str1, &str2);
 
     make_sure_that(&str1 == str3);
 
-    make_sure_that(usLen(&str1) == 6);
-    make_sure_that(wcscmp(usGet(&str1), L"ABCDEF") == 0);
+    make_sure_that(wsLen(&str1) == 6);
+    make_sure_that(wcscmp(wsGet(&str1), L"ABCDEF") == 0);
 
-    make_sure_that(usLen(&str2) == 3);
-    make_sure_that(wcscmp(usGet(&str2), L"DEF") == 0);
+    make_sure_that(wsLen(&str2) == 3);
+    make_sure_that(wcscmp(wsGet(&str2), L"DEF") == 0);
 
-    // ** usFinish
+    // ** wsFinish
 
     wchar_t *r;
 
     // Regular string
-    str3 = usSetS(usCreate(), L"ABCDEF");
-    make_sure_that(wcscmp((r = usFinish(str3)), L"ABCDEF") == 0);
+    str3 = wsSetS(wsCreate(), L"ABCDEF");
+    make_sure_that(wcscmp((r = wsFinish(str3)), L"ABCDEF") == 0);
     free(r);
 
-    // Empty ustring (where str->data == NULL)
-    str3 = usCreate();
-    make_sure_that(wcscmp((r = usFinish(str3)), L"") == 0);
+    // Empty wstring (where str->data == NULL)
+    str3 = wsCreate();
+    make_sure_that(wcscmp((r = wsFinish(str3)), L"") == 0);
     free(r);
 
-    // Reset ustring (where str->data != NULL)
-    str3 = usSetS(usCreate(), L"ABCDEF");
-    usRewind(str3);
-    make_sure_that(wcscmp((r = usFinish(str3)), L"") == 0);
+    // Reset wstring (where str->data != NULL)
+    str3 = wsSetS(wsCreate(), L"ABCDEF");
+    wsRewind(str3);
+    make_sure_that(wcscmp((r = wsFinish(str3)), L"") == 0);
     free(r);
 
-    // ** usStrip
+    // ** wsStrip
 
-    usSetF(&str1, L"ABCDEF");
+    wsSetF(&str1, L"ABCDEF");
 
-    make_sure_that(wcscmp(usGet(usStrip(&str1, 0, 0)), L"ABCDEF") == 0);
-    make_sure_that(wcscmp(usGet(usStrip(&str1, 1, 0)), L"BCDEF") == 0);
-    make_sure_that(wcscmp(usGet(usStrip(&str1, 0, 1)), L"BCDE") == 0);
-    make_sure_that(wcscmp(usGet(usStrip(&str1, 1, 1)), L"CD") == 0);
-    make_sure_that(wcscmp(usGet(usStrip(&str1, 3, 3)), L"") == 0);
+    make_sure_that(wcscmp(wsGet(wsStrip(&str1, 0, 0)), L"ABCDEF") == 0);
+    make_sure_that(wcscmp(wsGet(wsStrip(&str1, 1, 0)), L"BCDEF") == 0);
+    make_sure_that(wcscmp(wsGet(wsStrip(&str1, 0, 1)), L"BCDE") == 0);
+    make_sure_that(wcscmp(wsGet(wsStrip(&str1, 1, 1)), L"CD") == 0);
+    make_sure_that(wcscmp(wsGet(wsStrip(&str1, 3, 3)), L"") == 0);
 
-    // ** usStartsWith, usEndsWith
+    // ** wsStartsWith, wsEndsWith
 
-    usSetS(&str1, L"abcdef");
+    wsSetS(&str1, L"abcdef");
 
-    make_sure_that(usStartsWith(&str1, L"abc") == true);
-    make_sure_that(usStartsWith(&str1, L"def") == false);
-    make_sure_that(usEndsWith(&str1, L"def") == true);
-    make_sure_that(usEndsWith(&str1, L"abc") == false);
+    make_sure_that(wsStartsWith(&str1, L"abc") == true);
+    make_sure_that(wsStartsWith(&str1, L"def") == false);
+    make_sure_that(wsEndsWith(&str1, L"def") == true);
+    make_sure_that(wsEndsWith(&str1, L"abc") == false);
 
-    make_sure_that(usStartsWith(&str1, L"%ls", L"abc") == true);
-    make_sure_that(usStartsWith(&str1, L"%ls", L"def") == false);
-    make_sure_that(usEndsWith(&str1, L"%ls", L"def") == true);
-    make_sure_that(usEndsWith(&str1, L"%ls", L"abc") == false);
+    make_sure_that(wsStartsWith(&str1, L"%ls", L"abc") == true);
+    make_sure_that(wsStartsWith(&str1, L"%ls", L"def") == false);
+    make_sure_that(wsEndsWith(&str1, L"%ls", L"def") == true);
+    make_sure_that(wsEndsWith(&str1, L"%ls", L"abc") == false);
 
-    make_sure_that(usStartsWith(&str1, L"%s", "abc") == true);
-    make_sure_that(usStartsWith(&str1, L"%s", "def") == false);
-    make_sure_that(usEndsWith(&str1, L"%s", "def") == true);
-    make_sure_that(usEndsWith(&str1, L"%s", "abc") == false);
+    make_sure_that(wsStartsWith(&str1, L"%s", "abc") == true);
+    make_sure_that(wsStartsWith(&str1, L"%s", "def") == false);
+    make_sure_that(wsEndsWith(&str1, L"%s", "def") == true);
+    make_sure_that(wsEndsWith(&str1, L"%s", "abc") == false);
 
-    usClear(&str1);
+    wsClear(&str1);
 
-    usSetS(&str1, L"123456789");
+    wsSetS(&str1, L"123456789");
 
-    make_sure_that(usStartsWith(&str1, L"123") == true);
-    make_sure_that(usStartsWith(&str1, L"789") == false);
-    make_sure_that(usEndsWith(&str1, L"789") == true);
-    make_sure_that(usEndsWith(&str1, L"123") == false);
+    make_sure_that(wsStartsWith(&str1, L"123") == true);
+    make_sure_that(wsStartsWith(&str1, L"789") == false);
+    make_sure_that(wsEndsWith(&str1, L"789") == true);
+    make_sure_that(wsEndsWith(&str1, L"123") == false);
 
-    make_sure_that(usStartsWith(&str1, L"%d", 123) == true);
-    make_sure_that(usStartsWith(&str1, L"%d", 789) == false);
-    make_sure_that(usEndsWith(&str1, L"%d", 789) == true);
-    make_sure_that(usEndsWith(&str1, L"%d", 123) == false);
+    make_sure_that(wsStartsWith(&str1, L"%d", 123) == true);
+    make_sure_that(wsStartsWith(&str1, L"%d", 789) == false);
+    make_sure_that(wsEndsWith(&str1, L"%d", 789) == true);
+    make_sure_that(wsEndsWith(&str1, L"%d", 123) == false);
 
-    // ** usSetT and usAddT.
+    // ** wsSetT and wsAddT.
 
-    usSetT(&str1, 1660842836, "CET", L"%Y-%m-%d");
+    wsSetT(&str1, 1660842836, "CET", L"%Y-%m-%d");
 
-    make_sure_that(usLen(&str1) == 10);
-    make_sure_that(wcscmp(usGet(&str1), L"2022-08-18") == 0);
+    make_sure_that(wsLen(&str1) == 10);
+    make_sure_that(wcscmp(wsGet(&str1), L"2022-08-18") == 0);
 
-    usAddT(&str1, 1660842836, "CET", L" %H:%M:%S");
+    wsAddT(&str1, 1660842836, "CET", L" %H:%M:%S");
 
-    make_sure_that(usLen(&str1) == 19);
-    make_sure_that(wcscmp(usGet(&str1), L"2022-08-18 19:13:56") == 0);
+    make_sure_that(wsLen(&str1) == 19);
+    make_sure_that(wcscmp(wsGet(&str1), L"2022-08-18 19:13:56") == 0);
 
-    usSetT(&str1, 1660842836, "UTC", L"%Y-%m-%d");
+    wsSetT(&str1, 1660842836, "UTC", L"%Y-%m-%d");
 
-    make_sure_that(usLen(&str1) == 10);
-    make_sure_that(wcscmp(usGet(&str1), L"2022-08-18") == 0);
+    make_sure_that(wsLen(&str1) == 10);
+    make_sure_that(wcscmp(wsGet(&str1), L"2022-08-18") == 0);
 
-    usAddT(&str1, 1660842836, "UTC", L" %H:%M:%S");
+    wsAddT(&str1, 1660842836, "UTC", L" %H:%M:%S");
 
-    make_sure_that(usLen(&str1) == 19);
-    make_sure_that(wcscmp(usGet(&str1), L"2022-08-18 17:13:56") == 0);
+    make_sure_that(wsLen(&str1) == 19);
+    make_sure_that(wcscmp(wsGet(&str1), L"2022-08-18 17:13:56") == 0);
 
-    usClear(&str1);
+    wsClear(&str1);
 
     const char *utf8_txt = "αß¢";
     size_t utf8_len = strlen(utf8_txt);
 
-    usFromUtf8(&str1, utf8_txt, utf8_len);
+    wsFromUtf8(&str1, utf8_txt, utf8_len);
 
-    make_sure_that(wcscmp(usGet(&str1), L"αß¢") == 0);
+    make_sure_that(wcscmp(wsGet(&str1), L"αß¢") == 0);
 
-    usSetS(&str1, L"Smørrebrød i københavn");
+    wsSetS(&str1, L"Smørrebrød i københavn");
 
-    utf8_txt = usToUtf8(&str1, &utf8_len);
+    utf8_txt = wsToUtf8(&str1, &utf8_len);
 
     make_sure_that(strcmp(utf8_txt, "Smørrebrød i københavn") == 0);
 
