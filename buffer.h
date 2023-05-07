@@ -137,6 +137,12 @@ Buffer *bufSetS(Buffer *buf, const char *str);
 const char *bufGet(const Buffer *buf);
 
 /*
+ * Get the character at position <pos> from <buf>. If that is beyond the end
+ * of the buffer, a null byte is returned.
+ */
+char bufGetC(const Buffer *buf, size_t pos);
+
+/*
  * Reset <buf> to an empty state. Does not free its internal data (use
  * bufClear() for that).
  */
@@ -145,12 +151,12 @@ Buffer *bufRewind(Buffer *buf);
 /*
  * Get the number of valid bytes in <buf>.
  */
-int bufLen(const Buffer *buf);
+size_t bufLen(const Buffer *buf);
 
 /*
  * Return TRUE if <buf> is empty, otherwise FALSE.
  */
-int bufIsEmpty(const Buffer *buf);
+bool bufIsEmpty(const Buffer *buf);
 
 /*
  * Concatenate <addition> onto <base> and return <base>.

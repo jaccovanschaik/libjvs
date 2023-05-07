@@ -294,6 +294,18 @@ const char *bufGet(const Buffer *buf)
 }
 
 /*
+ * Get the character at position <pos> from <buf>. If that is beyond the end
+ * of the buffer, a null byte is returned.
+ */
+char bufGetC(const Buffer *buf, size_t pos)
+{
+    if (buf->data && pos < bufLen(buf))
+        return buf->data[pos];
+    else
+        return '\0';
+}
+
+/*
  * Reset <buf> to an empty state. Does not free its internal data (use
  * bufClear() for that).
  */
@@ -309,7 +321,7 @@ Buffer *bufRewind(Buffer *buf)
 /*
  * Get the number of valid bytes in <buf>.
  */
-int bufLen(const Buffer *buf)
+size_t bufLen(const Buffer *buf)
 {
     return buf->used;
 }
@@ -317,7 +329,7 @@ int bufLen(const Buffer *buf)
 /*
  * Return TRUE if <buf> is empty, otherwise FALSE.
  */
-int bufIsEmpty(const Buffer *buf)
+bool bufIsEmpty(const Buffer *buf)
 {
     return buf->used == 0;
 }
@@ -545,6 +557,12 @@ int main(void)
     make_sure_that(bufLen(&buf1) == 3);
     make_sure_that(!bufIsEmpty(&buf1));
     make_sure_that(strcmp(bufGet(&buf1), "ABC") == 0);
+    make_sure_that(bufGetC(&buf1, 0) == 'A');
+    make_sure_that(bufGetC(&buf1, 1) == 'B');
+    make_sure_that(bufGetC(&buf1, 2) == 'C');
+    make_sure_that(bufGetC(&buf1, 3) == '\0');
+    make_sure_that(bufGetC(&buf1, 4) == '\0');
+    make_sure_that(bufGetC(&buf1, 5) == '\0');
 
     bufAddC(&buf1, 'D');
 
