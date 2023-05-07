@@ -4,7 +4,7 @@
  * wstring.c is part of libjvs.
  *
  * Copyright:   (c) 2007-2023 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: wstring.c 483 2023-05-07 10:04:53Z jacco $
+ * Version:     $Id: wstring.c 484 2023-05-07 10:51:16Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -60,6 +60,26 @@ wstring *wsCreate(const wchar_t *fmt, ...)
 
         va_start(ap, fmt);
         wsSetV(str, fmt, ap);
+        va_end(ap);
+    }
+
+    return str;
+}
+
+/*
+ * Create a wstring, initialize it using the given printf-compatible <fmt>
+ * string and subsequent parameters, and return it by value. <fmt> may be
+ * NULL, in which case the string remains empty.
+ */
+wstring wsMake(const wchar_t *fmt, ...)
+{
+    wstring str = { 0 };
+
+    if (fmt) {
+        va_list ap;
+
+        va_start(ap, fmt);
+        wsSetV(&str, fmt, ap);
         va_end(ap);
     }
 
