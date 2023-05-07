@@ -1,5 +1,5 @@
-#ifndef LIBJVS_STRING_H
-#define LIBJVS_STRING_H
+#ifndef LIBJVS_WSTRING_H
+#define LIBJVS_WSTRING_H
 
 /*
  * wstring.h: handle Unicode strings.
