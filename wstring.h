@@ -7,7 +7,7 @@
  * wstring.h is part of libjvs.
  *
  * Copyright:   (c) 2007-2023 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: wstring.h 478 2023-05-07 08:33:08Z jacco $
+ * Version:     $Id: wstring.h 481 2023-05-07 09:14:41Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
