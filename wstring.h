@@ -7,7 +7,7 @@
  * wstring.h is part of libjvs.
  *
  * Copyright:   (c) 2007-2023 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: wstring.h 485 2023-05-08 10:34:27Z jacco $
+ * Version:     $Id: wstring.h 486 2023-05-08 10:37:29Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -33,13 +33,6 @@ typedef struct {
  * string remains empty.
  */
 wstring *wsCreate(const wchar_t *fmt, ...);
-
-/*
- * Create a wstring, initialize it using the given printf-compatible <fmt>
- * string and subsequent parameters, and return it by value. <fmt> may be
- * NULL, in which case the string remains empty.
- */
-wstring wsMake(const wchar_t *fmt, ...);
 
 /*
  * Initialize wstring <str> using the given printf-compatible <fmt> string and

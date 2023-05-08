@@ -4,7 +4,7 @@
  * astring.c is part of libjvs.
  *
  * Copyright:   (c) 2007-2023 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: astring.c 485 2023-05-08 10:34:27Z jacco $
+ * Version:     $Id: astring.c 486 2023-05-08 10:37:29Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -58,27 +58,6 @@ astring *asCreate(const char *fmt, ...)
 
         va_start(ap, fmt);
         asSetV(str, fmt, ap);
-        va_end(ap);
-    }
-
-    return str;
-}
-
-/*
- * Create an astring, initialize it using the given printf-compatible <fmt>
- * string and subsequent parameters, and return it by value. <fmt> may be
- * NULL, in which case the string remains empty.
- */
-__attribute__((format (printf, 1, 2)))
-astring asMake(const char *fmt, ...)
-{
-    astring str = { 0 };
-
-    if (fmt) {
-        va_list ap;
-
-        va_start(ap, fmt);
-        asSetV(&str, fmt, ap);
         va_end(ap);
     }
 
