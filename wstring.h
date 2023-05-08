@@ -7,7 +7,7 @@
  * wstring.h is part of libjvs.
  *
  * Copyright:   (c) 2007-2023 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: wstring.h 484 2023-05-07 10:51:16Z jacco $
+ * Version:     $Id: wstring.h 485 2023-05-08 10:34:27Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -42,9 +42,14 @@ wstring *wsCreate(const wchar_t *fmt, ...);
 wstring wsMake(const wchar_t *fmt, ...);
 
 /*
- * Initialize wstring <str>.
+ * Initialize wstring <str> using the given printf-compatible <fmt> string and
+ * subsequent parameters. <fmt> may be NULL, in which case the string remains
+ * empty. This function assumes the given string has not been initialized and
+ * may contain garbage. It therefore will not discard any old content, if it
+ * should have any. To set the value of an wstring that *has* been
+ * initialized, simply use one of the wsSet functions.
  */
-wstring *wsInit(wstring *str);
+wstring *wsInit(wstring *str, const wchar_t *fmt, ...);
 
 /*
  * Clear <str>, freeing its internal data. Use this if you have an automatically

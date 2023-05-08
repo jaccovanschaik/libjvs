@@ -4,7 +4,7 @@
  * astring.c is part of libjvs.
  *
  * Copyright:   (c) 2007-2023 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: astring.c 484 2023-05-07 10:51:16Z jacco $
+ * Version:     $Id: astring.c 485 2023-05-08 10:34:27Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -86,13 +86,26 @@ astring asMake(const char *fmt, ...)
 }
 
 /*
- * Initialize astring <str>.
+ * Initialize astring <str> using the given printf-compatible <fmt> string and
+ * subsequent parameters. <fmt> may be NULL, in which case the string remains
+ * empty. This function assumes the given string has not been initialized and
+ * may contain garbage. It therefore will not discard any old content, if it
+ * should have any. To set the value of an astring that *has* been
+ * initialized, simply use one of the asSet functions.
  */
-astring *asInit(astring *str)
+astring *asInit(astring *str, const char *fmt, ...)
 {
     str->size = INITIAL_SIZE;
     str->data = calloc(1, str->size);
     str->used = 0;
+
+    if (fmt) {
+        va_list ap;
+
+        va_start(ap, fmt);
+        asSetV(str, fmt, ap);
+        va_end(ap);
+    }
 
     return str;
 }

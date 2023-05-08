@@ -4,7 +4,7 @@
  * wstring.c is part of libjvs.
  *
  * Copyright:   (c) 2007-2023 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: wstring.c 484 2023-05-07 10:51:16Z jacco $
+ * Version:     $Id: wstring.c 485 2023-05-08 10:34:27Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -87,13 +87,26 @@ wstring wsMake(const wchar_t *fmt, ...)
 }
 
 /*
- * Initialize wstring <str>.
+ * Initialize wstring <str> using the given printf-compatible <fmt> string and
+ * subsequent parameters. <fmt> may be NULL, in which case the string remains
+ * empty. This function assumes the given string has not been initialized and
+ * may contain garbage. It therefore will not discard any old content, if it
+ * should have any. To set the value of an wstring that *has* been
+ * initialized, simply use one of the wsSet functions.
  */
-wstring *wsInit(wstring *str)
+wstring *wsInit(wstring *str, const wchar_t *fmt, ...)
 {
     str->size = INITIAL_SIZE;
-    str->data = calloc(1, str->size * sizeof(wchar_t));
+    str->data = calloc(sizeof(str->data[0]), str->size);
     str->used = 0;
+
+    if (fmt) {
+        va_list ap;
+
+        va_start(ap, fmt);
+        wsSetV(str, fmt, ap);
+        va_end(ap);
+    }
 
     return str;
 }
@@ -538,6 +551,11 @@ int main(void)
     wstring str1 = { 0 };
     wstring str2 = { 0 };
     wstring *str3;
+
+    wsInit(&str1, NULL);
+
+    make_sure_that(wsLen(&str1) == 0);
+    make_sure_that(wsIsEmpty(&str1));
 
     // ** wsRewind
 
