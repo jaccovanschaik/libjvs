@@ -148,8 +148,8 @@ static void log_get_time(struct timespec *ts)
 }
 
 /*
- * Get the current timestamp in <ts>. In case we're running tests return a fixed
- * time that we can test against.
+ * Return the current thread id. In case we're running tests return a fixed
+ * thread id that we can test against.
  */
 static pid_t log_get_tid(void)
 {

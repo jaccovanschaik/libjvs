@@ -42,7 +42,7 @@ void hlInitialize(HashList *hashlist)
 
 /*
  * Add an entry that points to <node> to <hashlist>. Associate it with <key>,
- * whose length is <key_len>. <hashlist>, <hashlist> and <key> must not be NULL,
+ * whose length is <key_len>. <hashlist>, <node> and <key> must not be NULL,
  * <key_len> must be greater than 0. If an entry with the same key already
  * exists this function calls abort(). The node is added to the end of the
  * embedded list.

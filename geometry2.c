@@ -42,8 +42,7 @@ Vector2 g2LineLineIntersection(Line2 l, Line2 m)
 
 /*                _   _       _
  * If line <l> is l = s + n * d, this returns the <n> where point <p> is
- * projected on <l>. The result might be +/- infinity (if the lines are
- * parallel) or NAN (if they coincide).
+ * projected on <l>.
  */
 double g2PointLineProject(Vector2 p, Line2 l)
 {
@@ -55,8 +54,7 @@ double g2PointLineProject(Vector2 p, Line2 l)
 }
 
 /*
- * Returns the projection of <p> on <l>. The coefficients of the result may be
- * +/- infinity (if the lines are parallel) or NAN (if they coincide).
+ * Returns the projection of <p> on <l>.
  */
 Vector2 g2PointLineProjection(Vector2 p, Line2 l)
 {

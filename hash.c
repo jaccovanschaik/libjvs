@@ -68,12 +68,14 @@ static HashKey hash(const char *key, int key_len)
 /*
  * Find the entry for <key> with length <key_len> in <bucket>.
  */
-static HashEntry *find_entry_in_bucket(const List *bucket, const char *key, int key_len)
+static HashEntry *find_entry_in_bucket(const List *bucket,
+        const char *key, int key_len)
 {
     HashEntry *entry;
 
     for (entry = listHead(bucket); entry; entry = listNext(entry)) {
-        if (entry->key_len == key_len && memcmp(entry->key, key, key_len) == 0) return entry;
+        if (entry->key_len == key_len &&
+            memcmp(entry->key, key, key_len) == 0) return entry;
     }
 
     return NULL;

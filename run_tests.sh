@@ -2,7 +2,7 @@
 
 # run_tests.sh: Run all available tests.
 #
-# Copyright: (c) 2021 Jacco van Schaik (jacco@jaccovanschaik.net)
+# Copyright: (c) 2021-2023 Jacco van Schaik (jacco@jaccovanschaik.net)
 # Created:   2021-01-21 20:28:57.352668070 +0100
 # Version:   $Id: run_tests.sh 438 2021-08-19 10:10:03Z jacco $
 #

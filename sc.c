@@ -11,9 +11,9 @@
  * function, for example when you want to pass them on to another function
  * (usually printf). You will find that, because it uses the same buffer space
  * every time, the second call will overwrite the buffer from the first call
- * and you will get the second buffer multiple times. What you ideally want is
- * to have more than a single buffer to temporarily store a formatted string
- * in while you use it.
+ * and you will get the second buffer twice. What you ideally want is to have
+ * more than a single buffer to temporarily store a formatted string in while
+ * you use it.
  *
  * A string carousel can help. Instead of a single statically allocated string
  * buffer you use a single statically allocated carousel, and instead of just
