@@ -4,7 +4,7 @@
 #
 # Copyright: (c) 2021-2023 Jacco van Schaik (jacco@jaccovanschaik.net)
 # Created:   2021-01-21 20:28:57.352668070 +0100
-# Version:   $Id: run_tests.sh 438 2021-08-19 10:10:03Z jacco $
+# Version:   $Id: run_tests.sh 489 2023-08-15 09:00:33Z jacco $
 #
 # This software is distributed under the terms of the MIT license. See
 # http://www.opensource.org/licenses/mit-license.php for details.

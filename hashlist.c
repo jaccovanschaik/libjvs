@@ -9,7 +9,7 @@
  *
  * Copyright: (c) 2019-2023 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2019-01-22
- * Version:   $Id: hashlist.c 475 2023-02-21 08:08:11Z jacco $
+ * Version:   $Id: hashlist.c 489 2023-08-15 09:00:33Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
