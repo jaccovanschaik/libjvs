@@ -38,6 +38,8 @@ latlon_fields.h: latlon_fields.txt
 
 latlon_fields.o: latlon_fields.c latlon_fields.h
 
+latlon.o: latlon_fields.h
+
 libjvs.a: $(LIBJVS_OBJ) latlon_fields.o
 	$(MAKE_ALIB) libjvs.a $^
 
