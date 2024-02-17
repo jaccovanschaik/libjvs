@@ -1,9 +1,9 @@
 /*
  * timespec.c: calculations with struct timespec's.
  *
- * Copyright: (c) 2020-2023 Jacco van Schaik (jacco@jaccovanschaik.net)
+ * Copyright: (c) 2020-2024 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2020-10-22
- * Version:   $Id: timespec.c 475 2023-02-21 08:08:11Z jacco $
+ * Version:   $Id: timespec.c 491 2024-02-17 09:55:33Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -223,6 +223,27 @@ char *tsFormat(const struct timespec ts, const char *tz, const char *fmt)
 #include "utils.h"
 
 static int errors = 0;
+
+/*
+ * Check that the timespec in <t> contains <sec> and <nsec>. If not, print a
+ * message to that effect on stderr (using <file> and <line>, which should
+ * contain the source file and line where this function was called) and
+ * increment the error counter pointed to by <errors>. This function is used
+ * in test code, and should be called using the check_timespec macro.
+ */
+void _check_timespec(const char *file, int line,
+                     const char *name, int *errors,
+                     struct timespec t, long sec, long nsec)
+{
+    if (t.tv_sec != sec || t.tv_nsec != nsec) {
+        (*errors)++;
+        fprintf(stderr, "%s:%d: %s = { %ld, %ld }, expected { %ld, %ld }\n",
+                file, line, name, t.tv_sec, t.tv_nsec, sec, nsec);
+    }
+}
+
+#define check_timespec(t, sec, nsec) \
+    _check_timespec(__FILE__, __LINE__, #t, &errors, t, sec, nsec)
 
 int main(void)
 {

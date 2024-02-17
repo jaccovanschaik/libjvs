@@ -1,9 +1,9 @@
 /*
  * timeval.c: calculations with struct timeval's.
  *
- * Copyright: (c) 2020-2023 Jacco van Schaik (jacco@jaccovanschaik.net)
+ * Copyright: (c) 2020-2024 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2020-10-22
- * Version:   $Id: timeval.c 475 2023-02-21 08:08:11Z jacco $
+ * Version:   $Id: timeval.c 491 2024-02-17 09:55:33Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -215,6 +215,27 @@ char *tvFormat(const struct timeval tv, const char *tz, const char *fmt)
 #include "utils.h"
 
 static int errors = 0;
+
+/*
+ * Check that the timeval in <t> contains <sec> and <nsec>. If not, print a
+ * message to that effect on stderr (using <file> and <line>, which should
+ * contain the source file and line where this function was called) and
+ * increment the error counter pointed to by <errors>. This function should be
+ * called using the check_timeval macro.
+ */
+static void _check_timeval(const char *file, int line,
+                    const char *name, int *errors,
+                    struct timeval t, long sec, long usec)
+{
+    if (t.tv_sec != sec || t.tv_usec != usec) {
+        (*errors)++;
+        fprintf(stderr, "%s:%d: %s = { %ld, %ld }, expected { %ld, %ld }\n",
+                file, line, name, t.tv_sec, t.tv_usec, sec, usec);
+    }
+}
+
+#define check_timeval(t, sec, usec) \
+    _check_timeval(__FILE__, __LINE__, #t, &errors, t, sec, usec)
 
 int main(void)
 {

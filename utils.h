@@ -6,8 +6,8 @@
  *
  * utils.h is part of libjvs.
  *
- * Copyright:   (c) 2012-2023 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: utils.h 475 2023-02-21 08:08:11Z jacco $
+ * Copyright:   (c) 2012-2024 Jacco van Schaik (jacco@jaccovanschaik.net)
+ * Version:     $Id: utils.h 491 2024-02-17 09:55:33Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -37,10 +37,6 @@ extern "C" {
     _make_sure_that(__FILE__, __LINE__, &errors, #expr, (expr))
 #define check_string(s1, s2) \
     _check_string(__FILE__, __LINE__, &errors, s1, s2);
-#define check_timespec(t, sec, nsec) \
-    _check_timespec(__FILE__, __LINE__, #t, &errors, t, sec, nsec)
-#define check_timeval(t, sec, usec) \
-    _check_timeval(__FILE__, __LINE__, #t, &errors, t, sec, usec)
 
 /*
  * "Packable" types.
@@ -104,16 +100,6 @@ void dumpfds(FILE *fp, const char *intro, int nfds, fd_set *fds);
  * duplicate.
  */
 void *memdup(const void *src, size_t size);
-
-/*
- * Convert the double timestamp <t> to a struct timeval in <tv>.
- */
-void dtotv(double t, struct timeval *tv);
-
-/*
- * Return the timestamp in <tv> as a double.
- */
-double tvtod(const struct timeval *tv);
 
 /*
  * Return the current UTC time (number of seconds since 1970-01-01/00:00:00
@@ -267,28 +253,6 @@ int _make_sure_that(const char *file, int line,
  */
 int _check_string(const char *file, int line,
         int *errors, const char *s1, const char *s2);
-
-/*
- * Check that the timespec in <t> contains <sec> and <nsec>. If not, print a
- * message to that effect on stderr (using <file> and <line>, which should
- * contain the source file and line where this function was called) and
- * increment the error counter pointed to by <errors>. This function is used
- * in test code, and should be called using the check_timespec macro.
- */
-void _check_timespec(const char *file, int line,
-                     const char *name, int *errors,
-                     struct timespec t, long sec, long nsec);
-
-/*
- * Check that the timeval in <t> contains <sec> and <nsec>. If not, print a
- * message top that effect on stderr (using <file> and <line>, which should
- * contain the source file and line where this function was called) and
- * increment the error counter pointed to by <errors>. This function is used
- * in test code, and should be called using the check_timeval macro.
- */
-void _check_timeval(const char *file, int line,
-                    const char *name, int *errors,
-                    struct timeval t, long sec, long usec);
 
 /*
  * Use the iconv converter <cd> to convert the character string pointed to by

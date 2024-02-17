@@ -3,8 +3,8 @@
  *
  * utils.c is part of libjvs.
  *
- * Copyright:   (c) 2012-2023 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: utils.c 475 2023-02-21 08:08:11Z jacco $
+ * Copyright:   (c) 2012-2024 Jacco van Schaik (jacco@jaccovanschaik.net)
+ * Version:     $Id: utils.c 491 2024-02-17 09:55:33Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -198,23 +198,6 @@ void *memdup(const void *src, size_t size)
 }
 
 /*
- * Convert the double timestamp <t> to a struct timeval in <tv>.
- */
-void dtotv(double t, struct timeval *tv)
-{
-    tv->tv_sec  = t;
-    tv->tv_usec = 1000000 * fmod(t, 1.0);
-}
-
-/*
- * Return the timestamp in <tv> as a double.
- */
-double tvtod(const struct timeval *tv)
-{
-    return tv->tv_sec + tv->tv_usec / 1000000.0;
-}
-
-/*
  * Return the current UTC time (number of seconds since 1970-01-01/00:00:00
  * UTC) as a double.
  */
@@ -224,19 +207,7 @@ double dnow(void)
 
     gettimeofday(&tv, NULL);
 
-    return tvtod(&tv);
-}
-
-/*
- * Return the current time as a struct timespec.
- */
-const struct timespec *tsnow(void)
-{
-    static struct timespec ts;
-
-    clock_gettime(CLOCK_REALTIME, &ts);
-
-    return &ts;
+    return (double) tv.tv_sec + (double) tv.tv_usec / 1000000L;
 }
 
 /*
@@ -842,42 +813,6 @@ int _check_string(const char *file, int line,
 }
 
 /*
- * Check that the timespec in <t> contains <sec> and <nsec>. If not, print a
- * message to that effect on stderr (using <file> and <line>, which should
- * contain the source file and line where this function was called) and
- * increment the error counter pointed to by <errors>. This function is used
- * in test code, and should be called using the check_timespec macro.
- */
-void _check_timespec(const char *file, int line,
-                     const char *name, int *errors,
-                     struct timespec t, long sec, long nsec)
-{
-    if (t.tv_sec != sec || t.tv_nsec != nsec) {
-        (*errors)++;
-        fprintf(stderr, "%s:%d: %s = { %ld, %ld }, expected { %ld, %ld }\n",
-                file, line, name, t.tv_sec, t.tv_nsec, sec, nsec);
-    }
-}
-
-/*
- * Check that the timeval in <t> contains <sec> and <nsec>. If not, print a
- * message top that effect on stderr (using <file> and <line>, which should
- * contain the source file and line where this function was called) and
- * increment the error counter pointed to by <errors>. This function is used
- * in test code, and should be called using the check_timeval macro.
- */
-void _check_timeval(const char *file, int line,
-                    const char *name, int *errors,
-                    struct timeval t, long sec, long usec)
-{
-    if (t.tv_sec != sec || t.tv_usec != usec) {
-        (*errors)++;
-        fprintf(stderr, "%s:%d: %s = { %ld, %ld }, expected { %ld, %ld }\n",
-                file, line, name, t.tv_sec, t.tv_usec, sec, usec);
-    }
-}
-
-/*
  * Increase the size of <str> (whose current size is pointed to by <size>) to
  * <new_size>, and return the (possibly changed) address of the embiggened
  * string, while also updating <size> to the new size.
@@ -964,8 +899,6 @@ int main(void)
     char *sp, *dp, *buf_p;
     char raw_buf[6] = { 0 };
     int len;
-
-    struct timeval tv;
 
     char buffer[64] = { 0 };
 
@@ -1059,24 +992,6 @@ int main(void)
                 "  000000"
                 "  30 31 32 33 34 35 36 37 38 39 41 42 43 44 0A 0D"
                 " 0123456789ABCD..\n", r) == 0);
-
-    tv.tv_sec  = 0;
-    tv.tv_usec = 999999;
-
-    make_sure_that(tvtod(&tv) == 0.999999);
-
-    tv.tv_sec  = 1;
-    tv.tv_usec = 0;
-
-    make_sure_that(tvtod(&tv) == 1.0);
-
-    dtotv(0.999999, &tv);
-
-    make_sure_that(tv.tv_sec == 0 && tv.tv_usec == 999999);
-
-    dtotv(1.0, &tv);
-
-    make_sure_that(tv.tv_sec == 1 && tv.tv_usec == 0);
 
     setenv("TEST_String_1234", "test result", 1);
 
