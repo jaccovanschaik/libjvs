@@ -1,0 +1,10 @@
+lat_sign
+lat_deg
+lat_min
+lat_sec
+lat_hemi
+lon_sign
+lon_deg
+lon_min
+lon_sec
+lon_hemi

@@ -30,17 +30,26 @@ CFLAGS = -std=gnu99 -D_GNU_SOURCE -g -fPIC -Wall -Wextra -Werror -pedantic \
 
 all: libjvs.a libjvs.so # tags
 
-libjvs.a: $(LIBJVS_OBJ)
-	$(MAKE_ALIB) libjvs.a $(LIBJVS_OBJ)
+latlon_fields.c: latlon_fields.txt
+	./gen_enum -p "" -n LLF_COUNT -s latlon_string -e latlon_enum -c $< > $@
 
-libjvs.so: $(LIBJVS_OBJ)
-	$(MAKE_SLIB) libjvs.so $(LIBJVS_OBJ) -lm
+latlon_fields.h: latlon_fields.txt
+	./gen_enum -p "" -n LLF_COUNT -s latlon_string -e latlon_enum -h $< > $@
+
+latlon_fields.o: latlon_fields.c latlon_fields.h
+
+libjvs.a: $(LIBJVS_OBJ) latlon_fields.o
+	$(MAKE_ALIB) libjvs.a $^
+
+libjvs.so: $(LIBJVS_OBJ) latlon_fields.o
+	$(MAKE_SLIB) libjvs.so $^ -lm
 
 clean:
 	rm -f *.o *.d *.test *.log \
             libjvs.a libjvs.so \
             libjvs.tgz \
             core vgcore.* \
+            latlon_fields.c latlon_fields.h \
             tags
 
 libjvs.tgz: clean
