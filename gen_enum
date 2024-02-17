@@ -1,0 +1,153 @@
+#!/bin/bash
+
+#  Generate a "typedef enum" and a corresponding _name() routine for a list of
+#  names.
+# 
+#  Copyright:   (c) 2005-2024 Jacco van Schaik (jacco@frontier.nl)
+#  Version:     $Id: gen_enum 492 2024-02-17 10:34:32Z jacco $
+# 
+#  This software is distributed under the terms of the MIT license. See
+#  http://www.opensource.org/licenses/mit-license.php for details.
+
+
+DoSource() {
+cat << EOF
+#include <stdio.h>
+#include <strings.h>
+
+#include "${lower}.h"
+
+/* Generated on $date by $prog from $input using
+ * "$cmd" */
+
+const char *$e_to_s($typenm val)
+{
+   static char buf[80];
+
+   switch(val) {
+EOF
+
+cat $input | while IFS= read -r x; do
+   if echo "$x" | egrep '^#|^ *$' > /dev/null; then continue; fi
+   printf '   case %s%s: return("%s");\n' \
+      "$prefix" "`echo "$x" | tr 'a-z +-' 'A-Z___'`" "$x"
+done
+
+cat << EOF
+   default:
+      snprintf(buf, sizeof(buf), "%d (out of range)", val);
+      return(buf);
+   }
+}
+
+$typenm $s_to_e(const char *name)
+{
+EOF
+
+cat $input | while IFS= read -r x; do
+   if echo "$x" | egrep '^#|^ *$' > /dev/null; then continue; fi
+   printf '   if (!strcasecmp(name, "%s")) return %s%s;\n' \
+      "$x" "$prefix" "`echo "$x" | tr 'a-z +-' 'A-Z___'`"
+done
+
+cat << EOF
+
+   return -1;
+}
+EOF
+}
+
+DoHeader() {
+cat << EOF
+#ifndef ${upper}_H
+#define ${upper}_H
+
+/* Generated on $date by $prog from $input using
+ * "$cmd" */
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+typedef enum {
+EOF
+
+cat $input | while read x; do
+  if echo "$x" | egrep '^#|^ *$' > /dev/null; then continue; fi
+  printf '   %s%s,\n' "$prefix" "`echo "$x" | tr 'a-z +-' 'A-Z___'`"
+done
+
+echo "   $number"
+
+cat << EOF
+} $typenm;
+
+const char *$e_to_s($typenm val);
+$typenm $s_to_e(const char *name);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif
+EOF
+}
+
+Usage() {
+   echo "Usage: $1 -c|-h <options> <text_file>"
+   echo "Options:"
+   echo "       -c                  output a C source file"
+   echo "       -h                  output a C header file"
+   echo "       -p <prefix>         add this prefix to strings"
+   echo "       -s <function_name>  name for enum-to-string function"
+   echo "       -e <function_name>  name for string-to-enum function"
+   echo "       -n <count_name>     name for number-of-enums value"
+   echo "       -t <type_name>      name for enum typedef"
+
+   exit $2
+}
+
+if [ $# -eq 0 ]; then
+   Usage $0 0
+fi
+
+date=`date "+%Y-%m-%d %H:%M:%S"`
+prog=`basename $0`
+cmd="$prog $*"
+
+while [ $# -gt 0 ]; do
+   case "$1" in
+   -c)   output=C;;
+   -h)   output=H;;
+   -p)   prefix="$2"; shift;;
+   -s)   e_to_s="$2"; shift;;
+   -e)   s_to_e="$2"; shift;;
+   -n)   number="$2"; shift;;
+   -t)   typenm="$2"; shift;;
+   -*)   echo "Unrecognized option $1"
+         Usage "$0" 1;;
+   *)    input="$1";;
+   esac
+
+   shift
+done
+
+base=`basename $input`
+lower=`expr match $base '\(.*\)\.[^\.]*'`
+upper=`echo $lower | tr 'a-z-' 'A-Z_'`
+
+prefix=${prefix-${upper}_}
+e_to_s=${e_to_s-${lower}_enum_to_string}
+s_to_e=${s_to_e-${lower}_string_to_enum}
+typenm=${typenm-${lower}_enum}
+number=${number-${prefix}COUNT}
+
+if [ "$output" = H ]; then
+   DoHeader
+elif [ "$output" = C ]; then
+   DoSource
+else
+   Usage $0 1
+fi
+
+exit 0
