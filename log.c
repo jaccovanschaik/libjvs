@@ -26,9 +26,9 @@
  *
  * log.c is part of libjvs.
  *
- * Copyright: (c) 2019-2023 Jacco van Schaik (jacco@jaccovanschaik.net)
+ * Copyright: (c) 2019-2024 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2019-07-29
- * Version:   $Id: log.c 489 2023-08-15 09:00:33Z jacco $
+ * Version:   $Id: log.c 495 2024-06-01 11:43:14Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -55,6 +55,7 @@
 #include <regex.h>
 #include <unistd.h>
 #include <pthread.h>
+#include <errno.h>
 
 /*
  * Types of prefixes.
@@ -1070,25 +1071,32 @@ static int test_time_format(void)
 static int _check_file(const char *src, int line,
                       const char *filename, const char *text)
 {
-    int fd = open(filename, O_RDONLY);
+    struct stat statbuf;
+    int fd;
+    char *content;
 
-    if (fd == -1) {
+    if ((fd = open(filename, O_RDONLY)) == -1) {
         fprintf(stderr,
-                "%s:%d: Could not open file \"%s\" for comparison.\n",
-                src, line, filename);
+                "%s:%d: Could not open file \"%s\" (%s).\n",
+                src, line, filename, strerror(errno));
         return 1;
     }
-
-    struct stat statbuf;
-
-    fstat(fd, &statbuf);
-
-    char *content = calloc(1, statbuf.st_size + 1);
-
-    if (read(fd, content, statbuf.st_size) != statbuf.st_size) {
+    else if (fstat(fd, &statbuf) == -1) {
         fprintf(stderr,
-                "%s:%d: Could not read file \"%s\" for comparison.\n",
-                src, line, filename);
+                "%s:%d: Could not stat file \"%s\" (%s).\n",
+                src, line, filename, strerror(errno));
+        return 1;
+    }
+    else if ((content = calloc(1, statbuf.st_size + 1)) == NULL) {
+        fprintf(stderr,
+                "%s:%d: Could not allocate memory for file \"%s\" (%s).\n",
+                src, line, filename, strerror(errno));
+        return 1;
+    }
+    else if (read(fd, content, statbuf.st_size) != statbuf.st_size) {
+        fprintf(stderr,
+                "%s:%d: Could not read file \"%s\" (%s).\n",
+                src, line, filename, strerror(errno));
         return 1;
     }
 

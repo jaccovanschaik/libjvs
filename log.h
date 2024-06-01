@@ -29,9 +29,9 @@
  *
  * log.h is part of libjvs.
  *
- * Copyright: (c) 2019-2023 Jacco van Schaik (jacco@jaccovanschaik.net)
+ * Copyright: (c) 2019-2024 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2019-07-29
- * Version:   $Id: log.h 477 2023-03-16 10:32:07Z jacco $
+ * Version:   $Id: log.h 495 2024-06-01 11:43:14Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
