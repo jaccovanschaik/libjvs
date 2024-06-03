@@ -20,8 +20,8 @@
  *
  * mdf.c is part of libjvs.
  *
- * Copyright:   (c) 2013-2023 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: mdf.c 475 2023-02-21 08:08:11Z jacco $
+ * Copyright:   (c) 2013-2024 Jacco van Schaik (jacco@jaccovanschaik.net)
+ * Version:     $Id: mdf.c 496 2024-06-03 12:24:53Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -515,6 +515,11 @@ MDF_Stream *mdfOpenFP(FILE *fp)
 MDF_Stream *mdfOpenFD(int fd)
 {
     MDF_Stream *stream = mdf_create_stream(MDF_ST_FD);
+
+    // Create a duplicate of fd so the original remains open when we call
+    // fclose on stream->u.fp.
+
+    fd = dup(fd);
 
     if ((stream->u.fp = fdopen(fd, "r")) == NULL) {
         mdfClose(stream);
