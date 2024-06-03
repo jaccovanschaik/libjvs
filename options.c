@@ -3,8 +3,8 @@
  *
  * options.c is part of libjvs.
  *
- * Copyright:   (c) 2013-2023 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: options.c 474 2023-01-15 12:19:35Z jacco $
+ * Copyright:   (c) 2013-2024 Jacco van Schaik (jacco@jaccovanschaik.net)
+ * Version:     $Id: options.c 497 2024-06-03 12:37:20Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.

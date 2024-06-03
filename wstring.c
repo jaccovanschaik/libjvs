@@ -3,8 +3,8 @@
  *
  * wstring.c is part of libjvs.
  *
- * Copyright:   (c) 2007-2023 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: wstring.c 486 2023-05-08 10:37:29Z jacco $
+ * Copyright:   (c) 2007-2024 Jacco van Schaik (jacco@jaccovanschaik.net)
+ * Version:     $Id: wstring.c 497 2024-06-03 12:37:20Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -30,7 +30,7 @@
 /*
  * Increase the size of <str> to allow for another <len> bytes.
  */
-static void us_increase_by(wstring *str, size_t len)
+static void ws_increase_by(wstring *str, size_t len)
 {
     size_t new_len;
 
@@ -148,7 +148,7 @@ void wsDestroy(wstring *str)
  */
 wstring *wsAdd(wstring *str, const void *data, size_t len)
 {
-    us_increase_by(str, len);
+    ws_increase_by(str, len);
 
     memcpy(str->data + str->used, data, len * sizeof(wchar_t));
 
@@ -190,7 +190,7 @@ wstring *wsAddV(wstring *str, const wchar_t *fmt, va_list ap)
             break;
         }
 
-        us_increase_by(str, str->size);
+        ws_increase_by(str, str->size);
     }
 
     return str;

@@ -4,9 +4,9 @@
 /*
  * tree.h: Store data in an addressable tree structure.
  *
- * Copyright: (c) 2019-2023 Jacco van Schaik (jacco@jaccovanschaik.net)
+ * Copyright: (c) 2019-2024 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2019-11-07
- * Version:   $Id: tree.h 475 2023-02-21 08:08:11Z jacco $
+ * Version:   $Id: tree.h 497 2024-06-03 12:37:20Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.

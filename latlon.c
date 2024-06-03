@@ -1,5 +1,6 @@
 /*
- * latlon.c: XXX
+ * latlon.h: parse latitude/longitude strings, being as liberal as possible with
+ *           the used format.
  *
  * Copyright: (c) 2024 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2024-02-17

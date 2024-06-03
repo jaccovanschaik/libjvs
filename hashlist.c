@@ -7,9 +7,9 @@
  *
  * hashlist.c is part of libjvs.
  *
- * Copyright: (c) 2019-2023 Jacco van Schaik (jacco@jaccovanschaik.net)
+ * Copyright: (c) 2019-2024 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2019-01-22
- * Version:   $Id: hashlist.c 489 2023-08-15 09:00:33Z jacco $
+ * Version:   $Id: hashlist.c 497 2024-06-03 12:37:20Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
