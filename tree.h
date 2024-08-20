@@ -6,7 +6,7 @@
  *
  * Copyright: (c) 2019-2024 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2019-11-07
- * Version:   $Id: tree.h 497 2024-06-03 12:37:20Z jacco $
+ * Version:   $Id: tree.h 498 2024-08-20 13:45:00Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -79,7 +79,7 @@ TreeIter *treeIterNext(TreeIter *iter);
  * Return a pointer to the key for the data item that <iter> currently points
  * to. The length of the key is returned through <key_size>.
  */
-const void *treeIterKey(TreeIter *iter, size_t *key_size);
+const char *treeIterKey(TreeIter *iter, size_t *key_size);
 
 /*
  * Stop iterating using <iter>. <iter> is discarded and can no longer be used

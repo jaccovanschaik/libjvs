@@ -6,8 +6,8 @@
  *
  * hash.h is part of libjvs.
  *
- * Copyright:   (c) 2007-2024 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: hash.h 497 2024-06-03 12:37:20Z jacco $
+ * Copyright:   (c) 2007-2023 Jacco van Schaik (jacco@jaccovanschaik.net)
+ * Version:     $Id: hash.h 498 2024-08-20 13:45:00Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -98,6 +98,13 @@ void *hashGet(const HashTable *tbl, const void *key, int key_len);
  * this function calls abort(). The data this entry points to is not affected.
  */
 void hashDrop(HashTable *tbl, const void *key, int key_len);
+
+/*
+ * Traverse <tbl>, and call function <func> for every entry in it.
+ */
+void hashTraverse(HashTable *tbl,
+                  void (*func)(HashTable *tbl, void *data, void *udata),
+                  void *udata);
 
 /*
  * Return a pointer array containing the number of entries in each hash bucket.

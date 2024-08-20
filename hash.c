@@ -4,7 +4,7 @@
  * hash.h is part of libjvs.
  *
  * Copyright:   (c) 2007-2024 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: hash.c 497 2024-06-03 12:37:20Z jacco $
+ * Version:     $Id: hash.c 498 2024-08-20 13:45:00Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -244,6 +244,25 @@ void hashDrop(HashTable *tbl, const void *key, int key_len)
 
     free(entry->key);
     free(entry);
+}
+
+/*
+ * Traverse <tbl>, and call function <func> for every entry in it.
+ */
+void hashTraverse(HashTable *tbl,
+                  void (*func)(HashTable *tbl, void *data, void *udata),
+                  void *udata)
+{
+    for (int i = 0; i < HASH_BUCKETS; i++) {
+        List *bucket = tbl->bucket + i;
+        HashEntry *entry, *next;
+
+        for (entry = listHead(bucket); entry; entry = next) {
+            next = listNext(entry);
+
+            func(tbl, (void *) entry->data, udata);
+        }
+    }
 }
 
 /*

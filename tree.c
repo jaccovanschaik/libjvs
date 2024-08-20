@@ -3,7 +3,7 @@
  *
  * Copyright: (c) 2019-2024 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2019-11-07
- * Version:   $Id: tree.c 497 2024-06-03 12:37:20Z jacco $
+ * Version:   $Id: tree.c 498 2024-08-20 13:45:00Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -29,7 +29,8 @@ struct TreeIter {
 
 /*
  * Find the branch with id <id> in <tree>. Search only in the range of
- * branches between <low_index> and <high_index>, inclusive.
+ * branches between <low_index> and <high_index>, inclusive. Returns the index
+ * of the branch in <tree>, or -1 if the branch couldn't be found.
  */
 static int find_branch_between(const Tree *tree, uint8_t id,
         int low_index, int high_index)
@@ -171,6 +172,11 @@ static Tree *find_or_add_leaf(Tree *tree, const void *key, size_t key_size)
     return find_or_add_leaf(branch, ((uint8_t *) key) + 1, key_size - 1);
 }
 
+/*
+ * Recursively prune all empty branches from <tree>, i.e. remove all branches
+ * that aren't leaves (i.e. they have no data) and have no further
+ * sub-branches.
+ */
 static void tree_prune(Tree *tree)
 {
     for (int i = 0; i < tree->branch_count; i++) {
@@ -378,7 +384,7 @@ TreeIter *treeIterNext(TreeIter *iter)
  * Return a pointer to the key for the data item that <iter> currently points
  * to. The length of the key is returned through <key_size>.
  */
-const void *treeIterKey(TreeIter *iter, size_t *key_size)
+const char *treeIterKey(TreeIter *iter, size_t *key_size)
 {
     TreeIterNode *head = listHead(&iter->nodes);
 
@@ -466,7 +472,7 @@ int main(void)
     static const char *double_a = "AA";
     static const char *single_a = "A";
     static const char *empty = "";
-    static const char *alternative = "alternative";
+    static const char *alternative = "Alternative";
 
     Tree *tree = treeCreate();
 
@@ -549,7 +555,7 @@ int main(void)
     make_sure_that(tree->branch[0]->branch[0]->branch[0]->branch == NULL);
     make_sure_that(tree->branch[0]->branch[0]->branch[0]->branch_count == 0);
 
-    treeSet(tree, alternative, STRING_KEY(double_a));
+    treeAdd(tree, alternative, STRING_KEY(alternative));
 
     make_sure_that(tree->id == '\0');
     make_sure_that(tree->data == empty);
@@ -557,10 +563,10 @@ int main(void)
 
     make_sure_that(tree->branch[0]->id == 'A');
     make_sure_that(tree->branch[0]->data == single_a);
-    make_sure_that(tree->branch[0]->branch_count == 1);
+    make_sure_that(tree->branch[0]->branch_count == 2);
 
     make_sure_that(tree->branch[0]->branch[0]->id == 'A');
-    make_sure_that(tree->branch[0]->branch[0]->data == alternative);
+    make_sure_that(tree->branch[0]->branch[0]->data == double_a);
     make_sure_that(tree->branch[0]->branch[0]->branch_count == 1);
 
     make_sure_that(tree->branch[0]->branch[0]->branch[0]->id == 'A');
@@ -568,7 +574,26 @@ int main(void)
     make_sure_that(tree->branch[0]->branch[0]->branch[0]->branch == NULL);
     make_sure_that(tree->branch[0]->branch[0]->branch[0]->branch_count == 0);
 
-    make_sure_that(treeGet(tree, STRING_KEY(double_a)) == alternative);
+    Tree *t = tree;
+
+    for (const char *p = alternative; *p != '\0'; p++) {
+        int i;
+
+        for (i = 0; i < t->branch_count; i++) {
+            if (t->branch[i]->id == *p) goto found_a_branch;
+        }
+
+        make_sure_that("Couldn't find a branch for '%c'\n" && 0);
+
+found_a_branch:
+        t = t->branch[i];
+    }
+
+    make_sure_that(treeGet(tree, STRING_KEY(empty)) == empty);
+    make_sure_that(treeGet(tree, STRING_KEY(single_a)) == single_a);
+    make_sure_that(treeGet(tree, STRING_KEY(double_a)) == double_a);
+    make_sure_that(treeGet(tree, STRING_KEY(triple_a)) == triple_a);
+    make_sure_that(treeGet(tree, STRING_KEY(alternative)) == alternative);
 
     treeDrop(tree, STRING_KEY(empty));
 
@@ -578,10 +603,10 @@ int main(void)
 
     make_sure_that(tree->branch[0]->id == 'A');
     make_sure_that(tree->branch[0]->data == single_a);
-    make_sure_that(tree->branch[0]->branch_count == 1);
+    make_sure_that(tree->branch[0]->branch_count == 2);
 
     make_sure_that(tree->branch[0]->branch[0]->id == 'A');
-    make_sure_that(tree->branch[0]->branch[0]->data == alternative);
+    make_sure_that(tree->branch[0]->branch[0]->data == double_a);
     make_sure_that(tree->branch[0]->branch[0]->branch_count == 1);
 
     make_sure_that(tree->branch[0]->branch[0]->branch[0]->id == 'A');
@@ -597,7 +622,7 @@ int main(void)
 
     make_sure_that(tree->branch[0]->id == 'A');
     make_sure_that(tree->branch[0]->data == single_a);
-    make_sure_that(tree->branch[0]->branch_count == 1);
+    make_sure_that(tree->branch[0]->branch_count == 2);
 
     make_sure_that(tree->branch[0]->branch[0]->id == 'A');
     make_sure_that(tree->branch[0]->branch[0]->data == NULL);
@@ -616,14 +641,18 @@ int main(void)
 
     make_sure_that(tree->branch[0]->id == 'A');
     make_sure_that(tree->branch[0]->data == single_a);
-    make_sure_that(tree->branch[0]->branch == NULL);
-    make_sure_that(tree->branch[0]->branch_count == 0);
+    make_sure_that(tree->branch[0]->branch_count == 1);
 
     treeDrop(tree, STRING_KEY(single_a));
 
     make_sure_that(tree->id == '\0');
     make_sure_that(tree->data == NULL);
-    make_sure_that(tree->branch == NULL);
+    make_sure_that(tree->branch_count == 1);
+
+    treeDrop(tree, STRING_KEY(alternative));
+
+    make_sure_that(tree->id == '\0');
+    make_sure_that(tree->data == NULL);
     make_sure_that(tree->branch_count == 0);
 
     treeDestroy(tree);
