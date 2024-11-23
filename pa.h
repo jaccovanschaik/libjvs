@@ -20,7 +20,7 @@
  * pa.h is part of libjvs.
  *
  * Copyright:   (c) 2013-2024 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: pa.h 497 2024-06-03 12:37:20Z jacco $
+ * Version:     $Id: pa.h 499 2024-11-23 13:50:22Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -43,7 +43,7 @@ void paSet(PointerArray *pa, int index, void *ptr);
 /*
  * Get the entry at <index> from pointer array <pa>.
  */
-void *paGet(PointerArray *pa, int index);
+void *paGet(const PointerArray *pa, int index);
 
 /*
  * Drop (i.e. set to NULL) the entry at <index> in pointer array <pa>.
@@ -53,7 +53,7 @@ void paDrop(PointerArray *pa, int index);
 /*
  * Return the number of allocated entries in the pointer array.
  */
-int paCount(PointerArray *pa);
+int paCount(const PointerArray *pa);
 
 /*
  * Clear the contents of pointer array <pa>.
