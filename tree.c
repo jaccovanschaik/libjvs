@@ -3,7 +3,7 @@
  *
  * Copyright: (c) 2019-2025 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2019-11-07
- * Version:   $Id: tree.c 498 2024-08-20 13:45:00Z jacco $
+ * Version:   $Id: tree.c 500 2025-06-02 10:01:49Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
