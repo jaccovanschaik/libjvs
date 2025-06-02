@@ -1,6 +1,6 @@
 # Makefile for libjvs.
 #
-# Copyright:    (c) 2007-2024 Jacco van Schaik (jacco@jaccovanschaik.net)
+# Copyright:    (c) 2007-2025 Jacco van Schaik (jacco@jaccovanschaik.net)
 # Version:      $Id$
 #
 # This software is distributed under the terms of the MIT license. See
@@ -25,7 +25,7 @@ OPT_FLAGS = -O3
 DEP_FLAGS = -MMD
 PRO_FLAGS = # -pg
 
-CFLAGS = -std=gnu99 -D_GNU_SOURCE -g -fPIC -Wall -Wextra -Werror -pedantic \
+CFLAGS = -std=gnu11 -D_GNU_SOURCE -g -fPIC -Wall -Wextra -Werror -pedantic \
          $(OPT_FLAGS) $(PRO_FLAGS) $(DEP_FLAGS) # -DPARANOID
 
 all: libjvs.a libjvs.so # tags

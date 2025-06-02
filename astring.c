@@ -3,7 +3,7 @@
  *
  * astring.c is part of libjvs.
  *
- * Copyright:   (c) 2007-2024 Jacco van Schaik (jacco@jaccovanschaik.net)
+ * Copyright:   (c) 2007-2025 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Version:     $Id: astring.c 497 2024-06-03 12:37:20Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
@@ -609,12 +609,12 @@ int main(void)
 
     // ** asSetT and asAddT.
 
-    asSetT(&str1, 1660842836, "CET", "%Y-%m-%d");
+    asSetT(&str1, 1660842836, "Europe/Amsterdam", "%Y-%m-%d");
 
     make_sure_that(asLen(&str1) == 10);
     make_sure_that(strcmp(asGet(&str1), "2022-08-18") == 0);
 
-    asAddT(&str1, 1660842836, "CET", " %H:%M:%S");
+    asAddT(&str1, 1660842836, "Europe/Amsterdam", " %H:%M:%S");
 
     make_sure_that(asLen(&str1) == 19);
     make_sure_that(strcmp(asGet(&str1), "2022-08-18 19:13:56") == 0);
