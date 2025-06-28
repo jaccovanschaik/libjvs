@@ -1,9 +1,9 @@
 /*
  * tree.c: Store data in an addressable tree structure.
  *
- * Copyright: (c) 2019-2024 Jacco van Schaik (jacco@jaccovanschaik.net)
+ * Copyright: (c) 2019-2025 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2019-11-07
- * Version:   $Id: tree.c 498 2024-08-20 13:45:00Z jacco $
+ * Version:   $Id: tree.c 500 2025-06-02 10:01:49Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -344,7 +344,7 @@ TreeIter *treeIterate(const Tree *tree)
 {
     TreeIter *iter = calloc(1, sizeof(TreeIter));
 
-    uint8_t *key = malloc(0);
+    uint8_t *key = malloc(1);
 
     collect_leaves(tree, key, 0, &iter->nodes);
 
