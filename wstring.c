@@ -3,8 +3,8 @@
  *
  * wstring.c is part of libjvs.
  *
- * Copyright:   (c) 2007-2024 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: wstring.c 497 2024-06-03 12:37:20Z jacco $
+ * Copyright:   (c) 2007-2025 Jacco van Schaik (jacco@jaccovanschaik.net)
+ * Version:     $Id: wstring.c 500 2025-06-02 10:01:49Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -77,7 +77,7 @@ wstring *wsCreate(const wchar_t *fmt, ...)
 wstring *wsInit(wstring *str, const wchar_t *fmt, ...)
 {
     str->size = INITIAL_SIZE;
-    str->data = calloc(sizeof(str->data[0]), str->size);
+    str->data = calloc(str->size, sizeof(str->data[0]));
     str->used = 0;
 
     if (fmt) {
@@ -703,12 +703,12 @@ int main(void)
 
     // ** wsSetT and wsAddT.
 
-    wsSetT(&str1, 1660842836, "CET", L"%Y-%m-%d");
+    wsSetT(&str1, 1660842836, "Europe/Amsterdam", L"%Y-%m-%d");
 
     make_sure_that(wsLen(&str1) == 10);
     make_sure_that(wcscmp(wsGet(&str1), L"2022-08-18") == 0);
 
-    wsAddT(&str1, 1660842836, "CET", L" %H:%M:%S");
+    wsAddT(&str1, 1660842836, "Europe/Amsterdam", L" %H:%M:%S");
 
     make_sure_that(wsLen(&str1) == 19);
     make_sure_that(wcscmp(wsGet(&str1), L"2022-08-18 19:13:56") == 0);
