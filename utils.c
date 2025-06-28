@@ -3,8 +3,8 @@
  *
  * utils.c is part of libjvs.
  *
- * Copyright:   (c) 2012-2024 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: utils.c 501 2025-06-28 20:33:34Z jacco $
+ * Copyright:   (c) 2012-2025 Jacco van Schaik (jacco@jaccovanschaik.net)
+ * Version:     $Id: utils.c 503 2025-06-28 20:37:58Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
