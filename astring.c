@@ -3,8 +3,8 @@
  *
  * astring.c is part of libjvs.
  *
- * Copyright:   (c) 2007-2024 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: astring.c 497 2024-06-03 12:37:20Z jacco $
+ * Copyright:   (c) 2007-2025 Jacco van Schaik (jacco@jaccovanschaik.net)
+ * Version:     $Id: astring.c 500 2025-06-02 10:01:49Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -66,12 +66,13 @@ astring *asCreate(const char *fmt, ...)
 
 /*
  * Initialize astring <str> using the given printf-compatible <fmt> string and
- * subsequent parameters. <fmt> may be NULL, in which case the string remains
- * empty. This function assumes the given string has not been initialized and
- * may contain garbage. It therefore will not discard any old content, if it
- * should have any. To set the value of an astring that *has* been
+ * subsequent parameters. <fmt> may be NULL, in which case the string is
+ * cleared. This function assumes the given string has not been initialized
+ * and may contain garbage. It therefore will not discard any old content, if
+ * it should have any. To set the value of an astring that *has* been
  * initialized, simply use one of the asSet functions.
  */
+__attribute__((format (printf, 2, 3)))
 astring *asInit(astring *str, const char *fmt, ...)
 {
     str->size = INITIAL_SIZE;
@@ -609,12 +610,12 @@ int main(void)
 
     // ** asSetT and asAddT.
 
-    asSetT(&str1, 1660842836, "CET", "%Y-%m-%d");
+    asSetT(&str1, 1660842836, "Europe/Amsterdam", "%Y-%m-%d");
 
     make_sure_that(asLen(&str1) == 10);
     make_sure_that(strcmp(asGet(&str1), "2022-08-18") == 0);
 
-    asAddT(&str1, 1660842836, "CET", " %H:%M:%S");
+    asAddT(&str1, 1660842836, "Europe/Amsterdam", " %H:%M:%S");
 
     make_sure_that(asLen(&str1) == 19);
     make_sure_that(strcmp(asGet(&str1), "2022-08-18 19:13:56") == 0);

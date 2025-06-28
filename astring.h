@@ -6,7 +6,7 @@
  *
  * astring.h is part of libjvs.
  *
- * Copyright:   (c) 2007-2024 Jacco van Schaik (jacco@jaccovanschaik.net)
+ * Copyright:   (c) 2007-2025 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Version:     $Id: astring.h 497 2024-06-03 12:37:20Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
@@ -37,10 +37,10 @@ astring *asCreate(const char *fmt, ...);
 
 /*
  * Initialize astring <str> using the given printf-compatible <fmt> string and
- * subsequent parameters. <fmt> may be NULL, in which case the string remains
- * empty. This function assumes the given string has not been initialized and
- * may contain garbage. It therefore will not discard any old content, if it
- * should have any. To set the value of an astring that *has* been
+ * subsequent parameters. <fmt> may be NULL, in which case the string is
+ * cleared. This function assumes the given string has not been initialized
+ * and may contain garbage. It therefore will not discard any old content, if
+ * it should have any. To set the value of an astring that *has* been
  * initialized, simply use one of the asSet functions.
  */
 __attribute__((format (printf, 2, 3)))
