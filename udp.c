@@ -3,7 +3,7 @@
  *
  * udp.c is part of libjvs.
  *
- * Copyright:   (c) 2007-2025 Jacco van Schaik (jacco@jaccovanschaik.net)
+ * Copyright:   (c) 2007-2024 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Version:     $Id: udp.c 497 2024-06-03 12:37:20Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
