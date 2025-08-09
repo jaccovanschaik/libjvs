@@ -26,9 +26,9 @@
  *
  * log.c is part of libjvs.
  *
- * Copyright: (c) 2019-2024 Jacco van Schaik (jacco@jaccovanschaik.net)
+ * Copyright: (c) 2019-2025 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2019-07-29
- * Version:   $Id: log.c 495 2024-06-01 11:43:14Z jacco $
+ * Version:   $Id: log.c 504 2025-08-09 15:49:37Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.

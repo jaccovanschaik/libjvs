@@ -29,9 +29,9 @@
  *
  * log.h is part of libjvs.
  *
- * Copyright: (c) 2019-2024 Jacco van Schaik (jacco@jaccovanschaik.net)
+ * Copyright: (c) 2019-2025 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2019-07-29
- * Version:   $Id: log.h 495 2024-06-01 11:43:14Z jacco $
+ * Version:   $Id: log.h 504 2025-08-09 15:49:37Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -49,7 +49,9 @@ extern "C" {
 
 /*
  * These are some predefined channel masks, based on the log levels in syslog.h.
- * You can use these, or you can define your own. It's entirely up to you.
+ * You can use these, or you can define your own. It's entirely up to you. The
+ * software doesn't attach any meaning to these numbers, they are just bits
+ * representing log channels.
  */
 
 enum {
@@ -67,9 +69,11 @@ enum {
 typedef struct LogWriter LogWriter;
 
 /*
- * Write a log message to <channels>, defined by the printf-compatible
- * format string <fmt> and the subsequent parameters. If necessary, <file>,
- * <line> and <func> will be used to fill the appropriate prefixes.
+ * Write a log message to <channels>, defined by the printf-compatible format
+ * string <fmt> and the subsequent parameters. If necessary, <file>, <line>
+ * and <func> will be used to fill the appropriate prefixes. Note that this
+ * will not add a newline by default. If you want one, you'll have to add it
+ * in <fmt> yourself.
  */
 #define logWrite(channels, ...) \
     _logWrite(channels, true, __FILE__, __LINE__, __func__, __VA_ARGS__)
@@ -203,7 +207,8 @@ void logConnect(uint64_t channels, LogWriter *writer);
  * format string <fmt> and the subsequent parameters. If <with_prefixes> is
  * true, the message will be preceded by the requested prefixes. <file>,
  * <line> and <func> will be used to fill the appropriate prefixes, if
- * necessary.
+ * necessary. Note that this will not add a newline by default. If you want
+ * one, you'll have to add it in <fmt> yourself.
  *
  * Call this function through the logWrite macro, which will fill in <file>,
  * <line> and <func> for you.
