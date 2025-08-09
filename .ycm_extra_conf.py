@@ -5,7 +5,7 @@ def FlagsForFile(filename, **kwargs):
     'flags': [
       '-x', 'c',
       '-Wall', '-Wpointer-arith',
-      '-std=gnu99',
+      '-std=gnu11',
       '-fPIC',
       '-D_GNU_SOURCE',
       '-I.', '-I' + os.environ['HOME'] + '/include'
