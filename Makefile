@@ -16,7 +16,7 @@ INSTALL_INC = $(HOME)/include/libjvs
 
 CC = gcc
 
-LIBJVS_SRC = $(filter-out %_test.c vectors.c,$(wildcard *.c)) vectors.c
+LIBJVS_SRC = $(filter-out %_test.c vector.c,$(wildcard *.c)) vector.c
 LIBJVS_OBJ = $(LIBJVS_SRC:.c=.o)
 LIBJVS_DEP = $(LIBJVS_SRC:.c=.d)
 LIBJVS_TST = $(subst .c,,$(wildcard *_test.c))
@@ -40,15 +40,15 @@ latlon_fields.o: latlon_fields.c latlon_fields.h
 
 latlon.o: latlon_fields.h
 
-vectors.o: vectors.c vectors.h
+vector.o: vector.c vector.h
 
-vectors.c: make_vectors.sh
-	./make_vectors.sh -c > $@
+vector.c: make_vector.sh
+	./make_vector.sh -c > $@
 
-vectors.h: make_vectors.sh vector_generics.h
-	./make_vectors.sh -h > $@
+vector.h: make_vector.sh vector_generics.h
+	./make_vector.sh -h > $@
 
-vectors_test.o: vectors_test.c vectors.c vectors.h
+vector.o: vector.c vector.c vector.h
 
 libjvs.a: $(LIBJVS_OBJ) latlon_fields.o
 	$(MAKE_ALIB) libjvs.a $^
@@ -62,7 +62,7 @@ clean:
             libjvs.tgz \
             core vgcore.* \
             latlon_fields.c latlon_fields.h \
-            vectors.c vectors.h \
+            vector.c vector.h \
             tags
 
 libjvs.tgz: clean
@@ -81,9 +81,6 @@ update:
 tags: $(wildcard *.[ch])
 	@echo "Generating tags"
 	@ctags -R --c-kinds=+p . /usr/include
-
-vectors: vectors.c vectors.h
-	$(CC) $(CFLAGS) -o $@ $^ -lm
 
 %_test: %_test.c %.c %.h libjvs.a
 	@echo "Building tester for $*"

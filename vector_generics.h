@@ -40,25 +40,66 @@
         Vector4 *:  v4Sub                       \
     )((v1), (v2))
 
-#define vTransform(m, v)                                            \
+#define mTransform(m, v)                                            \
     _Generic((m),                                                   \
-        Matrix3x3:                                                  \
+        Matrix2x2:                                                  \
             _Generic(v,                                             \
-                Vector3:    v33Transform,                           \
-                default:    (Vector3 (*)(Matrix3x3, Vector3)) NULL  \
+                Vector2:    m2x2Transform,                          \
+                default:    (Vector2 (*)(Matrix2x2, Vector2)) NULL  \
+            ),                                                      \
+        Matrix2x3:                                                  \
+            _Generic(v,                                             \
+                Vector3:    m2x3Transform,                          \
+                default:    (Vector2 (*)(Matrix2x3, Vector3)) NULL  \
+            ),                                                      \
+        Matrix2x4:                                                  \
+            _Generic(v,                                             \
+                Vector4:    m2x4Transform,                          \
+                default:    (Vector2 (*)(Matrix2x4, Vector4)) NULL  \
             ),                                                      \
         Matrix3x2:                                                  \
             _Generic(v,                                             \
-                Vector2:    v32Transform,                           \
+                Vector2:    m3x2Transform,                          \
                 default:    (Vector3 (*)(Matrix3x2, Vector2)) NULL  \
+            ),                                                      \
+        Matrix3x3:                                                  \
+            _Generic(v,                                             \
+                Vector3:    m3x3Transform,                          \
+                default:    (Vector3 (*)(Matrix3x3, Vector3)) NULL  \
+            ),                                                      \
+        Matrix3x4:                                                  \
+            _Generic(v,                                             \
+                Vector4:    m3x4Transform,                          \
+                default:    (Vector3 (*)(Matrix3x4, Vector4)) NULL  \
+            ),                                                      \
+        Matrix4x2:                                                  \
+            _Generic(v,                                             \
+                Vector2:    m4x2Transform,                          \
+                default:    (Vector4 (*)(Matrix4x2, Vector2)) NULL  \
+            ),                                                      \
+        Matrix4x3:                                                  \
+            _Generic(v,                                             \
+                Vector3:    m4x3Transform,                          \
+                default:    (Vector4 (*)(Matrix4x3, Vector3)) NULL  \
+            ),                                                      \
+        Matrix4x4:                                                  \
+            _Generic(v,                                             \
+                Vector4:    m4x4Transform,                          \
+                default:    (Vector4 (*)(Matrix4x4, Vector4)) NULL  \
             )                                                       \
     )(m, v)
 
-#define mSetCoefficients(m, ...)                \
+#define mSet(m, ...)                            \
     _Generic((m),                               \
-        Matrix2x2 *:  m2x2SetCoefficients,      \
-        Matrix3x3 *:  m3x3SetCoefficients,      \
-        Matrix4x4 *:  m4x4SetCoefficients       \
+        Matrix2x2 *:  m2x2Set,                  \
+        Matrix2x3 *:  m2x3Set,                  \
+        Matrix2x4 *:  m2x4Set,                  \
+        Matrix3x2 *:  m3x2Set,                  \
+        Matrix3x3 *:  m3x3Set,                  \
+        Matrix3x4 *:  m3x4Set,                  \
+        Matrix4x2 *:  m4x2Set,                  \
+        Matrix4x3 *:  m4x3Set,                  \
+        Matrix4x4 *:  m4x4Set                   \
     )(m, __VA_ARGS__)
 
 #define mPrint(fp, m, ...)                      \
@@ -73,3 +114,10 @@
         Matrix4x3:  m4x3Print,                  \
         Matrix4x4:  m4x4Print                   \
     )(fp, m, __VA_ARGS__)
+
+#define vPrint(fp, v, ...)                      \
+    _Generic((v),                               \
+        Vector2:  v2Print,                      \
+        Vector3:  v3Print,                      \
+        Vector4:  v4Print                       \
+    )(fp, v, __VA_ARGS__)

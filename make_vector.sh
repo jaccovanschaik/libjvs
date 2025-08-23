@@ -1314,10 +1314,10 @@ EOF
 
     for (size_t row = 0; row < rows; row++) {
         if (row == 0 && cap) {
-            fprintf(fp, "%*s( ", lead_in, cap);
+            fprintf(fp, "%-*s( ", lead_in, cap);
         }
         else {
-            fprintf(fp, "%*s( ", lead_in, "");
+            fprintf(fp, "%-*s( ", lead_in, "");
         }
 
         for (size_t col = 0; col < cols; col++) {
@@ -1644,7 +1644,7 @@ do_header() {
 }
 
 do_source() {
-    echo '#include "vectors.h"'
+    echo '#include "vector.h"'
     echo ''
     echo '#include <math.h>'
     echo '#include <assert.h>'
