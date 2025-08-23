@@ -1890,13 +1890,6 @@ do_source() {
     matrix_print 4 2
     matrix_print 4 3
     matrix_print 4 4
-
-    echo ''
-    echo '#ifdef TEST'
-    echo ''
-    cat vector_test.c
-    echo ''
-    echo '#endif'
 }
 
 do_usage() {
