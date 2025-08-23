@@ -370,9 +370,9 @@ EOF
 
     cat << EOF
 {
-    return (Vector3) { .c = { (v1.c[1] * v2.c[2] - v1.c[2] * v2.c[1]),
-                             -(v1.c[0] * v2.c[2] - v1.c[2] * v2.c[0]),
-                              (v1.c[0] * v2.c[1] - v1.c[1] * v2.c[0]) } };
+    return (Vector3) { .c = { v1.c[1] * v2.c[2] - v1.c[2] * v2.c[1],
+                              v1.c[2] * v2.c[0] - v1.c[0] * v2.c[2],
+                              v1.c[0] * v2.c[1] - v1.c[1] * v2.c[0] } };
 }
 EOF
 }
@@ -1303,18 +1303,21 @@ EOF
 
     cat << EOF
 {
-    char *cap;
+    char *cap = NULL;
+    int lead_in = 0;
 
-    int lead_in = asprintf(&cap, caption, ap);
+    if (caption) {
+        lead_in = 1 + asprintf(&cap, caption, ap);
+    }
 
     int index = 0;
 
     for (size_t row = 0; row < rows; row++) {
-        if (row == 0) {
-            fprintf(fp, "%s ( ", caption);
+        if (row == 0 && cap) {
+            fprintf(fp, "%*s( ", lead_in, cap);
         }
         else {
-            fprintf(fp, "%*s ( ", lead_in, "");
+            fprintf(fp, "%*s( ", lead_in, "");
         }
 
         for (size_t col = 0; col < cols; col++) {
@@ -1613,6 +1616,16 @@ do_header() {
     vector_transform 4 3 ';'
     vector_transform 4 4 ';'
 
+    matrix_va_print 2 2 ';'
+    matrix_va_print 2 3 ';'
+    matrix_va_print 2 4 ';'
+    matrix_va_print 3 2 ';'
+    matrix_va_print 3 3 ';'
+    matrix_va_print 3 4 ';'
+    matrix_va_print 4 2 ';'
+    matrix_va_print 4 3 ';'
+    matrix_va_print 4 4 ';'
+
     matrix_print 2 2 ';'
     matrix_print 2 3 ';'
     matrix_print 2 4 ';'
@@ -1623,15 +1636,8 @@ do_header() {
     matrix_print 4 3 ';'
     matrix_print 4 4 ';'
 
-    matrix_va_print 2 2 ';'
-    matrix_va_print 2 3 ';'
-    matrix_va_print 2 4 ';'
-    matrix_va_print 3 2 ';'
-    matrix_va_print 3 3 ';'
-    matrix_va_print 3 4 ';'
-    matrix_va_print 4 2 ';'
-    matrix_va_print 4 3 ';'
-    matrix_va_print 4 4 ';'
+    echo ''
+    cat vector_generics.h
 
     echo ''
     echo '#endif'
@@ -1865,6 +1871,16 @@ do_source() {
     vector_transform 4 3
     vector_transform 4 4
 
+    matrix_va_print 2 2
+    matrix_va_print 2 3
+    matrix_va_print 2 4
+    matrix_va_print 3 2
+    matrix_va_print 3 3
+    matrix_va_print 3 4
+    matrix_va_print 4 2
+    matrix_va_print 4 3
+    matrix_va_print 4 4
+
     matrix_print 2 2
     matrix_print 2 3
     matrix_print 2 4
@@ -1875,15 +1891,12 @@ do_source() {
     matrix_print 4 3
     matrix_print 4 4
 
-    matrix_va_print 2 2
-    matrix_va_print 2 3
-    matrix_va_print 2 4
-    matrix_va_print 3 2
-    matrix_va_print 3 3
-    matrix_va_print 3 4
-    matrix_va_print 4 2
-    matrix_va_print 4 3
-    matrix_va_print 4 4
+    echo ''
+    echo '#ifdef TEST'
+    echo ''
+    cat vector_test.c
+    echo ''
+    echo '#endif'
 }
 
 do_usage() {
