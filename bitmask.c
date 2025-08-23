@@ -3,8 +3,8 @@
  *
  * bitmask.c is part of libjvs.
  *
- * Copyright:   (c) 2008-2024 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: bitmask.c 497 2024-06-03 12:37:20Z jacco $
+ * Copyright:   (c) 2008-2025 Jacco van Schaik (jacco@jaccovanschaik.net)
+ * Version:     $Id: bitmask.c 507 2025-08-23 14:43:51Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -154,118 +154,3 @@ void bmDestroy(Bitmask *mask)
 
     free(mask);
 }
-
-#ifdef TEST
-static int errors = 0;
-
-int main(void)
-{
-    Bitmask mask = { 0 };
-    Bitmask *mask2;
-
-    bmSetBit(&mask, 0);
-
-    make_sure_that(mask.n_bytes == 1);
-    make_sure_that(mask.bits[0] == 0x01);
-
-    make_sure_that(bmGetBit(&mask, 0) == 1);
-    make_sure_that(bmGetBit(&mask, 1) == 0);
-    make_sure_that(bmGetBit(&mask, 2) == 0);
-    make_sure_that(bmGetBit(&mask, 3) == 0);
-    make_sure_that(bmGetBit(&mask, 4) == 0);
-    make_sure_that(bmGetBit(&mask, 5) == 0);
-    make_sure_that(bmGetBit(&mask, 6) == 0);
-    make_sure_that(bmGetBit(&mask, 7) == 0);
-    make_sure_that(bmGetBit(&mask, 1000) == 0);
-
-    bmSetBit(&mask, 9);
-
-    make_sure_that(mask.n_bytes == 2);
-    make_sure_that(mask.bits[0] == 0x01);
-    make_sure_that(mask.bits[1] == 0x02);
-
-    make_sure_that(bmGetBit(&mask, 0) == 1);
-    make_sure_that(bmGetBit(&mask, 1) == 0);
-    make_sure_that(bmGetBit(&mask, 2) == 0);
-    make_sure_that(bmGetBit(&mask, 3) == 0);
-    make_sure_that(bmGetBit(&mask, 4) == 0);
-    make_sure_that(bmGetBit(&mask, 5) == 0);
-    make_sure_that(bmGetBit(&mask, 6) == 0);
-    make_sure_that(bmGetBit(&mask, 7) == 0);
-    make_sure_that(bmGetBit(&mask, 8) == 0);
-    make_sure_that(bmGetBit(&mask, 9) == 1);
-    make_sure_that(bmGetBit(&mask, 1000) == 0);
-
-    bmClrBit(&mask, 0);
-
-    make_sure_that(mask.n_bytes == 2);
-    make_sure_that(mask.bits[0] == 0x00);
-    make_sure_that(mask.bits[1] == 0x02);
-
-    make_sure_that(bmGetBit(&mask, 0) == 0);
-    make_sure_that(bmGetBit(&mask, 1) == 0);
-    make_sure_that(bmGetBit(&mask, 2) == 0);
-    make_sure_that(bmGetBit(&mask, 3) == 0);
-    make_sure_that(bmGetBit(&mask, 4) == 0);
-    make_sure_that(bmGetBit(&mask, 5) == 0);
-    make_sure_that(bmGetBit(&mask, 6) == 0);
-    make_sure_that(bmGetBit(&mask, 7) == 0);
-    make_sure_that(bmGetBit(&mask, 8) == 0);
-    make_sure_that(bmGetBit(&mask, 9) == 1);
-    make_sure_that(bmGetBit(&mask, 1000) == 0);
-
-    bmClrBit(&mask, 9);
-
-    make_sure_that(mask.n_bytes == 2);
-    make_sure_that(mask.bits[0] == 0x00);
-    make_sure_that(mask.bits[1] == 0x00);
-
-    make_sure_that(bmGetBit(&mask, 0) == 0);
-    make_sure_that(bmGetBit(&mask, 1) == 0);
-    make_sure_that(bmGetBit(&mask, 2) == 0);
-    make_sure_that(bmGetBit(&mask, 3) == 0);
-    make_sure_that(bmGetBit(&mask, 4) == 0);
-    make_sure_that(bmGetBit(&mask, 5) == 0);
-    make_sure_that(bmGetBit(&mask, 6) == 0);
-    make_sure_that(bmGetBit(&mask, 7) == 0);
-    make_sure_that(bmGetBit(&mask, 8) == 0);
-    make_sure_that(bmGetBit(&mask, 9) == 0);
-    make_sure_that(bmGetBit(&mask, 1000) == 0);
-
-    bmSetBits(&mask, 0, 2, 4, 6, 8, 10, 12, 14, END);
-
-    make_sure_that(mask.n_bytes == 2);
-    make_sure_that(mask.bits[0] == 0x55);
-    make_sure_that(mask.bits[1] == 0x55);
-
-    bmClrBits(&mask, 0, 2, 4, 6, 8, 10, 12, 14, END);
-
-    make_sure_that(mask.n_bytes == 2);
-    make_sure_that(mask.bits[0] == 0x00);
-    make_sure_that(mask.bits[1] == 0x00);
-
-    mask2 = bmCreate();
-
-    make_sure_that(mask2->n_bytes == 0);
-    make_sure_that(mask2->bits == NULL);
-
-    make_sure_that(bmCompare(&mask, mask2) == 0);
-
-    bmSetBit(&mask, 0);
-
-    make_sure_that(bmCompare(&mask, mask2) == 1);
-
-    bmSetBit(mask2, 0);
-
-    make_sure_that(bmCompare(&mask, mask2) == 0);
-
-    bmSetBit(mask2, 1);
-
-    make_sure_that(bmCompare(&mask, mask2) == -1);
-
-    bmClear(&mask);
-    bmDestroy(mask2);
-
-    return errors;
-}
-#endif

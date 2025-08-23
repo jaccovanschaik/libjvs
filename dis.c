@@ -3,8 +3,8 @@
  *
  * dis.c is part of libjvs.
  *
- * Copyright:   (c) 2013-2024 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: dis.c 491 2024-02-17 09:55:33Z jacco $
+ * Copyright:   (c) 2013-2025 Jacco van Schaik (jacco@jaccovanschaik.net)
+ * Version:     $Id: dis.c 507 2025-08-23 14:43:51Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -487,61 +487,3 @@ void disDestroy(Dispatcher *dis)
 
     free(dis);
 }
-
-#ifdef TEST
-
-static int errors = 0;
-
-static int fd[2];
-
-static void handle_fd0(Dispatcher *dis, int fd, void *udata)
-{
-    UNUSED(udata);
-
-    char buffer[16];
-
-    int count = read(fd, buffer, sizeof(buffer));
-
-    make_sure_that(count == 4);
-    make_sure_that(strncmp(buffer, "Hoi!", 4) == 0);
-
-    disClose(dis);
-}
-
-static void handle_timeout(Dispatcher *dis, double t, void *udata)
-{
-    UNUSED(dis);
-    UNUSED(t);
-    UNUSED(udata);
-
-    if (write(fd[1], "Hoi!", 4) == -1) {
-        perror("write");
-        exit(1);
-    }
-}
-
-int main(void)
-{
-    int i;
-
-    Dispatcher *dis = disCreate();
-
-    if (pipe(fd) == -1) {
-        perror("pipe");
-        exit(1);
-    }
-
-    disOnData(dis, fd[0], handle_fd0, NULL);
-    disOnTime(dis, dnow() + 0.1, handle_timeout, NULL);
-
-    for (i = 0; i < fd[0]; i++) {
-        make_sure_that(!disOwnsFd(dis, i));
-    }
-
-    make_sure_that(disOwnsFd(dis, fd[0]));
-
-    disRun(dis);
-
-    return errors;
-}
-#endif

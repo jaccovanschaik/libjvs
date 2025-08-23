@@ -9,9 +9,9 @@
  * Note that the search tree is built when you call pathCreate and pathAdd, so
  * a file created anywhere in the search path after that will not be found.
  *
- * Copyright: (c) 2020-2024 Jacco van Schaik (jacco@jaccovanschaik.net)
+ * Copyright: (c) 2020-2025 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2020-09-08
- * Version:   $Id: path.c 497 2024-06-03 12:37:20Z jacco $
+ * Version:   $Id: path.c 507 2025-08-23 14:43:51Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -276,34 +276,3 @@ void pathDestroy(Path *path)
 
     free(path);
 }
-
-#ifdef TEST
-#include "utils.h"
-
-static int errors = 0;
-
-int main(void)
-{
-    Path *path = pathCreate(getenv("PATH"));
-
-    make_sure_that(pathGet(path, "ls") != NULL);
-    make_sure_that(pathGet(path, "path.c") == NULL);
-
-    pathAdd(path, ".");
-
-    make_sure_that(pathGet(path, "path.c") != NULL);
-
-    FILE *fp;
-
-    make_sure_that((fp = pathFOpen(path, "path.c", "r")) != NULL);
-    make_sure_that(fclose(fp) == 0);
-
-    int fd;
-
-    make_sure_that((fd = pathOpen(path, "path.c", O_RDONLY)) != -1);
-    make_sure_that(close(fd) == 0);
-
-    return errors;
-}
-
-#endif

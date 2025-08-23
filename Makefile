@@ -16,10 +16,10 @@ INSTALL_INC = $(HOME)/include/libjvs
 
 CC = gcc
 
-LIBJVS_SRC = $(wildcard *.c) vectors.c
+LIBJVS_SRC = $(filter-out %_test.c vectors.c,$(wildcard *.c)) vectors.c
 LIBJVS_OBJ = $(LIBJVS_SRC:.c=.o)
 LIBJVS_DEP = $(LIBJVS_SRC:.c=.d)
-LIBJVS_TST = $(subst .c,.test,$(shell grep -l '^\#ifdef TEST' $(LIBJVS_SRC)))
+LIBJVS_TST = $(subst .c,,$(wildcard *_test.c))
 
 OPT_FLAGS = -O0
 DEP_FLAGS = -MMD
@@ -45,8 +45,10 @@ vectors.o: vectors.c vectors.h
 vectors.c: make_vectors.sh
 	./make_vectors.sh -c > $@
 
-vectors.h: make_vectors.sh
+vectors.h: make_vectors.sh vector_generics.h
 	./make_vectors.sh -h > $@
+
+vectors_test.o: vectors_test.c vectors.c vectors.h
 
 libjvs.a: $(LIBJVS_OBJ) latlon_fields.o
 	$(MAKE_ALIB) libjvs.a $^
@@ -55,7 +57,7 @@ libjvs.so: $(LIBJVS_OBJ) latlon_fields.o
 	$(MAKE_SLIB) libjvs.so $^ -lm
 
 clean:
-	rm -f *.o *.d *.test *.log \
+	rm -f *.o *.d *_test *.log \
             libjvs.a libjvs.so \
             libjvs.tgz \
             core vgcore.* \
@@ -83,7 +85,7 @@ tags: $(wildcard *.[ch])
 vectors: vectors.c vectors.h
 	$(CC) $(CFLAGS) -o $@ $^ -lm
 
-%.test: %.c %.h libjvs.a
+%_test: %_test.c %.c %.h libjvs.a
 	@echo "Building tester for $*"
 	@$(CC) $(CFLAGS) -DTEST -o $@ $< libjvs.a -lm
 

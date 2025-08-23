@@ -16,8 +16,8 @@
  *
  * pa.c is part of libjvs.
  *
- * Copyright:   (c) 2013-2024 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: pa.c 499 2024-11-23 13:50:22Z jacco $
+ * Copyright:   (c) 2013-2025 Jacco van Schaik (jacco@jaccovanschaik.net)
+ * Version:     $Id: pa.c 507 2025-08-23 14:43:51Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -119,58 +119,3 @@ void paDestroy(PointerArray *pa)
 
     free(pa);
 }
-
-#ifdef TEST
-#include "utils.h"
-
-int errors = 0;
-
-int main(void)
-{
-    PointerArray pa = { 0 };
-
-    paSet(&pa, 0, (void *) 0x1);
-
-    make_sure_that(paCount(&pa) == 1);
-    make_sure_that(paGet(&pa, 0) == (void *) 0x1);
-    make_sure_that(paGet(&pa, 1) == NULL);
-    make_sure_that(paGet(&pa, 2) == NULL);
-
-    paSet(&pa, 2, (void *) 0x3);
-
-    make_sure_that(paCount(&pa) == 3);
-    make_sure_that(paGet(&pa, 0) == (void *) 0x1);
-    make_sure_that(paGet(&pa, 1) == NULL);
-    make_sure_that(paGet(&pa, 2) == (void *) 0x3);
-
-    paSet(&pa, 1, (void *) 0x2);
-
-    make_sure_that(paCount(&pa) == 3);
-    make_sure_that(paGet(&pa, 0) == (void *) 0x1);
-    make_sure_that(paGet(&pa, 1) == (void *) 0x2);
-    make_sure_that(paGet(&pa, 2) == (void *) 0x3);
-
-    paDrop(&pa, 0);
-
-    make_sure_that(paCount(&pa) == 3);
-    make_sure_that(paGet(&pa, 0) == NULL);
-    make_sure_that(paGet(&pa, 1) == (void *) 0x2);
-    make_sure_that(paGet(&pa, 2) == (void *) 0x3);
-
-    paDrop(&pa, 2);
-
-    make_sure_that(paCount(&pa) == 2);
-    make_sure_that(paGet(&pa, 0) == NULL);
-    make_sure_that(paGet(&pa, 1) == (void *) 0x2);
-    make_sure_that(paGet(&pa, 2) == NULL);
-
-    paDrop(&pa, 1);
-
-    make_sure_that(paCount(&pa) == 0);
-    make_sure_that(paGet(&pa, 0) == NULL);
-    make_sure_that(paGet(&pa, 1) == NULL);
-    make_sure_that(paGet(&pa, 2) == NULL);
-
-    paClear(&pa);
-}
-#endif
