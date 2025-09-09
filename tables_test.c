@@ -33,7 +33,7 @@ int main(void)
 
     tbl = tblCreate();
 
-    tblSetColumn(tbl, 0, "Title");
+    tblSetHeader(tbl, 0, "Title");
 
     tblSetCell(tbl, 0, 0, "Hoi");
 

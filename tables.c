@@ -22,6 +22,9 @@
 
 #include <sys/param.h>
 
+/*
+ * Data for a table.
+ */
 struct Table {
     int    rows, cols;
     int   *width;
@@ -31,6 +34,9 @@ struct Table {
     char **cell;
 };
 
+/*
+ * "Special" characters for box graphics.
+ */
 enum {
     TOP_LEFT, TOP_RIGHT, BOTTOM_LEFT, BOTTOM_RIGHT,
     TOP_CROSS, BOTTOM_CROSS, LEFT_CROSS, RIGHT_CROSS, CENTER_CROSS,
@@ -38,6 +44,9 @@ enum {
     EDGE_COUNT
 };
 
+/*
+ * Use these characters (strings, really) when outputting ASCII-only graphics.
+ */
 static const char *ascii_edges[] = {
     [TOP_LEFT]     = "+",
     [TOP_RIGHT]    = "+",
@@ -56,6 +65,10 @@ static const char *ascii_edges[] = {
     [CENTER_VER]   = "|",
 };
 
+/*
+ * And use these when outputting box graphics. These are all UTF-8 multi-byte
+ * characters.
+ */
 static const char *box_edges[] = {
     [TOP_LEFT]     = "┌",
     [TOP_RIGHT]    = "┐",
@@ -74,6 +87,11 @@ static const char *box_edges[] = {
     [CENTER_VER]   = "│",
 };
 
+/*
+ * Allow for <rows> rows and <cols> columns in table <tbl>. Expands all the
+ * necessary data structures to hold these numbers of rows and columns. Handles
+ * expansion only(!), because we never need to shrink a table.
+ */
 static void tbl_allow(Table *tbl, int rows, int cols)
 {
     if (cols > tbl->cols) {
@@ -108,6 +126,10 @@ static void tbl_allow(Table *tbl, int rows, int cols)
     tbl->cols = MAX(cols, tbl->cols);
 }
 
+/*
+ * Determine whether table <tbl> needs a header. Only necessary when at least
+ * one of the columns has a defined title.
+ */
 static bool tbl_has_header(Table *tbl)
 {
     for (int col = 0; col < tbl->cols; col++) {
@@ -117,6 +139,14 @@ static bool tbl_has_header(Table *tbl)
     return false;
 }
 
+/*
+ * Format one line of output text and put it in <line>. If <bold> is true, the
+ * text fields will be bolded using an ANSI escape sequence. The <left_edge>
+ * string will be used for the left edge of the line, <right_edge> will be used
+ * for the right edge, and <center_edge> will be used as the separator between
+ * columns. The number of columns is <cols>. For each column, the width that it
+ * should be given is in <width>, and its text content is in <text>.
+ */
 static void tbl_format_text(Buffer *line, bool bold,
         const char *left_edge, const char *right_edge, const char *center_edge,
         int cols, int *width, char *const *text)
@@ -145,6 +175,13 @@ static void tbl_format_text(Buffer *line, bool bold,
     }
 }
 
+/*
+ * Format a separator line and put it in <line>. The string to use as the left
+ * edge is in <left_edge>, the right edge is in <right_edge>, <center_cross> is
+ * used to separate columns, and everywhere else (where the text fields are in
+ * other lines) is filled using <center_edge>. The number of columns is <cols>,
+ * and the width that each column should be given is in <width>.
+ */
 static void tbl_format_sep(Buffer *line,
         const char *left_edge, const char *right_edge, const char *center_edge,
         const char *center_cross, int cols, int *width)
@@ -167,6 +204,9 @@ static void tbl_format_sep(Buffer *line,
     }
 }
 
+/*
+ * Create and return a new table.
+ */
 Table *tblCreate(void)
 {
     Table *tbl = calloc(1, sizeof(Table));
@@ -174,7 +214,11 @@ Table *tblCreate(void)
     return tbl;
 }
 
-int tblVaSetColumn(Table *tbl, int col, const char *fmt, va_list ap)
+/*
+ * Set the header above column <col> in table <tbl> to the string defined by
+ * <fmt> and the parameters in <ap>.
+ */
+int tblVaSetHeader(Table *tbl, int col, const char *fmt, va_list ap)
 {
     tbl_allow(tbl, tbl->rows, col + 1);
 
@@ -189,18 +233,27 @@ int tblVaSetColumn(Table *tbl, int col, const char *fmt, va_list ap)
     return r;
 }
 
-int tblSetColumn(Table *tbl, int col, const char *fmt, ...)
+/*
+ * Set the header above column <col> in table <tbl> to the string defined by
+ * <fmt> and the subsequent parameters.
+ */
+__attribute__((format (printf, 3, 4)))
+int tblSetHeader(Table *tbl, int col, const char *fmt, ...)
 {
     va_list ap;
     int r;
 
     va_start(ap, fmt);
-    r = tblVaSetColumn(tbl, col, fmt, ap);
+    r = tblVaSetHeader(tbl, col, fmt, ap);
     va_end(ap);
 
     return r;
 }
 
+/*
+ * Set the cell at row <row> and column <col> in table <tbl> to the string
+ * defined by <fmt> and the parameters in <ap>.
+ */
 int tblVaSetCell(Table *tbl, int row, int col,
                   const char *fmt, va_list ap)
 {
@@ -217,6 +270,11 @@ int tblVaSetCell(Table *tbl, int row, int col,
     return r;
 }
 
+/*
+ * Set the cell at row <row> and column <col> in table <tbl> to the string
+ * defined by <fmt> and the subsequent parameters.
+ */
+__attribute__((format (printf, 4, 5)))
 int tblSetCell(Table *tbl, int row, int col, const char *fmt, ...)
 {
     va_list ap;
@@ -229,11 +287,20 @@ int tblSetCell(Table *tbl, int row, int col, const char *fmt, ...)
     return r;
 }
 
-void tblRewind(Table *tbl)
-{
-    tbl->next_line = 0;
-}
-
+/*
+ * Get subsequent lines to print <tbl>. This function will return, at every
+ * call, sequential character strings to print the given table. If there are no
+ * more lines to print it will return NULL.
+ *
+ * <flags> is the bitwise-or of:
+ * - TBL_BOX_CHARS:     Use graphical (UTF-8) box characters for a nicer output
+ *                      format. If not given, basic ASCII characters are used.
+ * - TBL_BOLD_TITLES:   Use ANSI escape sequences to print (only!) column
+ *                      headers in bold.
+ *
+ * Returns a pointer to a formatted output string, which is overwritten on each
+ * call.
+ */
 const char *tblGetLine(Table *tbl, TableFlags flags)
 {
     const char **edge;
@@ -317,6 +384,19 @@ const char *tblGetLine(Table *tbl, TableFlags flags)
     return bufGet(&tbl->line);
 }
 
+/*
+ * Rewind the output of table <tbl> back to the start. On the next call to
+ * tblGetLine(), the first output line will (again) be returned.
+ */
+void tblRewind(Table *tbl)
+{
+    tbl->next_line = 0;
+}
+
+/*
+ * Detroy table <tbl>. All internal data, including the most recently returned
+ * output line will be destroyed.
+ */
 void tblDestroy(Table *tbl)
 {
     free(tbl->width);
