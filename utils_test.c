@@ -155,5 +155,9 @@ int main(void)
     make_sure_that(out_len == 4);
     make_sure_that(memcmp(out, door_utf, strlen(door_utf)) == 0);
 
+    make_sure_that(utf8_strlen("Hällø!") == 6);
+
+    make_sure_that(utf8_field_width("Hällø!", 8) == 10);
+
     return errors;
 }

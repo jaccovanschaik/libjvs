@@ -6,8 +6,8 @@
  *
  * utils.h is part of libjvs.
  *
- * Copyright:   (c) 2012-2024 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: utils.h 491 2024-02-17 09:55:33Z jacco $
+ * Copyright:   (c) 2012-2025 Jacco van Schaik (jacco@jaccovanschaik.net)
+ * Version:     $Id: utils.h 511 2025-09-09 13:01:25Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -106,11 +106,6 @@ void *memdup(const void *src, size_t size);
  * UTC) as a double.
  */
 double dnow(void);
-
-/*
- * Return the current time as a struct timespec.
- */
-const struct timespec *tsnow(void);
 
 /*
  * Format the timestamp given by <sec> and <nsec> to a string, using the
@@ -271,6 +266,18 @@ int _check_string(const char *file, int line,
  */
 const char *convert_charset(iconv_t cd, const char *input, size_t input_len,
                             size_t *output_len);
+
+/*
+ * A UTF-8 aware strlen, which counts embedded UTF-8 characters in <str> as 1.
+ */
+size_t utf8_strlen(const char *str);
+
+/*
+ * Return the field width to use to print <str> in a space of <width>
+ * characters. This corrects for embedded UTF-8 characters, which may consist
+ * of multiple bytes, but still only take up one space in the terminal.
+ */
+int utf8_field_width(const char *str, int width);
 
 #ifdef __cplusplus
 }

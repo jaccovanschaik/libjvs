@@ -4,7 +4,7 @@
  * utils.c is part of libjvs.
  *
  * Copyright:   (c) 2012-2025 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: utils.c 507 2025-08-23 14:43:51Z jacco $
+ * Version:     $Id: utils.c 511 2025-09-09 13:01:25Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -800,9 +800,9 @@ int _check_string(const char *file, int line,
         fprintf(stderr, "%s:%d: String does not match expectation.\n",
                 file, line);
         fprintf(stderr, "Expected:\n");
-        fprintf(stderr, "<%s>\n", s1);
+        fprintf(stderr, "<%s>\n", s1 ? s1 : "null");
         fprintf(stderr, "Actual:\n");
-        fprintf(stderr, "<%s>\n", s2);
+        fprintf(stderr, "<%s>\n", s2 ? s2 : "null");
 
         (*errors)++;
 
@@ -884,3 +884,36 @@ const char *convert_charset(iconv_t cd, const char *input, size_t input_len,
 
     return out;
 }
+
+/*
+ * A UTF-8 aware strlen, which counts embedded UTF-8 characters in <str> as 1.
+ */
+size_t utf8_strlen(const char *str)
+{
+    size_t len = 0;
+
+    for (const char *p = str; *p != '\0'; p++) {
+        if ((*p & 0xC0) != 0xC0) len++;
+    }
+
+    return len;
+}
+
+/*
+ * Return the field width to use to print <str> in a space of <width>
+ * characters. This corrects for embedded UTF-8 characters, which may consist
+ * of multiple bytes, but still only take up one space in the terminal.
+ */
+int utf8_field_width(const char *str, int width)
+{
+    if (str == NULL) {
+        return width;
+    }
+    else {
+        size_t num_bytes = strlen(str);
+        size_t num_chars = utf8_strlen(str);
+
+        return width + num_bytes - num_chars;
+    }
+}
+
