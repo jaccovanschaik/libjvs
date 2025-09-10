@@ -7,7 +7,7 @@
  * utils.h is part of libjvs.
  *
  * Copyright:   (c) 2012-2025 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: utils.h 511 2025-09-09 13:01:25Z jacco $
+ * Version:     $Id: utils.h 513 2025-09-10 21:10:03Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -35,8 +35,8 @@ extern "C" {
 
 #define make_sure_that(expr) \
     _make_sure_that(__FILE__, __LINE__, &errors, #expr, (expr))
-#define check_string(s1, s2) \
-    _check_string(__FILE__, __LINE__, &errors, s1, s2);
+#define check_string(expected, actual) \
+    _check_string(__FILE__, __LINE__, &errors, expected, actual);
 
 /*
  * "Packable" types.
@@ -243,11 +243,11 @@ int _make_sure_that(const char *file, int line,
                      int *errors, const char *str, int val);
 
 /*
- * Check that strings <s1> and <s2> are identical. Complain and return 1 if
- * they're not, otherwise return 0.
+ * Check that strings <expected> and <actual> are identical. Complain and
+ * return 1 if they're not, otherwise return 0.
  */
 int _check_string(const char *file, int line,
-        int *errors, const char *s1, const char *s2);
+        int *errors, const char *expected, const char *actual);
 
 /*
  * Use the iconv converter <cd> to convert the character string pointed to by

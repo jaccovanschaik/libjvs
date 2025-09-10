@@ -4,7 +4,7 @@
  * utils.c is part of libjvs.
  *
  * Copyright:   (c) 2012-2025 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: utils.c 511 2025-09-09 13:01:25Z jacco $
+ * Version:     $Id: utils.c 513 2025-09-10 21:10:03Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -790,19 +790,17 @@ int _make_sure_that(const char *file, int line,
 }
 
 /*
- * Check that strings <s1> and <s2> are identical. Complain and return 1 if
- * they're not, otherwise return 0.
+ * Check that strings <expected> and <actual> are identical. Complain and
+ * return 1 if they're not, otherwise return 0.
  */
 int _check_string(const char *file, int line,
-        int *errors, const char *s1, const char *s2)
+        int *errors, const char *expected, const char *actual)
 {
-    if (strcmp(s1, s2) != 0) {
+    if (strcmp(expected, actual) != 0) {
         fprintf(stderr, "%s:%d: String does not match expectation.\n",
                 file, line);
-        fprintf(stderr, "Expected:\n");
-        fprintf(stderr, "<%s>\n", s1 ? s1 : "null");
-        fprintf(stderr, "Actual:\n");
-        fprintf(stderr, "<%s>\n", s2 ? s2 : "null");
+        fprintf(stderr, "Expected: <%s>\n", expected ? expected : "null");
+        fprintf(stderr, "Actual:   <%s>\n", actual ? actual : "null");
 
         (*errors)++;
 

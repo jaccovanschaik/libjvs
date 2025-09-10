@@ -1,5 +1,5 @@
 /*
- * tables.c: XXX
+ * tables.c: Format text tables.
  *
  * Copyright: (c) 2025 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2025-09-09
@@ -22,6 +22,18 @@
 
 #include <sys/param.h>
 
+typedef enum {
+    INITIAL,
+    TOP_OF_HEADER,
+    TEXT_OF_HEADER,
+    BOTTOM_OF_HEADER,
+    TRANSITION,
+    TOP_OF_BODY,
+    TEXT_OF_BODY,
+    BOTTOM_OF_BODY,
+    FINAL
+} OutputState;
+
 /*
  * Data for a table.
  */
@@ -29,11 +41,23 @@ struct Table {
     int    rows, cols;
     int   *width;
     int    next_line;
+    OutputState state;
     Buffer line;
     char **title;
     char **cell;
 };
 
+enum {
+    HDR_TOP_LEFT, HDR_TOP_EDGE, HDR_TOP_SEP, HDR_TOP_RIGHT,
+    HDR_TEXT_LEFT, HDR_TEXT_SEP, HDR_TEXT_RIGHT,
+    HDR_BOTTOM_LEFT, HDR_BOTTOM_EDGE, HDR_BOTTOM_SEP, HDR_BOTTOM_RIGHT,
+    TRANS_LEFT, TRANS_EDGE, TRANS_SEP, TRANS_RIGHT,
+    BODY_TOP_LEFT, BODY_TOP_EDGE, BODY_TOP_SEP, BODY_TOP_RIGHT,
+    BODY_TEXT_LEFT, BODY_TEXT_SEP, BODY_TEXT_RIGHT,
+    BODY_BOTTOM_LEFT, BODY_BOTTOM_EDGE, BODY_BOTTOM_SEP, BODY_BOTTOM_RIGHT
+};
+
+#if 0
 /*
  * "Special" characters for box graphics.
  */
@@ -43,48 +67,104 @@ enum {
     TOP_EDGE, BOTTOM_EDGE, LEFT_EDGE, RIGHT_EDGE, CENTER_HOR, CENTER_VER,
     EDGE_COUNT
 };
+#endif
 
 /*
  * Use these characters (strings, really) when outputting ASCII-only graphics.
  */
-static const char *ascii_edges[] = {
-    [TOP_LEFT]     = "+",
-    [TOP_RIGHT]    = "+",
-    [BOTTOM_LEFT]  = "+",
-    [BOTTOM_RIGHT] = "+",
-    [TOP_CROSS]    = "+",
-    [BOTTOM_CROSS] = "+",
-    [LEFT_CROSS]   = "+",
-    [RIGHT_CROSS]  = "+",
-    [CENTER_CROSS] = "+",
-    [TOP_EDGE]     = "-",
-    [BOTTOM_EDGE]  = "-",
-    [LEFT_EDGE]    = "|",
-    [RIGHT_EDGE]   = "|",
-    [CENTER_HOR]   = "-",
-    [CENTER_VER]   = "|",
+static const char *fmt_ascii[] = {
+    [HDR_TOP_LEFT]      = "+",  // -> +---+---+---+
+    [HDR_TOP_EDGE]      = "-",  //     ^^^ ^^^ ^^^
+    [HDR_TOP_SEP]       = "+",  //        ^   ^
+    [HDR_TOP_RIGHT]     = "+",  //                ^
+    [HDR_TEXT_LEFT]     = "|",  // -> | A | B | C |
+    [HDR_TEXT_SEP]      = "|",  //        ^   ^
+    [HDR_TEXT_RIGHT]    = "|",  //                ^
+    [HDR_BOTTOM_LEFT]   = "+",  // -> +---+---+---+
+    [HDR_BOTTOM_EDGE]   = "-",  //     ^^^ ^^^ ^^^
+    [HDR_BOTTOM_SEP]    = "+",  //        ^   ^
+    [HDR_BOTTOM_RIGHT]  = "+",  //                ^
+    [TRANS_LEFT]        = "+",  // -> +---+---+---+
+    [TRANS_EDGE]        = "-",  //     ^^^ ^^^ ^^^
+    [TRANS_SEP]         = "+",  //        ^   ^
+    [TRANS_RIGHT]       = "+",  //                ^
+    [BODY_TOP_LEFT]     = "+",  // -> +---+---+---+
+    [BODY_TOP_EDGE]     = "-",  //     ^^^ ^^^ ^^^
+    [BODY_TOP_SEP]      = "+",  //        ^   ^
+    [BODY_TOP_RIGHT]    = "+",  //                ^
+    [BODY_TEXT_LEFT]    = "|",  // -> | X | Y | Z |
+    [BODY_TEXT_SEP]     = "|",  //        ^   ^
+    [BODY_TEXT_RIGHT]   = "|",  //                ^
+    [BODY_BOTTOM_LEFT]  = "+",  // -> +---+---+---+
+    [BODY_BOTTOM_EDGE]  = "-",  //     ^^^ ^^^ ^^^
+    [BODY_BOTTOM_SEP]   = "+",  //        ^   ^
+    [BODY_BOTTOM_RIGHT] = "+",  //                ^
 };
 
 /*
  * And use these when outputting box graphics. These are all UTF-8 multi-byte
  * characters.
  */
-static const char *box_edges[] = {
-    [TOP_LEFT]     = "┌",
-    [TOP_RIGHT]    = "┐",
-    [BOTTOM_LEFT]  = "└",
-    [BOTTOM_RIGHT] = "┘",
-    [TOP_CROSS]    = "┬",
-    [BOTTOM_CROSS] = "┴",
-    [LEFT_CROSS]   = "├",
-    [RIGHT_CROSS]  = "┤",
-    [CENTER_CROSS] = "┼",
-    [TOP_EDGE]     = "─",
-    [BOTTOM_EDGE]  = "─",
-    [LEFT_EDGE]    = "│",
-    [RIGHT_EDGE]   = "│",
-    [CENTER_HOR]   = "─",
-    [CENTER_VER]   = "│",
+static const char *fmt_utf8_square[] = {
+    [HDR_TOP_LEFT]      = "┌",  // -> +---+---+---+
+    [HDR_TOP_EDGE]      = "─",  //     ^^^ ^^^ ^^^
+    [HDR_TOP_SEP]       = "│",  //        ^   ^
+    [HDR_TOP_RIGHT]     = "┐",  //                ^
+    [HDR_TEXT_LEFT]     = "│",  // -> | A | B | C |
+    [HDR_TEXT_SEP]      = "│",  //        ^   ^
+    [HDR_TEXT_RIGHT]    = "│",  //                ^
+    [HDR_BOTTOM_LEFT]   = "└",  // -> +---+---+---+
+    [HDR_BOTTOM_EDGE]   = "─",  //     ^^^ ^^^ ^^^
+    [HDR_BOTTOM_SEP]    = "┴",  //        ^   ^
+    [HDR_BOTTOM_RIGHT]  = "┘",  //                ^
+    [TRANS_LEFT]        = "├",  // -> +---+---+---+
+    [TRANS_EDGE]        = "─",  //     ^^^ ^^^ ^^^
+    [TRANS_SEP]         = "┼",  //        ^   ^
+    [TRANS_RIGHT]       = "┤",  //                ^
+    [BODY_TOP_LEFT]     = "┌",  // -> +---+---+---+
+    [BODY_TOP_EDGE]     = "─",  //     ^^^ ^^^ ^^^
+    [BODY_TOP_SEP]      = "┬",  //        ^   ^
+    [BODY_TOP_RIGHT]    = "┐",  //                ^
+    [BODY_TEXT_LEFT]    = "│",  // -> | X | Y | Z |
+    [BODY_TEXT_SEP]     = "│",  //        ^   ^
+    [BODY_TEXT_RIGHT]   = "│",  //                ^
+    [BODY_BOTTOM_LEFT]  = "└",  // -> +---+---+---+
+    [BODY_BOTTOM_EDGE]  = "─",  //     ^^^ ^^^ ^^^
+    [BODY_BOTTOM_SEP]   = "┴",  //        ^   ^
+    [BODY_BOTTOM_RIGHT] = "┘",  //                ^
+};
+
+/*
+ * And use these when outputting box graphics. These are all UTF-8 multi-byte
+ * characters.
+ */
+static const char *fmt_utf8_round[] = {
+    [HDR_TOP_LEFT]      = "╭",  // -> +---+---+---+
+    [HDR_TOP_EDGE]      = "─",  //     ^^^ ^^^ ^^^
+    [HDR_TOP_SEP]       = "│",  //        ^   ^
+    [HDR_TOP_RIGHT]     = "╮",  //                ^
+    [HDR_TEXT_LEFT]     = "│",  // -> | A | B | C |
+    [HDR_TEXT_SEP]      = "│",  //        ^   ^
+    [HDR_TEXT_RIGHT]    = "│",  //                ^
+    [HDR_BOTTOM_LEFT]   = "╰",  // -> +---+---+---+
+    [HDR_BOTTOM_EDGE]   = "─",  //     ^^^ ^^^ ^^^
+    [HDR_BOTTOM_SEP]    = "┴",  //        ^   ^
+    [HDR_BOTTOM_RIGHT]  = "╯",  //                ^
+    [TRANS_LEFT]        = "├",  // -> +---+---+---+
+    [TRANS_EDGE]        = "─",  //     ^^^ ^^^ ^^^
+    [TRANS_SEP]         = "┼",  //        ^   ^
+    [TRANS_RIGHT]       = "┤",  //                ^
+    [BODY_TOP_LEFT]     = "╭",  // -> +---+---+---+
+    [BODY_TOP_EDGE]     = "─",  //     ^^^ ^^^ ^^^
+    [BODY_TOP_SEP]      = "┬",  //        ^   ^
+    [BODY_TOP_RIGHT]    = "╮",  //                ^
+    [BODY_TEXT_LEFT]    = "│",  // -> | X | Y | Z |
+    [BODY_TEXT_SEP]     = "│",  //        ^   ^
+    [BODY_TEXT_RIGHT]   = "│",  //                ^
+    [BODY_BOTTOM_LEFT]  = "╰",  // -> +---+---+---+
+    [BODY_BOTTOM_EDGE]  = "─",  //     ^^^ ^^^ ^^^
+    [BODY_BOTTOM_SEP]   = "┴",  //        ^   ^
+    [BODY_BOTTOM_RIGHT] = "╯",  //                ^
 };
 
 /*
@@ -156,6 +236,8 @@ static void tbl_format_text(Buffer *line, bool bold,
     bufAddS(line, left_edge);
 
     for (int col = 0; col < cols; col++) {
+        if (col > 0) bufAddS(line, center_edge);
+
         if (text[col] == NULL || text[col][0] == '\0') {
             bufAddF(line, " %*s ", width[col], "");
         }
@@ -165,14 +247,9 @@ static void tbl_format_text(Buffer *line, bool bold,
                     (int) utf8_field_width(text[col], width[col]), text[col],
                     bold ? "\033[0m" : "");
         }
-
-        if (col < cols - 1) {
-            bufAddS(line, center_edge);
-        }
-        else {
-            bufAddS(line, right_edge);
-        }
     }
+
+    bufAddS(line, right_edge);
 }
 
 /*
@@ -191,17 +268,14 @@ static void tbl_format_sep(Buffer *line,
     bufAddS(line, left_edge);
 
     for (int col = 0; col < cols; col++) {
+        if (col > 0) bufAddS(line, center_cross);
+
         for (int c = 0; c < width[col] + 2; c++) {
             bufAddS(line, center_edge);
         }
-
-        if (col < cols - 1) {
-            bufAddS(line, center_cross);
-        }
-        else {
-            bufAddS(line, right_edge);
-        }
     }
+
+    bufAddS(line, right_edge);
 }
 
 /*
@@ -293,7 +367,7 @@ int tblSetCell(Table *tbl, int row, int col, const char *fmt, ...)
  * more lines to print it will return NULL.
  *
  * <flags> is the bitwise-or of:
- * - TBL_BOX_CHARS:     Use graphical (UTF-8) box characters for a nicer output
+ * - TBL_SQUARE_BOX:     Use graphical (UTF-8) box characters for a nicer output
  *                      format. If not given, basic ASCII characters are used.
  * - TBL_BOLD_TITLES:   Use ANSI escape sequences to print (only!) column
  *                      headers in bold.
@@ -301,82 +375,109 @@ int tblSetCell(Table *tbl, int row, int col, const char *fmt, ...)
  * Returns a pointer to a formatted output string, which is overwritten on each
  * call.
  */
-const char *tblGetLine(Table *tbl, TableFlags flags)
+const char *tblGetLine(Table *tbl, bool bold_headers, TableFormat format)
 {
     const char **edge;
 
-    if ((flags & TBL_BOX_CHARS) == 0) {
-        edge = ascii_edges;
-    }
-    else {
-        edge = box_edges;
+    switch (format) {
+    case TBL_FMT_ASCII:
+        edge = fmt_ascii;
+        break;
+    case TBL_FMT_UTF8_SQUARE:
+        edge = fmt_utf8_square;
+        break;
+    case TBL_FMT_UTF8_ROUND:
+        edge = fmt_utf8_round;
+        break;
     }
 
+    int row;
     bool has_header = tbl_has_header(tbl);
+    bool has_body   = tbl->rows > 0;
 
-    if (has_header) {
-        if (tbl->next_line == 0) {
-            // top edge
-            tbl_format_sep(&tbl->line,
-                    edge[TOP_LEFT], edge[TOP_RIGHT], edge[TOP_EDGE],
-                    edge[TOP_CROSS], tbl->cols, tbl->width);
-        }
-        else if (tbl->next_line == 1) {
-            // header text
-            tbl_format_text(&tbl->line, flags & TBL_BOLD_TITLES,
-                    edge[LEFT_EDGE], edge[RIGHT_EDGE], edge[CENTER_VER],
-                    tbl->cols, tbl->width, tbl->title);
-        }
-        else if (tbl->next_line == 2) {
-            // separator line between header and body
-            tbl_format_sep(&tbl->line,
-                    edge[LEFT_CROSS], edge[RIGHT_CROSS], edge[CENTER_HOR],
-                    edge[CENTER_CROSS], tbl->cols, tbl->width);
-        }
-        else if (tbl->next_line < tbl->rows + 3) {
-            // body
-            int row = tbl->next_line - 3;
-
-            tbl_format_text(&tbl->line, false,
-                    edge[LEFT_EDGE], edge[RIGHT_EDGE], edge[CENTER_VER],
-                    tbl->cols, tbl->width, tbl->cell + tbl->cols * row);
-        }
-        else if (tbl->next_line == tbl->rows + 3) {
-            // bottom edge
-            tbl_format_sep(&tbl->line,
-                    edge[BOTTOM_LEFT], edge[BOTTOM_RIGHT], edge[BOTTOM_EDGE],
-                    edge[BOTTOM_CROSS], tbl->cols, tbl->width);
+    if (tbl->state == INITIAL) {
+        if (has_header) {
+            tbl->state = TOP_OF_HEADER;
         }
         else {
-            // past bottom edge
-            return NULL;
+            tbl->state = TOP_OF_BODY;
         }
     }
-    else {
-        if (tbl->next_line == 0) {
-            // top edge
-            tbl_format_sep(&tbl->line,
-                    edge[TOP_LEFT], edge[TOP_RIGHT], edge[TOP_EDGE],
-                    edge[TOP_CROSS], tbl->cols, tbl->width);
-        }
-        else if (tbl->next_line < tbl->rows + 1) {
-            // body
-            int row = tbl->next_line - 1;
 
-            tbl_format_text(&tbl->line, false,
-                    edge[LEFT_EDGE], edge[RIGHT_EDGE], edge[CENTER_VER],
-                    tbl->cols, tbl->width, tbl->cell + tbl->cols * row);
-        }
-        else if (tbl->next_line == tbl->rows + 1) {
-            // bottom edge
-            tbl_format_sep(&tbl->line,
-                    edge[BOTTOM_LEFT], edge[BOTTOM_RIGHT], edge[BOTTOM_EDGE],
-                    edge[BOTTOM_CROSS], tbl->cols, tbl->width);
+    switch (tbl->state) {
+    case TOP_OF_HEADER:
+        tbl_format_sep(&tbl->line,
+                edge[HDR_TOP_LEFT], edge[HDR_TOP_RIGHT],
+                edge[HDR_TOP_EDGE], edge[HDR_TOP_SEP],
+                tbl->cols, tbl->width);
+        tbl->state = TEXT_OF_HEADER;
+        break;
+    case TEXT_OF_HEADER:
+        tbl_format_text(&tbl->line, bold_headers,
+                edge[HDR_TEXT_LEFT], edge[HDR_TEXT_RIGHT], edge[HDR_TEXT_SEP],
+                tbl->cols, tbl->width, tbl->title);
+        if (has_body) {
+            tbl->state = TRANSITION;
         }
         else {
-            // past bottom edge
-            return NULL;
+            tbl->state = BOTTOM_OF_HEADER;
         }
+        break;
+    case BOTTOM_OF_HEADER:
+        tbl_format_sep(&tbl->line,
+                edge[HDR_BOTTOM_LEFT], edge[HDR_BOTTOM_RIGHT],
+                edge[HDR_BOTTOM_EDGE], edge[HDR_BOTTOM_SEP],
+                tbl->cols, tbl->width);
+        tbl->state = FINAL;
+        break;
+    case TRANSITION:
+        tbl_format_sep(&tbl->line,
+                edge[TRANS_LEFT], edge[TRANS_RIGHT],
+                edge[TRANS_EDGE], edge[TRANS_SEP],
+                tbl->cols, tbl->width);
+        tbl->state = TEXT_OF_BODY;
+        break;
+    case TOP_OF_BODY:
+        tbl_format_sep(&tbl->line,
+                edge[BODY_TOP_LEFT], edge[BODY_TOP_RIGHT],
+                edge[BODY_TOP_EDGE], edge[BODY_TOP_SEP],
+                tbl->cols, tbl->width);
+
+        if (has_body) {
+            tbl->state = TEXT_OF_BODY;
+        }
+        else {
+            tbl->state = BOTTOM_OF_BODY;
+        }
+
+        break;
+    case TEXT_OF_BODY:
+        if (has_header) {
+            row = tbl->next_line - 3;
+        }
+        else {
+            row = tbl->next_line - 1;
+        }
+
+        tbl_format_text(&tbl->line, false,
+                edge[HDR_TEXT_LEFT], edge[HDR_TEXT_RIGHT], edge[HDR_TEXT_SEP],
+                tbl->cols, tbl->width, tbl->cell + tbl->cols * row);
+
+        if (row + 1 >= tbl->rows) {
+            tbl->state = BOTTOM_OF_BODY;
+        }
+        break;
+    case BOTTOM_OF_BODY:
+        tbl_format_sep(&tbl->line,
+                edge[BODY_BOTTOM_LEFT], edge[BODY_BOTTOM_RIGHT],
+                edge[BODY_BOTTOM_EDGE], edge[BODY_BOTTOM_SEP],
+                tbl->cols, tbl->width);
+        tbl->state = FINAL;
+        break;
+    case FINAL:
+        return NULL;
+    default:
+        break;
     }
 
     tbl->next_line++;
@@ -391,6 +492,7 @@ const char *tblGetLine(Table *tbl, TableFlags flags)
 void tblRewind(Table *tbl)
 {
     tbl->next_line = 0;
+    tbl->state = INITIAL;
 }
 
 /*

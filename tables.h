@@ -2,7 +2,7 @@
 #define TABLES_H
 
 /*
- * tables.h: XXX
+ * tables.h: Format text tables.
  *
  * Copyright: (c) 2025 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2025-09-09
@@ -15,13 +15,15 @@
 
 #include <stdlib.h>
 #include <stdarg.h>
+#include <stdbool.h>
 
 typedef struct Table Table;
 
 typedef enum {
-    TBL_BOLD_TITLES = 0x1,
-    TBL_BOX_CHARS   = 0x2
-} TableFlags;
+    TBL_FMT_ASCII,
+    TBL_FMT_UTF8_SQUARE,
+    TBL_FMT_UTF8_ROUND,
+} TableFormat;
 
 /*
  * Create and return a new table.
@@ -61,7 +63,7 @@ int tblSetCell(Table *tbl, int row, int col, const char *fmt, ...);
  * more lines to print it will return NULL.
  *
  * <flags> is the bitwise-or of:
- * - TBL_BOX_CHARS:     Use graphical (UTF-8) box characters for a nicer output
+ * - TBL_SQUARE_BOX:     Use graphical (UTF-8) box characters for a nicer output
  *                      format. If not given, basic ASCII characters are used.
  * - TBL_BOLD_TITLES:   Use ANSI escape sequences to print (only!) column
  *                      headers in bold.
@@ -69,7 +71,7 @@ int tblSetCell(Table *tbl, int row, int col, const char *fmt, ...);
  * Returns a pointer to a formatted output string, which is overwritten on each
  * call.
  */
-const char *tblGetLine(Table *tbl, TableFlags flags);
+const char *tblGetLine(Table *tbl, bool bold_headers, TableFormat format);
 
 /*
  * Rewind the output of table <tbl> back to the start. On the next call to
