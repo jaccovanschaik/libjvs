@@ -3,98 +3,135 @@
 
 static int errors = 0;
 
+static void _check(const char *file, int line,
+        Table *tbl, const char *exp, bool bold, TableFormat format)
+{
+    const char *act = tblGetLine(tbl, bold, format);
+
+    if (strcmp(act, exp) != 0) {
+        fprintf(stderr, "%s:%d: String does not match expectation.\n",
+                file, line);
+        fprintf(stderr, "Expected: \"%s\"\n", exp);
+        fprintf(stderr, "Actual:   \"%s\"\n", act);
+
+        errors++;
+    }
+}
+
+#define check(tbl, exp, bold, fmt) \
+    _check(__FILE__, __LINE__, tbl, exp, bold, fmt)
+
 int main(void)
 {
     Table *tbl = tblCreate();
 
-    check_string("++", tblGetLine(tbl, false, TBL_FMT_ASCII));
-    check_string("++", tblGetLine(tbl, false, TBL_FMT_ASCII));
+    check(tbl, "++", false, TBL_FMT_ASCII);
+    check(tbl, "++", false, TBL_FMT_ASCII);
     make_sure_that(tblGetLine(tbl, false, TBL_FMT_ASCII) == NULL);
 
     tblRewind(tbl);
 
-    check_string("┌┐", tblGetLine(tbl, false, TBL_FMT_UTF8_SQUARE));
-    check_string("└┘", tblGetLine(tbl, false, TBL_FMT_UTF8_SQUARE));
-    make_sure_that(tblGetLine(tbl, false, TBL_FMT_UTF8_SQUARE) == NULL);
+    check(tbl, "┌┐", false, TBL_FMT_BOX);
+    check(tbl, "└┘", false, TBL_FMT_BOX);
+    make_sure_that(tblGetLine(tbl, false, TBL_FMT_BOX) == NULL);
 
     tblRewind(tbl);
 
-    check_string("╭╮", tblGetLine(tbl, false, TBL_FMT_UTF8_ROUND));
-    check_string("╰╯", tblGetLine(tbl, false, TBL_FMT_UTF8_ROUND));
-    make_sure_that(tblGetLine(tbl, false, TBL_FMT_UTF8_ROUND) == NULL);
+    check(tbl, "╭╮", false, TBL_FMT_ROUND);
+    check(tbl, "╰╯", false, TBL_FMT_ROUND);
+    make_sure_that(tblGetLine(tbl, false, TBL_FMT_ROUND) == NULL);
 
     tblRewind(tbl);
 
-    tblSetCell(tbl, 0, 0, "Hoi!");
+    tblSetCell(tbl, 0, 0, "Hoi");
+    tblSetCell(tbl, 0, 1, "Hällø");
 
-    check_string("+------+", tblGetLine(tbl, false, TBL_FMT_ASCII));
-    check_string("| Hoi! |", tblGetLine(tbl, false, TBL_FMT_ASCII));
-    check_string("+------+", tblGetLine(tbl, false, TBL_FMT_ASCII));
+    check(tbl, "+-----+-------+", false, TBL_FMT_ASCII);
+    check(tbl, "| Hoi | Hällø |", false, TBL_FMT_ASCII);
+    check(tbl, "+-----+-------+", false, TBL_FMT_ASCII);
     make_sure_that(tblGetLine(tbl, false, TBL_FMT_ASCII) == NULL);
 
     tblRewind(tbl);
 
-    check_string("┌──────┐", tblGetLine(tbl, false, TBL_FMT_UTF8_SQUARE));
-    check_string("│ Hoi! │", tblGetLine(tbl, false, TBL_FMT_UTF8_SQUARE));
-    check_string("└──────┘", tblGetLine(tbl, false, TBL_FMT_UTF8_SQUARE));
+    check(tbl, "┌─────┬───────┐", false, TBL_FMT_BOX);
+    check(tbl, "│ Hoi │ Hällø │", false, TBL_FMT_BOX);
+    check(tbl, "└─────┴───────┘", false, TBL_FMT_BOX);
     make_sure_that(tblGetLine(tbl, false, TBL_FMT_ASCII) == NULL);
 
     tblRewind(tbl);
 
-    check_string("╭──────╮", tblGetLine(tbl, false, TBL_FMT_UTF8_ROUND));
-    check_string("│ Hoi! │", tblGetLine(tbl, false, TBL_FMT_UTF8_ROUND));
-    check_string("╰──────╯", tblGetLine(tbl, false, TBL_FMT_UTF8_ROUND));
+    check(tbl, "╭─────┬───────╮", false, TBL_FMT_ROUND);
+    check(tbl, "│ Hoi │ Hällø │", false, TBL_FMT_ROUND);
+    check(tbl, "╰─────┴───────╯", false, TBL_FMT_ROUND);
     make_sure_that(tblGetLine(tbl, false, TBL_FMT_ASCII) == NULL);
-
-    tblRewind(tbl);
 
     tblDestroy(tbl);
 
     tbl = tblCreate();
 
-    tblSetHeader(tbl, 0, "Title");
+    tblSetHeader(tbl, 0, "First");
+    tblSetHeader(tbl, 1, "2nd");
 
     tblSetCell(tbl, 0, 0, "Hoi");
+    tblSetCell(tbl, 0, 1, "Hällø");
 
-    check_string("+-------+", tblGetLine(tbl, false, TBL_FMT_ASCII));
-    check_string("| Title |", tblGetLine(tbl, false, TBL_FMT_ASCII));
-    check_string("+-------+", tblGetLine(tbl, false, TBL_FMT_ASCII));
-    check_string("| Hoi   |", tblGetLine(tbl, false, TBL_FMT_ASCII));
-    check_string("+-------+", tblGetLine(tbl, false, TBL_FMT_ASCII));
+    tblSetCell(tbl, 1, 0, "Bye");
+    tblSetCell(tbl, 1, 1, "Doei");
 
-    tblRewind(tbl);
-
-    check_string("┌───────┐", tblGetLine(tbl, false, TBL_FMT_UTF8_SQUARE));
-    check_string("│ Title │", tblGetLine(tbl, false, TBL_FMT_UTF8_SQUARE));
-    check_string("├───────┤", tblGetLine(tbl, false, TBL_FMT_UTF8_SQUARE));
-    check_string("│ Hoi   │", tblGetLine(tbl, false, TBL_FMT_UTF8_SQUARE));
-    check_string("└───────┘", tblGetLine(tbl, false, TBL_FMT_UTF8_SQUARE));
+    check(tbl, "+-------+-------+", false, TBL_FMT_ASCII);
+    check(tbl, "| First | 2nd   |", false, TBL_FMT_ASCII);
+    check(tbl, "+-------+-------+", false, TBL_FMT_ASCII);
+    check(tbl, "| Hoi   | Hällø |", false, TBL_FMT_ASCII);
+    check(tbl, "| Bye   | Doei  |", false, TBL_FMT_ASCII);
+    check(tbl, "+-------+-------+", false, TBL_FMT_ASCII);
 
     tblRewind(tbl);
 
-    check_string("╭───────╮", tblGetLine(tbl, false, TBL_FMT_UTF8_ROUND));
-    check_string("│ Title │", tblGetLine(tbl, false, TBL_FMT_UTF8_ROUND));
-    check_string("├───────┤", tblGetLine(tbl, false, TBL_FMT_UTF8_ROUND));
-    check_string("│ Hoi   │", tblGetLine(tbl, false, TBL_FMT_UTF8_ROUND));
-    check_string("╰───────╯", tblGetLine(tbl, false, TBL_FMT_UTF8_ROUND));
+    check(tbl, "+-------+-------+", true, TBL_FMT_ASCII);
+    check(tbl, "| \033[1mFirst\033[0m | \033[1m2nd  \033[0m |", true,
+            TBL_FMT_ASCII);
+    check(tbl, "+-------+-------+", true, TBL_FMT_ASCII);
+    check(tbl, "| Hoi   | Hällø |", true, TBL_FMT_ASCII);
+    check(tbl, "| Bye   | Doei  |", true, TBL_FMT_ASCII);
+    check(tbl, "+-------+-------+", true, TBL_FMT_ASCII);
 
     tblRewind(tbl);
 
-    check_string("+-------+", tblGetLine(tbl, true, TBL_FMT_ASCII));
-    check_string("| \033[1mTitle\033[0m |", tblGetLine(tbl, true, TBL_FMT_ASCII));
-    check_string("+-------+", tblGetLine(tbl, true, TBL_FMT_ASCII));
-    check_string("| Hoi   |", tblGetLine(tbl, true, TBL_FMT_ASCII));
-    check_string("+-------+", tblGetLine(tbl, true, TBL_FMT_ASCII));
+    check(tbl, "┌───────┬───────┐", false, TBL_FMT_BOX);
+    check(tbl, "│ First │ 2nd   │", false, TBL_FMT_BOX);
+    check(tbl, "├───────┼───────┤", false, TBL_FMT_BOX);
+    check(tbl, "│ Hoi   │ Hällø │", false, TBL_FMT_BOX);
+    check(tbl, "│ Bye   │ Doei  │", false, TBL_FMT_BOX);
+    check(tbl, "└───────┴───────┘", false, TBL_FMT_BOX);
 
     tblRewind(tbl);
 
-    check_string("┌───────┐", tblGetLine(tbl, true, TBL_FMT_UTF8_SQUARE));
-    check_string("│ \033[1mTitle\033[0m │", tblGetLine(tbl, true, TBL_FMT_UTF8_SQUARE));
-    check_string("├───────┤", tblGetLine(tbl, true, TBL_FMT_UTF8_SQUARE));
-    check_string("│ Hoi   │", tblGetLine(tbl, true, TBL_FMT_UTF8_SQUARE));
-    check_string("└───────┘", tblGetLine(tbl, true, TBL_FMT_UTF8_SQUARE));
+    check(tbl, "╭───────┬───────╮", false, TBL_FMT_ROUND);
+    check(tbl, "│ First │ 2nd   │", false, TBL_FMT_ROUND);
+    check(tbl, "├───────┼───────┤", false, TBL_FMT_ROUND);
+    check(tbl, "│ Hoi   │ Hällø │", false, TBL_FMT_ROUND);
+    check(tbl, "│ Bye   │ Doei  │", false, TBL_FMT_ROUND);
+    check(tbl, "╰───────┴───────╯", false, TBL_FMT_ROUND);
 
     tblRewind(tbl);
+
+    check(tbl, "╔═══════╤═══════╗", false, TBL_FMT_DOUBLE);
+    check(tbl, "║ First │ 2nd   ║", false, TBL_FMT_DOUBLE);
+    check(tbl, "╠═══════╪═══════╣", false, TBL_FMT_DOUBLE);
+    check(tbl, "║ Hoi   │ Hällø ║", false, TBL_FMT_DOUBLE);
+    check(tbl, "║ Bye   │ Doei  ║", false, TBL_FMT_DOUBLE);
+    check(tbl, "╚═══════╧═══════╝", false, TBL_FMT_DOUBLE);
+
+    tblRewind(tbl);
+
+    check(tbl, "┏━━━━━━━┯━━━━━━━┓", false, TBL_FMT_HEAVY);
+    check(tbl, "┃ First │ 2nd   ┃", false, TBL_FMT_HEAVY);
+    check(tbl, "┡━━━━━━━┿━━━━━━━┩", false, TBL_FMT_HEAVY);
+    check(tbl, "│ Hoi   │ Hällø │", false, TBL_FMT_HEAVY);
+    check(tbl, "│ Bye   │ Doei  │", false, TBL_FMT_HEAVY);
+    check(tbl, "└───────┴───────┘", false, TBL_FMT_HEAVY);
+
+    tblDestroy(tbl);
 
     return errors;
 }

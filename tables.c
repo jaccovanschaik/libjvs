@@ -47,27 +47,25 @@ struct Table {
     char **cell;
 };
 
-enum {
-    HDR_TOP_LEFT, HDR_TOP_EDGE, HDR_TOP_SEP, HDR_TOP_RIGHT,
-    HDR_TEXT_LEFT, HDR_TEXT_SEP, HDR_TEXT_RIGHT,
-    HDR_BOTTOM_LEFT, HDR_BOTTOM_EDGE, HDR_BOTTOM_SEP, HDR_BOTTOM_RIGHT,
-    TRANS_LEFT, TRANS_EDGE, TRANS_SEP, TRANS_RIGHT,
-    BODY_TOP_LEFT, BODY_TOP_EDGE, BODY_TOP_SEP, BODY_TOP_RIGHT,
-    BODY_TEXT_LEFT, BODY_TEXT_SEP, BODY_TEXT_RIGHT,
-    BODY_BOTTOM_LEFT, BODY_BOTTOM_EDGE, BODY_BOTTOM_SEP, BODY_BOTTOM_RIGHT
-};
-
-#if 0
 /*
- * "Special" characters for box graphics.
+ * The characters to draw the table with.
  */
 enum {
-    TOP_LEFT, TOP_RIGHT, BOTTOM_LEFT, BOTTOM_RIGHT,
-    TOP_CROSS, BOTTOM_CROSS, LEFT_CROSS, RIGHT_CROSS, CENTER_CROSS,
-    TOP_EDGE, BOTTOM_EDGE, LEFT_EDGE, RIGHT_EDGE, CENTER_HOR, CENTER_VER,
-    EDGE_COUNT
+    // Top edge of the header
+    HDR_TOP_LEFT, HDR_TOP_EDGE, HDR_TOP_SEP, HDR_TOP_RIGHT,
+    // Header text, with the column titles
+    HDR_TEXT_LEFT, HDR_TEXT_SEP, HDR_TEXT_RIGHT,
+    // Bottom edge of the header, if we have a header but no body.
+    HDR_BOTTOM_LEFT, HDR_BOTTOM_EDGE, HDR_BOTTOM_SEP, HDR_BOTTOM_RIGHT,
+    // Transition between header and body, if we have both.
+    TRANS_LEFT, TRANS_EDGE, TRANS_SEP, TRANS_RIGHT,
+    // Top edge of the body, if we have a body but no header.
+    BODY_TOP_LEFT, BODY_TOP_EDGE, BODY_TOP_SEP, BODY_TOP_RIGHT,
+    // Body text.
+    BODY_TEXT_LEFT, BODY_TEXT_SEP, BODY_TEXT_RIGHT,
+    // Bottom edge of the body.
+    BODY_BOTTOM_LEFT, BODY_BOTTOM_EDGE, BODY_BOTTOM_SEP, BODY_BOTTOM_RIGHT
 };
-#endif
 
 /*
  * Use these characters (strings, really) when outputting ASCII-only graphics.
@@ -102,13 +100,13 @@ static const char *fmt_ascii[] = {
 };
 
 /*
- * And use these when outputting box graphics. These are all UTF-8 multi-byte
- * characters.
+ * Use these when outputting UTF-8 box graphics with square corners. These
+ * strings (and all the ones below) use UTF-8 multi-byte characters.
  */
-static const char *fmt_utf8_square[] = {
+static const char *fmt_box[] = {
     [HDR_TOP_LEFT]      = "┌",  // -> +---+---+---+
     [HDR_TOP_EDGE]      = "─",  //     ^^^ ^^^ ^^^
-    [HDR_TOP_SEP]       = "│",  //        ^   ^
+    [HDR_TOP_SEP]       = "┬",  //        ^   ^
     [HDR_TOP_RIGHT]     = "┐",  //                ^
     [HDR_TEXT_LEFT]     = "│",  // -> | A | B | C |
     [HDR_TEXT_SEP]      = "│",  //        ^   ^
@@ -135,13 +133,12 @@ static const char *fmt_utf8_square[] = {
 };
 
 /*
- * And use these when outputting box graphics. These are all UTF-8 multi-byte
- * characters.
+ * Use these when outputting UTF-8 box graphics with round corners.
  */
-static const char *fmt_utf8_round[] = {
+static const char *fmt_round[] = {
     [HDR_TOP_LEFT]      = "╭",  // -> +---+---+---+
     [HDR_TOP_EDGE]      = "─",  //     ^^^ ^^^ ^^^
-    [HDR_TOP_SEP]       = "│",  //        ^   ^
+    [HDR_TOP_SEP]       = "┬",  //        ^   ^
     [HDR_TOP_RIGHT]     = "╮",  //                ^
     [HDR_TEXT_LEFT]     = "│",  // -> | A | B | C |
     [HDR_TEXT_SEP]      = "│",  //        ^   ^
@@ -168,6 +165,72 @@ static const char *fmt_utf8_round[] = {
 };
 
 /*
+ * Use these when outputting UTF-8 box graphics with round corners and double
+ * lines for the header.
+ */
+static const char *fmt_double[] = {
+    [HDR_TOP_LEFT]      = "╔",  // -> +---+---+---+
+    [HDR_TOP_EDGE]      = "═",  //     ^^^ ^^^ ^^^
+    [HDR_TOP_SEP]       = "╤",  //        ^   ^
+    [HDR_TOP_RIGHT]     = "╗",  //                ^
+    [HDR_TEXT_LEFT]     = "║",  // -> | A | B | C |
+    [HDR_TEXT_SEP]      = "│",  //        ^   ^
+    [HDR_TEXT_RIGHT]    = "║",  //                ^
+    [HDR_BOTTOM_LEFT]   = "╚",  // -> +---+---+---+
+    [HDR_BOTTOM_EDGE]   = "═",  //     ^^^ ^^^ ^^^
+    [HDR_BOTTOM_SEP]    = "╧",  //        ^   ^
+    [HDR_BOTTOM_RIGHT]  = "╝",  //                ^
+    [TRANS_LEFT]        = "╠",  // -> +---+---+---+
+    [TRANS_EDGE]        = "═",  //     ^^^ ^^^ ^^^
+    [TRANS_SEP]         = "╪",  //        ^   ^
+    [TRANS_RIGHT]       = "╣",  //                ^
+    [BODY_TOP_LEFT]     = "╔",  // -> +---+---+---+
+    [BODY_TOP_EDGE]     = "═",  //     ^^^ ^^^ ^^^
+    [BODY_TOP_SEP]      = "╤",  //        ^   ^
+    [BODY_TOP_RIGHT]    = "╗",  //                ^
+    [BODY_TEXT_LEFT]    = "║",  // -> | X | Y | Z |
+    [BODY_TEXT_SEP]     = "│",  //        ^   ^
+    [BODY_TEXT_RIGHT]   = "║",  //                ^
+    [BODY_BOTTOM_LEFT]  = "╚",  // -> +---+---+---+
+    [BODY_BOTTOM_EDGE]  = "═",  //     ^^^ ^^^ ^^^
+    [BODY_BOTTOM_SEP]   = "╧",  //        ^   ^
+    [BODY_BOTTOM_RIGHT] = "╝",  //                ^
+};
+
+/*
+ * Use these when outputting UTF-8 box graphics with round corners and double
+ * lines for the header.
+ */
+static const char *fmt_heavy[] = {
+    [HDR_TOP_LEFT]      = "┏",  // -> +---+---+---+
+    [HDR_TOP_EDGE]      = "━",  //     ^^^ ^^^ ^^^
+    [HDR_TOP_SEP]       = "┯",  //        ^   ^
+    [HDR_TOP_RIGHT]     = "┓",  //                ^
+    [HDR_TEXT_LEFT]     = "┃",  // -> | A | B | C |
+    [HDR_TEXT_SEP]      = "│",  //        ^   ^
+    [HDR_TEXT_RIGHT]    = "┃",  //                ^
+    [HDR_BOTTOM_LEFT]   = "┗",  // -> +---+---+---+
+    [HDR_BOTTOM_EDGE]   = "━",  //     ^^^ ^^^ ^^^
+    [HDR_BOTTOM_SEP]    = "┷",  //        ^   ^
+    [HDR_BOTTOM_RIGHT]  = "┛",  //                ^
+    [TRANS_LEFT]        = "┡",  // -> +---+---+---+
+    [TRANS_EDGE]        = "━",  //     ^^^ ^^^ ^^^
+    [TRANS_SEP]         = "┿",  //        ^   ^
+    [TRANS_RIGHT]       = "┩",  //                ^
+    [BODY_TOP_LEFT]     = "┌",  // -> +---+---+---+
+    [BODY_TOP_EDGE]     = "─",  //     ^^^ ^^^ ^^^
+    [BODY_TOP_SEP]      = "┬",  //        ^   ^
+    [BODY_TOP_RIGHT]    = "┐",  //                ^
+    [BODY_TEXT_LEFT]    = "│",  // -> | X | Y | Z |
+    [BODY_TEXT_SEP]     = "│",  //        ^   ^
+    [BODY_TEXT_RIGHT]   = "│",  //                ^
+    [BODY_BOTTOM_LEFT]  = "└",  // -> +---+---+---+
+    [BODY_BOTTOM_EDGE]  = "─",  //     ^^^ ^^^ ^^^
+    [BODY_BOTTOM_SEP]   = "┴",  //        ^   ^
+    [BODY_BOTTOM_RIGHT] = "┘",  //                ^
+};
+
+/*
  * Allow for <rows> rows and <cols> columns in table <tbl>. Expands all the
  * necessary data structures to hold these numbers of rows and columns. Handles
  * expansion only(!), because we never need to shrink a table.
@@ -189,21 +252,25 @@ static void tbl_allow(Table *tbl, int rows, int cols)
     }
 
     if (rows > tbl->rows || cols > tbl->cols) {
-        char **new_cell = calloc(rows * cols, sizeof(char *));
+        int new_rows = MAX(rows, tbl->rows);
+        int new_cols = MAX(cols, tbl->cols);
+
+        char **new_cell = calloc(new_rows * new_cols, sizeof(char *));
 
         for (int row = 0; row < tbl->rows; row++) {
             for (int col = 0; col < tbl->cols; col++) {
-                new_cell[col + cols * row] = tbl->cell[col + tbl->cols * row];
+                new_cell[col + new_cols * row] =
+                    tbl->cell[col + tbl->cols * row];
             }
         }
 
         free(tbl->cell);
 
         tbl->cell = new_cell;
-    }
 
-    tbl->rows = MAX(rows, tbl->rows);
-    tbl->cols = MAX(cols, tbl->cols);
+        tbl->rows = new_rows;
+        tbl->cols = new_cols;
+    }
 }
 
 /*
@@ -383,11 +450,17 @@ const char *tblGetLine(Table *tbl, bool bold_headers, TableFormat format)
     case TBL_FMT_ASCII:
         edge = fmt_ascii;
         break;
-    case TBL_FMT_UTF8_SQUARE:
-        edge = fmt_utf8_square;
+    case TBL_FMT_BOX:
+        edge = fmt_box;
         break;
-    case TBL_FMT_UTF8_ROUND:
-        edge = fmt_utf8_round;
+    case TBL_FMT_ROUND:
+        edge = fmt_round;
+        break;
+    case TBL_FMT_DOUBLE:
+        edge = fmt_double;
+        break;
+    case TBL_FMT_HEAVY:
+        edge = fmt_heavy;
         break;
     }
 
@@ -460,7 +533,8 @@ const char *tblGetLine(Table *tbl, bool bold_headers, TableFormat format)
         }
 
         tbl_format_text(&tbl->line, false,
-                edge[HDR_TEXT_LEFT], edge[HDR_TEXT_RIGHT], edge[HDR_TEXT_SEP],
+                edge[BODY_TEXT_LEFT], edge[BODY_TEXT_RIGHT],
+                edge[BODY_TEXT_SEP],
                 tbl->cols, tbl->width, tbl->cell + tbl->cols * row);
 
         if (row + 1 >= tbl->rows) {
@@ -515,4 +589,6 @@ void tblDestroy(Table *tbl)
 
     free(tbl->title);
     free(tbl->cell);
+
+    free(tbl);
 }

@@ -21,8 +21,10 @@ typedef struct Table Table;
 
 typedef enum {
     TBL_FMT_ASCII,
-    TBL_FMT_UTF8_SQUARE,
-    TBL_FMT_UTF8_ROUND,
+    TBL_FMT_BOX,
+    TBL_FMT_ROUND,
+    TBL_FMT_DOUBLE,
+    TBL_FMT_HEAVY,
 } TableFormat;
 
 /*
