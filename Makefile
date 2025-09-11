@@ -76,7 +76,9 @@ install: test libjvs.a libjvs.so
 	cp *.h $(INSTALL_INC)
 
 update:
-	git pull && make install
+	git pull
+	svn update
+	make install
 
 tags: $(wildcard *.[ch])
 	@echo "Generating tags"
