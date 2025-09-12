@@ -27,13 +27,13 @@
  */
 typedef enum {
     INITIAL,            // Initial state, nothing returned yet.
-    TOP_OF_HEADER,      // Top of the header.
-    TEXT_OF_HEADER,     // Text of the header.
-    BOTTOM_OF_HEADER,   // Bottom of the header, if we have no body.
+    HEADER_TOP,         // Top of the header.
+    HEADER_TEXT,        // Text of the header.
+    HEADER_BOTTOM,      // Bottom of the header, if we have no body.
     TRANSITION,         // Transition between header and body, if we have both.
-    TOP_OF_BODY,        // Top of the body, if we have no header.
-    TEXT_OF_BODY,       // Text of the body.
-    BOTTOM_OF_BODY,     // Bottom of the body.
+    BODY_TOP,           // Top of the body, if we have no header.
+    BODY_TEXT,          // Text of the body.
+    BODY_BOTTOM,        // Bottom of the body.
     FINAL               // Final state, nothing more to return.
 } OutputState;
 
@@ -51,186 +51,206 @@ struct Table {
 };
 
 /*
- * The characters to draw the table with.
+ * The characters to draw the table with. "_LEFT" is the left edge of the table,
+ * "_RIGHT" is the right edge. "_SEP" is the separator between columns and
+ * "_FILL" (if present) is the filler between those column separators.
  */
 enum {
     // Top edge of the header
-    HDR_TOP_LEFT, HDR_TOP_EDGE, HDR_TOP_SEP, HDR_TOP_RIGHT,
+    HDR_TOP_LEFT, HDR_TOP_FILL, HDR_TOP_SEP, HDR_TOP_RIGHT,
     // Header text, with the column titles
     HDR_TEXT_LEFT, HDR_TEXT_SEP, HDR_TEXT_RIGHT,
     // Bottom edge of the header, if we have a header but no body.
-    HDR_BOTTOM_LEFT, HDR_BOTTOM_EDGE, HDR_BOTTOM_SEP, HDR_BOTTOM_RIGHT,
+    HDR_BOTTOM_LEFT, HDR_BOTTOM_FILL, HDR_BOTTOM_SEP, HDR_BOTTOM_RIGHT,
     // Transition between header and body, if we have both.
-    TRANS_LEFT, TRANS_EDGE, TRANS_SEP, TRANS_RIGHT,
+    TRANS_LEFT, TRANS_FILL, TRANS_SEP, TRANS_RIGHT,
     // Top edge of the body, if we have a body but no header.
-    BODY_TOP_LEFT, BODY_TOP_EDGE, BODY_TOP_SEP, BODY_TOP_RIGHT,
+    BODY_TOP_LEFT, BODY_TOP_FILL, BODY_TOP_SEP, BODY_TOP_RIGHT,
     // Body text.
     BODY_TEXT_LEFT, BODY_TEXT_SEP, BODY_TEXT_RIGHT,
     // Bottom edge of the body.
-    BODY_BOTTOM_LEFT, BODY_BOTTOM_EDGE, BODY_BOTTOM_SEP, BODY_BOTTOM_RIGHT
+    BODY_BOTTOM_LEFT, BODY_BOTTOM_FILL, BODY_BOTTOM_SEP, BODY_BOTTOM_RIGHT
 };
+
+/*
+ * The following tables specify which characters to use to draw the table in
+ * various styles. You can find examples of what they look like in the test code
+ * in tables_test.c
+ *
+ * Unfortunately, there are limitations to the styles that can be created. For
+ * example, you can have rounded corners for single lines, but not for double or
+ * heavy lines. Also, you can have a heavy header and a light body, but not a
+ * double line header and a single line body. The glyphs needed to display those
+ * styles simply don't exist.
+ *
+ * That is why there is a relatively small set of fixed styles to choose from,
+ * and not, for example, separate choices for line style, separator style and
+ * corner style for the header and the body. It would be far too easy to pick a
+ * combination of styles that there are simply no glyphs for.
+ */
 
 /*
  * Use these characters (strings, really) when outputting ASCII-only graphics.
  */
-static const char *fmt_ascii[] = {
-    [HDR_TOP_LEFT]      = "+",  // -> +---+---+---+
-    [HDR_TOP_EDGE]      = "-",  //     ^^^ ^^^ ^^^
-    [HDR_TOP_SEP]       = "+",  //        ^   ^
-    [HDR_TOP_RIGHT]     = "+",  //                ^
-    [HDR_TEXT_LEFT]     = "|",  // -> | A | B | C |
-    [HDR_TEXT_SEP]      = "|",  //        ^   ^
-    [HDR_TEXT_RIGHT]    = "|",  //                ^
-    [HDR_BOTTOM_LEFT]   = "+",  // -> +---+---+---+
-    [HDR_BOTTOM_EDGE]   = "-",  //     ^^^ ^^^ ^^^
-    [HDR_BOTTOM_SEP]    = "+",  //        ^   ^
-    [HDR_BOTTOM_RIGHT]  = "+",  //                ^
-    [TRANS_LEFT]        = "+",  // -> +---+---+---+
-    [TRANS_EDGE]        = "-",  //     ^^^ ^^^ ^^^
-    [TRANS_SEP]         = "+",  //        ^   ^
-    [TRANS_RIGHT]       = "+",  //                ^
-    [BODY_TOP_LEFT]     = "+",  // -> +---+---+---+
-    [BODY_TOP_EDGE]     = "-",  //     ^^^ ^^^ ^^^
-    [BODY_TOP_SEP]      = "+",  //        ^   ^
-    [BODY_TOP_RIGHT]    = "+",  //                ^
-    [BODY_TEXT_LEFT]    = "|",  // -> | X | Y | Z |
-    [BODY_TEXT_SEP]     = "|",  //        ^   ^
-    [BODY_TEXT_RIGHT]   = "|",  //                ^
-    [BODY_BOTTOM_LEFT]  = "+",  // -> +---+---+---+
-    [BODY_BOTTOM_EDGE]  = "-",  //     ^^^ ^^^ ^^^
-    [BODY_BOTTOM_SEP]   = "+",  //        ^   ^
-    [BODY_BOTTOM_RIGHT] = "+",  //                ^
+static const char *style_ascii[] = {
+    [HDR_TOP_LEFT]      = "+",  // > +---+---+---+
+    [HDR_TOP_FILL]      = "-",  //    ^^^ ^^^ ^^^
+    [HDR_TOP_SEP]       = "+",  //       ^   ^
+    [HDR_TOP_RIGHT]     = "+",  //               ^
+    [HDR_TEXT_LEFT]     = "|",  // > | A | B | C |
+    [HDR_TEXT_SEP]      = "|",  //       ^   ^
+    [HDR_TEXT_RIGHT]    = "|",  //               ^
+    [HDR_BOTTOM_LEFT]   = "+",  // > +---+---+---+
+    [HDR_BOTTOM_FILL]   = "-",  //    ^^^ ^^^ ^^^
+    [HDR_BOTTOM_SEP]    = "+",  //       ^   ^
+    [HDR_BOTTOM_RIGHT]  = "+",  //               ^
+    [TRANS_LEFT]        = "+",  // > +---+---+---+
+    [TRANS_FILL]        = "-",  //    ^^^ ^^^ ^^^
+    [TRANS_SEP]         = "+",  //       ^   ^
+    [TRANS_RIGHT]       = "+",  //               ^
+    [BODY_TOP_LEFT]     = "+",  // > +---+---+---+
+    [BODY_TOP_FILL]     = "-",  //    ^^^ ^^^ ^^^
+    [BODY_TOP_SEP]      = "+",  //       ^   ^
+    [BODY_TOP_RIGHT]    = "+",  //               ^
+    [BODY_TEXT_LEFT]    = "|",  // > | X | Y | Z |
+    [BODY_TEXT_SEP]     = "|",  //       ^   ^
+    [BODY_TEXT_RIGHT]   = "|",  //               ^
+    [BODY_BOTTOM_LEFT]  = "+",  // > +---+---+---+
+    [BODY_BOTTOM_FILL]  = "-",  //    ^^^ ^^^ ^^^
+    [BODY_BOTTOM_SEP]   = "+",  //       ^   ^
+    [BODY_BOTTOM_RIGHT] = "+",  //               ^
 };
 
 /*
- * Use these when outputting UTF-8 box graphics with square corners. These
- * strings (and all the ones below) use UTF-8 multi-byte characters.
+ * Use these when outputting single-line UTF-8 box graphics with square corners.
+ * These strings (and all the ones below) use UTF-8 multi-byte characters.
  */
-static const char *fmt_box[] = {
-    [HDR_TOP_LEFT]      = "┌",  // -> +---+---+---+
-    [HDR_TOP_EDGE]      = "─",  //     ^^^ ^^^ ^^^
-    [HDR_TOP_SEP]       = "┬",  //        ^   ^
-    [HDR_TOP_RIGHT]     = "┐",  //                ^
-    [HDR_TEXT_LEFT]     = "│",  // -> | A | B | C |
-    [HDR_TEXT_SEP]      = "│",  //        ^   ^
-    [HDR_TEXT_RIGHT]    = "│",  //                ^
-    [HDR_BOTTOM_LEFT]   = "└",  // -> +---+---+---+
-    [HDR_BOTTOM_EDGE]   = "─",  //     ^^^ ^^^ ^^^
-    [HDR_BOTTOM_SEP]    = "┴",  //        ^   ^
-    [HDR_BOTTOM_RIGHT]  = "┘",  //                ^
-    [TRANS_LEFT]        = "├",  // -> +---+---+---+
-    [TRANS_EDGE]        = "─",  //     ^^^ ^^^ ^^^
-    [TRANS_SEP]         = "┼",  //        ^   ^
-    [TRANS_RIGHT]       = "┤",  //                ^
-    [BODY_TOP_LEFT]     = "┌",  // -> +---+---+---+
-    [BODY_TOP_EDGE]     = "─",  //     ^^^ ^^^ ^^^
-    [BODY_TOP_SEP]      = "┬",  //        ^   ^
-    [BODY_TOP_RIGHT]    = "┐",  //                ^
-    [BODY_TEXT_LEFT]    = "│",  // -> | X | Y | Z |
-    [BODY_TEXT_SEP]     = "│",  //        ^   ^
-    [BODY_TEXT_RIGHT]   = "│",  //                ^
-    [BODY_BOTTOM_LEFT]  = "└",  // -> +---+---+---+
-    [BODY_BOTTOM_EDGE]  = "─",  //     ^^^ ^^^ ^^^
-    [BODY_BOTTOM_SEP]   = "┴",  //        ^   ^
-    [BODY_BOTTOM_RIGHT] = "┘",  //                ^
+static const char *style_box[] = {
+    [HDR_TOP_LEFT]      = "┌",  // > +---+---+---+
+    [HDR_TOP_FILL]      = "─",  //    ^^^ ^^^ ^^^
+    [HDR_TOP_SEP]       = "┬",  //       ^   ^
+    [HDR_TOP_RIGHT]     = "┐",  //               ^
+    [HDR_TEXT_LEFT]     = "│",  // > | A | B | C |
+    [HDR_TEXT_SEP]      = "│",  //       ^   ^
+    [HDR_TEXT_RIGHT]    = "│",  //               ^
+    [HDR_BOTTOM_LEFT]   = "└",  // > +---+---+---+
+    [HDR_BOTTOM_FILL]   = "─",  //    ^^^ ^^^ ^^^
+    [HDR_BOTTOM_SEP]    = "┴",  //       ^   ^
+    [HDR_BOTTOM_RIGHT]  = "┘",  //               ^
+    [TRANS_LEFT]        = "├",  // > +---+---+---+
+    [TRANS_FILL]        = "─",  //    ^^^ ^^^ ^^^
+    [TRANS_SEP]         = "┼",  //       ^   ^
+    [TRANS_RIGHT]       = "┤",  //               ^
+    [BODY_TOP_LEFT]     = "┌",  // > +---+---+---+
+    [BODY_TOP_FILL]     = "─",  //    ^^^ ^^^ ^^^
+    [BODY_TOP_SEP]      = "┬",  //       ^   ^
+    [BODY_TOP_RIGHT]    = "┐",  //               ^
+    [BODY_TEXT_LEFT]    = "│",  // > | X | Y | Z |
+    [BODY_TEXT_SEP]     = "│",  //       ^   ^
+    [BODY_TEXT_RIGHT]   = "│",  //               ^
+    [BODY_BOTTOM_LEFT]  = "└",  // > +---+---+---+
+    [BODY_BOTTOM_FILL]  = "─",  //    ^^^ ^^^ ^^^
+    [BODY_BOTTOM_SEP]   = "┴",  //       ^   ^
+    [BODY_BOTTOM_RIGHT] = "┘",  //               ^
 };
 
 /*
- * Use these when outputting UTF-8 box graphics with round corners.
+ * Use these when outputting single-line UTF-8 box graphics with round corners.
  */
-static const char *fmt_round[] = {
-    [HDR_TOP_LEFT]      = "╭",  // -> +---+---+---+
-    [HDR_TOP_EDGE]      = "─",  //     ^^^ ^^^ ^^^
-    [HDR_TOP_SEP]       = "┬",  //        ^   ^
-    [HDR_TOP_RIGHT]     = "╮",  //                ^
-    [HDR_TEXT_LEFT]     = "│",  // -> | A | B | C |
-    [HDR_TEXT_SEP]      = "│",  //        ^   ^
-    [HDR_TEXT_RIGHT]    = "│",  //                ^
-    [HDR_BOTTOM_LEFT]   = "╰",  // -> +---+---+---+
-    [HDR_BOTTOM_EDGE]   = "─",  //     ^^^ ^^^ ^^^
-    [HDR_BOTTOM_SEP]    = "┴",  //        ^   ^
-    [HDR_BOTTOM_RIGHT]  = "╯",  //                ^
-    [TRANS_LEFT]        = "├",  // -> +---+---+---+
-    [TRANS_EDGE]        = "─",  //     ^^^ ^^^ ^^^
-    [TRANS_SEP]         = "┼",  //        ^   ^
-    [TRANS_RIGHT]       = "┤",  //                ^
-    [BODY_TOP_LEFT]     = "╭",  // -> +---+---+---+
-    [BODY_TOP_EDGE]     = "─",  //     ^^^ ^^^ ^^^
-    [BODY_TOP_SEP]      = "┬",  //        ^   ^
-    [BODY_TOP_RIGHT]    = "╮",  //                ^
-    [BODY_TEXT_LEFT]    = "│",  // -> | X | Y | Z |
-    [BODY_TEXT_SEP]     = "│",  //        ^   ^
-    [BODY_TEXT_RIGHT]   = "│",  //                ^
-    [BODY_BOTTOM_LEFT]  = "╰",  // -> +---+---+---+
-    [BODY_BOTTOM_EDGE]  = "─",  //     ^^^ ^^^ ^^^
-    [BODY_BOTTOM_SEP]   = "┴",  //        ^   ^
-    [BODY_BOTTOM_RIGHT] = "╯",  //                ^
+static const char *style_round[] = {
+    [HDR_TOP_LEFT]      = "╭",  // > +---+---+---+
+    [HDR_TOP_FILL]      = "─",  //    ^^^ ^^^ ^^^
+    [HDR_TOP_SEP]       = "┬",  //       ^   ^
+    [HDR_TOP_RIGHT]     = "╮",  //               ^
+    [HDR_TEXT_LEFT]     = "│",  // > | A | B | C |
+    [HDR_TEXT_SEP]      = "│",  //       ^   ^
+    [HDR_TEXT_RIGHT]    = "│",  //               ^
+    [HDR_BOTTOM_LEFT]   = "╰",  // > +---+---+---+
+    [HDR_BOTTOM_FILL]   = "─",  //    ^^^ ^^^ ^^^
+    [HDR_BOTTOM_SEP]    = "┴",  //       ^   ^
+    [HDR_BOTTOM_RIGHT]  = "╯",  //               ^
+    [TRANS_LEFT]        = "├",  // > +---+---+---+
+    [TRANS_FILL]        = "─",  //    ^^^ ^^^ ^^^
+    [TRANS_SEP]         = "┼",  //       ^   ^
+    [TRANS_RIGHT]       = "┤",  //               ^
+    [BODY_TOP_LEFT]     = "╭",  // > +---+---+---+
+    [BODY_TOP_FILL]     = "─",  //    ^^^ ^^^ ^^^
+    [BODY_TOP_SEP]      = "┬",  //       ^   ^
+    [BODY_TOP_RIGHT]    = "╮",  //               ^
+    [BODY_TEXT_LEFT]    = "│",  // > | X | Y | Z |
+    [BODY_TEXT_SEP]     = "│",  //       ^   ^
+    [BODY_TEXT_RIGHT]   = "│",  //               ^
+    [BODY_BOTTOM_LEFT]  = "╰",  // > +---+---+---+
+    [BODY_BOTTOM_FILL]  = "─",  //    ^^^ ^^^ ^^^
+    [BODY_BOTTOM_SEP]   = "┴",  //       ^   ^
+    [BODY_BOTTOM_RIGHT] = "╯",  //               ^
 };
 
 /*
- * Use these when outputting UTF-8 box graphics with round corners and double
- * lines for the header.
+ * Use these when outputting double-line UTF-8 box graphics. The outside of the
+ * table and the transition between header and body are double-lined, the
+ * separators between columns are still single-line.
  */
-static const char *fmt_double[] = {
-    [HDR_TOP_LEFT]      = "╔",  // -> +---+---+---+
-    [HDR_TOP_EDGE]      = "═",  //     ^^^ ^^^ ^^^
-    [HDR_TOP_SEP]       = "╤",  //        ^   ^
-    [HDR_TOP_RIGHT]     = "╗",  //                ^
-    [HDR_TEXT_LEFT]     = "║",  // -> | A | B | C |
-    [HDR_TEXT_SEP]      = "│",  //        ^   ^
-    [HDR_TEXT_RIGHT]    = "║",  //                ^
-    [HDR_BOTTOM_LEFT]   = "╚",  // -> +---+---+---+
-    [HDR_BOTTOM_EDGE]   = "═",  //     ^^^ ^^^ ^^^
-    [HDR_BOTTOM_SEP]    = "╧",  //        ^   ^
-    [HDR_BOTTOM_RIGHT]  = "╝",  //                ^
-    [TRANS_LEFT]        = "╠",  // -> +---+---+---+
-    [TRANS_EDGE]        = "═",  //     ^^^ ^^^ ^^^
-    [TRANS_SEP]         = "╪",  //        ^   ^
-    [TRANS_RIGHT]       = "╣",  //                ^
-    [BODY_TOP_LEFT]     = "╔",  // -> +---+---+---+
-    [BODY_TOP_EDGE]     = "═",  //     ^^^ ^^^ ^^^
-    [BODY_TOP_SEP]      = "╤",  //        ^   ^
-    [BODY_TOP_RIGHT]    = "╗",  //                ^
-    [BODY_TEXT_LEFT]    = "║",  // -> | X | Y | Z |
-    [BODY_TEXT_SEP]     = "│",  //        ^   ^
-    [BODY_TEXT_RIGHT]   = "║",  //                ^
-    [BODY_BOTTOM_LEFT]  = "╚",  // -> +---+---+---+
-    [BODY_BOTTOM_EDGE]  = "═",  //     ^^^ ^^^ ^^^
-    [BODY_BOTTOM_SEP]   = "╧",  //        ^   ^
-    [BODY_BOTTOM_RIGHT] = "╝",  //                ^
+static const char *style_double[] = {
+    [HDR_TOP_LEFT]      = "╔",  // > +---+---+---+
+    [HDR_TOP_FILL]      = "═",  //    ^^^ ^^^ ^^^
+    [HDR_TOP_SEP]       = "╤",  //       ^   ^
+    [HDR_TOP_RIGHT]     = "╗",  //               ^
+    [HDR_TEXT_LEFT]     = "║",  // > | A | B | C |
+    [HDR_TEXT_SEP]      = "│",  //       ^   ^
+    [HDR_TEXT_RIGHT]    = "║",  //               ^
+    [HDR_BOTTOM_LEFT]   = "╚",  // > +---+---+---+
+    [HDR_BOTTOM_FILL]   = "═",  //    ^^^ ^^^ ^^^
+    [HDR_BOTTOM_SEP]    = "╧",  //       ^   ^
+    [HDR_BOTTOM_RIGHT]  = "╝",  //               ^
+    [TRANS_LEFT]        = "╠",  // > +---+---+---+
+    [TRANS_FILL]        = "═",  //    ^^^ ^^^ ^^^
+    [TRANS_SEP]         = "╪",  //       ^   ^
+    [TRANS_RIGHT]       = "╣",  //               ^
+    [BODY_TOP_LEFT]     = "╔",  // > +---+---+---+
+    [BODY_TOP_FILL]     = "═",  //    ^^^ ^^^ ^^^
+    [BODY_TOP_SEP]      = "╤",  //       ^   ^
+    [BODY_TOP_RIGHT]    = "╗",  //               ^
+    [BODY_TEXT_LEFT]    = "║",  // > | X | Y | Z |
+    [BODY_TEXT_SEP]     = "│",  //       ^   ^
+    [BODY_TEXT_RIGHT]   = "║",  //               ^
+    [BODY_BOTTOM_LEFT]  = "╚",  // > +---+---+---+
+    [BODY_BOTTOM_FILL]  = "═",  //    ^^^ ^^^ ^^^
+    [BODY_BOTTOM_SEP]   = "╧",  //       ^   ^
+    [BODY_BOTTOM_RIGHT] = "╝",  //               ^
 };
 
 /*
- * Use these when outputting UTF-8 box graphics with round corners and double
- * lines for the header.
+ * Use these when outputting heavy-lined UTF-8 box graphics. Only the outside of
+ * the header is heavy-lined, all other lines are light.
  */
-static const char *fmt_heavy[] = {
-    [HDR_TOP_LEFT]      = "┏",  // -> +---+---+---+
-    [HDR_TOP_EDGE]      = "━",  //     ^^^ ^^^ ^^^
-    [HDR_TOP_SEP]       = "┯",  //        ^   ^
-    [HDR_TOP_RIGHT]     = "┓",  //                ^
-    [HDR_TEXT_LEFT]     = "┃",  // -> | A | B | C |
-    [HDR_TEXT_SEP]      = "│",  //        ^   ^
-    [HDR_TEXT_RIGHT]    = "┃",  //                ^
-    [HDR_BOTTOM_LEFT]   = "┗",  // -> +---+---+---+
-    [HDR_BOTTOM_EDGE]   = "━",  //     ^^^ ^^^ ^^^
-    [HDR_BOTTOM_SEP]    = "┷",  //        ^   ^
-    [HDR_BOTTOM_RIGHT]  = "┛",  //                ^
-    [TRANS_LEFT]        = "┡",  // -> +---+---+---+
-    [TRANS_EDGE]        = "━",  //     ^^^ ^^^ ^^^
-    [TRANS_SEP]         = "┿",  //        ^   ^
-    [TRANS_RIGHT]       = "┩",  //                ^
-    [BODY_TOP_LEFT]     = "┌",  // -> +---+---+---+
-    [BODY_TOP_EDGE]     = "─",  //     ^^^ ^^^ ^^^
-    [BODY_TOP_SEP]      = "┬",  //        ^   ^
-    [BODY_TOP_RIGHT]    = "┐",  //                ^
-    [BODY_TEXT_LEFT]    = "│",  // -> | X | Y | Z |
-    [BODY_TEXT_SEP]     = "│",  //        ^   ^
-    [BODY_TEXT_RIGHT]   = "│",  //                ^
-    [BODY_BOTTOM_LEFT]  = "└",  // -> +---+---+---+
-    [BODY_BOTTOM_EDGE]  = "─",  //     ^^^ ^^^ ^^^
-    [BODY_BOTTOM_SEP]   = "┴",  //        ^   ^
-    [BODY_BOTTOM_RIGHT] = "┘",  //                ^
+static const char *style_heavy[] = {
+    [HDR_TOP_LEFT]      = "┏",  // > +---+---+---+
+    [HDR_TOP_FILL]      = "━",  //    ^^^ ^^^ ^^^
+    [HDR_TOP_SEP]       = "┯",  //       ^   ^
+    [HDR_TOP_RIGHT]     = "┓",  //               ^
+    [HDR_TEXT_LEFT]     = "┃",  // > | A | B | C |
+    [HDR_TEXT_SEP]      = "│",  //       ^   ^
+    [HDR_TEXT_RIGHT]    = "┃",  //               ^
+    [HDR_BOTTOM_LEFT]   = "┗",  // > +---+---+---+
+    [HDR_BOTTOM_FILL]   = "━",  //    ^^^ ^^^ ^^^
+    [HDR_BOTTOM_SEP]    = "┷",  //       ^   ^
+    [HDR_BOTTOM_RIGHT]  = "┛",  //               ^
+    [TRANS_LEFT]        = "┡",  // > +---+---+---+
+    [TRANS_FILL]        = "━",  //    ^^^ ^^^ ^^^
+    [TRANS_SEP]         = "┿",  //       ^   ^
+    [TRANS_RIGHT]       = "┩",  //               ^
+    [BODY_TOP_LEFT]     = "┌",  // > +---+---+---+
+    [BODY_TOP_FILL]     = "─",  //    ^^^ ^^^ ^^^
+    [BODY_TOP_SEP]      = "┬",  //       ^   ^
+    [BODY_TOP_RIGHT]    = "┐",  //               ^
+    [BODY_TEXT_LEFT]    = "│",  // > | X | Y | Z |
+    [BODY_TEXT_SEP]     = "│",  //       ^   ^
+    [BODY_TEXT_RIGHT]   = "│",  //               ^
+    [BODY_BOTTOM_LEFT]  = "└",  // > +---+---+---+
+    [BODY_BOTTOM_FILL]  = "─",  //    ^^^ ^^^ ^^^
+    [BODY_BOTTOM_SEP]   = "┴",  //       ^   ^
+    [BODY_BOTTOM_RIGHT] = "┘",  //               ^
 };
 
 /*
@@ -240,45 +260,50 @@ static const char *fmt_heavy[] = {
  */
 static void tbl_allow(Table *tbl, int rows, int cols)
 {
-    if (cols > tbl->cols) {
-        tbl->title = realloc(tbl->title, cols * sizeof(char *));
+    int old_rows = tbl->rows;
+    int old_cols = tbl->cols;
 
-        for (int col = tbl->cols; col < cols; col++) {
+    int new_rows = MAX(rows, tbl->rows);
+    int new_cols = MAX(cols, tbl->cols);
+
+    if (new_cols > old_cols) {
+        tbl->title = realloc(tbl->title, new_cols * sizeof(char *));
+
+        for (int col = old_cols; col < new_cols; col++) {
             tbl->title[col] = NULL;
         }
 
-        tbl->width = realloc(tbl->width, cols * sizeof(int));
+        tbl->width = realloc(tbl->width, new_cols * sizeof(int));
 
-        for (int col = tbl->cols; col < cols; col++) {
+        for (int col = old_cols; col < new_cols; col++) {
             tbl->width[col] = 0;
         }
     }
 
-    if (rows > tbl->rows || cols > tbl->cols) {
-        int new_rows = MAX(rows, tbl->rows);
-        int new_cols = MAX(cols, tbl->cols);
-
+    if (new_rows > old_rows || new_cols > old_cols) {
         char **new_cell = calloc(new_rows * new_cols, sizeof(char *));
 
-        for (int row = 0; row < tbl->rows; row++) {
-            for (int col = 0; col < tbl->cols; col++) {
-                new_cell[col + new_cols * row] =
-                    tbl->cell[col + tbl->cols * row];
+        for (int row = 0; row < old_rows; row++) {
+            for (int col = 0; col < old_cols; col++) {
+                int new_index = col + new_cols * row;
+                int old_index = col + old_cols * row;
+
+                new_cell[new_index] = tbl->cell[old_index];
             }
         }
 
         free(tbl->cell);
 
         tbl->cell = new_cell;
-
-        tbl->rows = new_rows;
-        tbl->cols = new_cols;
     }
+
+    tbl->rows = new_rows;
+    tbl->cols = new_cols;
 }
 
 /*
- * Determine whether table <tbl> needs a header. Only necessary when at least
- * one of the columns has a defined title.
+ * Determine whether table <tbl> needs a header. A header is only necessary when
+ * at least one of the columns has a defined title.
  */
 static bool tbl_has_header(Table *tbl)
 {
@@ -293,12 +318,12 @@ static bool tbl_has_header(Table *tbl)
  * Format one line of output text and put it in <line>. If <bold> is true, the
  * text fields will be bolded using an ANSI escape sequence. The <left_edge>
  * string will be used for the left edge of the line, <right_edge> will be used
- * for the right edge, and <center_edge> will be used as the separator between
+ * for the right edge, and <column_sep> will be used as the separator between
  * columns. The number of columns is <cols>. For each column, the width that it
  * should be given is in <width>, and its text content is in <text>.
  */
 static void tbl_format_text(Buffer *line, bool bold,
-        const char *left_edge, const char *right_edge, const char *center_edge,
+        const char *left_edge, const char *right_edge, const char *column_sep,
         int cols, int *width, char *const *text)
 {
     bufRewind(line);
@@ -306,7 +331,7 @@ static void tbl_format_text(Buffer *line, bool bold,
     bufAddS(line, left_edge);
 
     for (int col = 0; col < cols; col++) {
-        if (col > 0) bufAddS(line, center_edge);
+        if (col > 0) bufAddS(line, column_sep);
 
         if (text[col] == NULL || text[col][0] == '\0') {
             bufAddF(line, " %*s ", width[col], "");
@@ -324,24 +349,24 @@ static void tbl_format_text(Buffer *line, bool bold,
 
 /*
  * Format a separator line and put it in <line>. The string to use as the left
- * edge is in <left_edge>, the right edge is in <right_edge>, <center_cross> is
+ * edge is in <left_edge>, the right edge is in <right_edge>, <column_sep> is
  * used to separate columns, and everywhere else (where the text fields are in
- * other lines) is filled using <center_edge>. The number of columns is <cols>,
+ * other lines) is filled using <center_fill>. The number of columns is <cols>,
  * and the width that each column should be given is in <width>.
  */
 static void tbl_format_sep(Buffer *line,
-        const char *left_edge, const char *right_edge, const char *center_edge,
-        const char *center_cross, int cols, int *width)
+        const char *left_edge, const char *right_edge, const char *center_fill,
+        const char *column_sep, int cols, int *width)
 {
     bufRewind(line);
 
     bufAddS(line, left_edge);
 
     for (int col = 0; col < cols; col++) {
-        if (col > 0) bufAddS(line, center_cross);
+        if (col > 0) bufAddS(line, column_sep);
 
         for (int c = 0; c < width[col] + 2; c++) {
-            bufAddS(line, center_edge);
+            bufAddS(line, center_fill);
         }
     }
 
@@ -436,34 +461,31 @@ int tblSetCell(Table *tbl, int row, int col, const char *fmt, ...)
  * call, sequential character strings to print the given table. If there are no
  * more lines to print it will return NULL.
  *
- * <flags> is the bitwise-or of:
- * - TBL_SQUARE_BOX:     Use graphical (UTF-8) box characters for a nicer output
- *                      format. If not given, basic ASCII characters are used.
- * - TBL_BOLD_TITLES:   Use ANSI escape sequences to print (only!) column
- *                      headers in bold.
+ * If <bold_headers> is true, the column titles in the header will be bolded
+ * using ANSI escape sequences. <style> specifies which table style to use.
  *
  * Returns a pointer to a formatted output string, which is overwritten on each
  * call.
  */
-const char *tblGetLine(Table *tbl, bool bold_headers, TableFormat format)
+const char *tblGetLine(Table *tbl, bool bold_headers, TableStyle style)
 {
-    const char **edge;
+    const char **mark;
 
-    switch (format) {
-    case TBL_FMT_ASCII:
-        edge = fmt_ascii;
+    switch (style) {
+    case TBL_STYLE_ASCII:
+        mark = style_ascii;
         break;
-    case TBL_FMT_BOX:
-        edge = fmt_box;
+    case TBL_STYLE_BOX:
+        mark = style_box;
         break;
-    case TBL_FMT_ROUND:
-        edge = fmt_round;
+    case TBL_STYLE_ROUND:
+        mark = style_round;
         break;
-    case TBL_FMT_DOUBLE:
-        edge = fmt_double;
+    case TBL_STYLE_DOUBLE:
+        mark = style_double;
         break;
-    case TBL_FMT_HEAVY:
-        edge = fmt_heavy;
+    case TBL_STYLE_HEAVY:
+        mark = style_heavy;
         break;
     }
 
@@ -473,61 +495,61 @@ const char *tblGetLine(Table *tbl, bool bold_headers, TableFormat format)
 
     if (tbl->output_state == INITIAL) {
         if (has_header) {
-            tbl->output_state = TOP_OF_HEADER;
+            tbl->output_state = HEADER_TOP;
         }
         else {
-            tbl->output_state = TOP_OF_BODY;
+            tbl->output_state = BODY_TOP;
         }
     }
 
     switch (tbl->output_state) {
-    case TOP_OF_HEADER:
+    case HEADER_TOP:
         tbl_format_sep(&tbl->output_buf,
-                edge[HDR_TOP_LEFT], edge[HDR_TOP_RIGHT],
-                edge[HDR_TOP_EDGE], edge[HDR_TOP_SEP],
+                mark[HDR_TOP_LEFT], mark[HDR_TOP_RIGHT],
+                mark[HDR_TOP_FILL], mark[HDR_TOP_SEP],
                 tbl->cols, tbl->width);
-        tbl->output_state = TEXT_OF_HEADER;
+        tbl->output_state = HEADER_TEXT;
         break;
-    case TEXT_OF_HEADER:
+    case HEADER_TEXT:
         tbl_format_text(&tbl->output_buf, bold_headers,
-                edge[HDR_TEXT_LEFT], edge[HDR_TEXT_RIGHT], edge[HDR_TEXT_SEP],
+                mark[HDR_TEXT_LEFT], mark[HDR_TEXT_RIGHT], mark[HDR_TEXT_SEP],
                 tbl->cols, tbl->width, tbl->title);
         if (has_body) {
             tbl->output_state = TRANSITION;
         }
         else {
-            tbl->output_state = BOTTOM_OF_HEADER;
+            tbl->output_state = HEADER_BOTTOM;
         }
         break;
-    case BOTTOM_OF_HEADER:
+    case HEADER_BOTTOM:
         tbl_format_sep(&tbl->output_buf,
-                edge[HDR_BOTTOM_LEFT], edge[HDR_BOTTOM_RIGHT],
-                edge[HDR_BOTTOM_EDGE], edge[HDR_BOTTOM_SEP],
+                mark[HDR_BOTTOM_LEFT], mark[HDR_BOTTOM_RIGHT],
+                mark[HDR_BOTTOM_FILL], mark[HDR_BOTTOM_SEP],
                 tbl->cols, tbl->width);
         tbl->output_state = FINAL;
         break;
     case TRANSITION:
         tbl_format_sep(&tbl->output_buf,
-                edge[TRANS_LEFT], edge[TRANS_RIGHT],
-                edge[TRANS_EDGE], edge[TRANS_SEP],
+                mark[TRANS_LEFT], mark[TRANS_RIGHT],
+                mark[TRANS_FILL], mark[TRANS_SEP],
                 tbl->cols, tbl->width);
-        tbl->output_state = TEXT_OF_BODY;
+        tbl->output_state = BODY_TEXT;
         break;
-    case TOP_OF_BODY:
+    case BODY_TOP:
         tbl_format_sep(&tbl->output_buf,
-                edge[BODY_TOP_LEFT], edge[BODY_TOP_RIGHT],
-                edge[BODY_TOP_EDGE], edge[BODY_TOP_SEP],
+                mark[BODY_TOP_LEFT], mark[BODY_TOP_RIGHT],
+                mark[BODY_TOP_FILL], mark[BODY_TOP_SEP],
                 tbl->cols, tbl->width);
 
         if (has_body) {
-            tbl->output_state = TEXT_OF_BODY;
+            tbl->output_state = BODY_TEXT;
         }
         else {
-            tbl->output_state = BOTTOM_OF_BODY;
+            tbl->output_state = BODY_BOTTOM;
         }
 
         break;
-    case TEXT_OF_BODY:
+    case BODY_TEXT:
         if (has_header) {
             row = tbl->output_count - 3;
         }
@@ -536,18 +558,18 @@ const char *tblGetLine(Table *tbl, bool bold_headers, TableFormat format)
         }
 
         tbl_format_text(&tbl->output_buf, false,
-                edge[BODY_TEXT_LEFT], edge[BODY_TEXT_RIGHT],
-                edge[BODY_TEXT_SEP],
+                mark[BODY_TEXT_LEFT], mark[BODY_TEXT_RIGHT],
+                mark[BODY_TEXT_SEP],
                 tbl->cols, tbl->width, tbl->cell + tbl->cols * row);
 
         if (row + 1 >= tbl->rows) {
-            tbl->output_state = BOTTOM_OF_BODY;
+            tbl->output_state = BODY_BOTTOM;
         }
         break;
-    case BOTTOM_OF_BODY:
+    case BODY_BOTTOM:
         tbl_format_sep(&tbl->output_buf,
-                edge[BODY_BOTTOM_LEFT], edge[BODY_BOTTOM_RIGHT],
-                edge[BODY_BOTTOM_EDGE], edge[BODY_BOTTOM_SEP],
+                mark[BODY_BOTTOM_LEFT], mark[BODY_BOTTOM_RIGHT],
+                mark[BODY_BOTTOM_FILL], mark[BODY_BOTTOM_SEP],
                 tbl->cols, tbl->width);
         tbl->output_state = FINAL;
         break;

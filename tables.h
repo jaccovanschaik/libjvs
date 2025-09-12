@@ -19,13 +19,16 @@
 
 typedef struct Table Table;
 
+/*
+ * Styles to choose from.
+ */
 typedef enum {
-    TBL_FMT_ASCII,
-    TBL_FMT_BOX,
-    TBL_FMT_ROUND,
-    TBL_FMT_DOUBLE,
-    TBL_FMT_HEAVY,
-} TableFormat;
+    TBL_STYLE_ASCII,    // Use only ASCII '+', '-' and '|'.
+    TBL_STYLE_BOX,      // UTF8 single-line outline with square corners.
+    TBL_STYLE_ROUND,    // UTF8 single-line outline with rounded corners.
+    TBL_STYLE_DOUBLE,   // UTF8 double-line outline with square corners.
+    TBL_STYLE_HEAVY,    // UTF8 header with heavy lines, body with light.
+} TableStyle;
 
 /*
  * Create and return a new table.
@@ -64,16 +67,13 @@ int tblSetCell(Table *tbl, int row, int col, const char *fmt, ...);
  * call, sequential character strings to print the given table. If there are no
  * more lines to print it will return NULL.
  *
- * <flags> is the bitwise-or of:
- * - TBL_SQUARE_BOX:     Use graphical (UTF-8) box characters for a nicer output
- *                      format. If not given, basic ASCII characters are used.
- * - TBL_BOLD_TITLES:   Use ANSI escape sequences to print (only!) column
- *                      headers in bold.
+ * If <bold_headers> is true, the column titles in the header will be bolded
+ * using ANSI escape sequences. <style> specifies which table style to use.
  *
  * Returns a pointer to a formatted output string, which is overwritten on each
  * call.
  */
-const char *tblGetLine(Table *tbl, bool bold_headers, TableFormat format);
+const char *tblGetLine(Table *tbl, bool bold_headers, TableStyle style);
 
 /*
  * Rewind the output of table <tbl> back to the start. On the next call to

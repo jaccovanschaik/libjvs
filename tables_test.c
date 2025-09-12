@@ -4,7 +4,7 @@
 static int errors = 0;
 
 static void _check(const char *file, int line,
-        Table *tbl, const char *exp, bool bold, TableFormat format)
+        Table *tbl, const char *exp, bool bold, TableStyle format)
 {
     const char *act = tblGetLine(tbl, bold, format);
 
@@ -25,49 +25,63 @@ int main(void)
 {
     Table *tbl = tblCreate();
 
-    check(tbl, "++", false, TBL_FMT_ASCII);
-    check(tbl, "++", false, TBL_FMT_ASCII);
-    make_sure_that(tblGetLine(tbl, false, TBL_FMT_ASCII) == NULL);
+    // Empty table in ASCII.
+
+    check(tbl, "++", false, TBL_STYLE_ASCII);
+    check(tbl, "++", false, TBL_STYLE_ASCII);
+    make_sure_that(tblGetLine(tbl, false, TBL_STYLE_ASCII) == NULL);
 
     tblRewind(tbl);
 
-    check(tbl, "┌┐", false, TBL_FMT_BOX);
-    check(tbl, "└┘", false, TBL_FMT_BOX);
-    make_sure_that(tblGetLine(tbl, false, TBL_FMT_BOX) == NULL);
+    // Empty table, single lines, square corners.
+
+    check(tbl, "┌┐", false, TBL_STYLE_BOX);
+    check(tbl, "└┘", false, TBL_STYLE_BOX);
+    make_sure_that(tblGetLine(tbl, false, TBL_STYLE_BOX) == NULL);
 
     tblRewind(tbl);
 
-    check(tbl, "╭╮", false, TBL_FMT_ROUND);
-    check(tbl, "╰╯", false, TBL_FMT_ROUND);
-    make_sure_that(tblGetLine(tbl, false, TBL_FMT_ROUND) == NULL);
+    // Empty table, single lines, round corners.
+
+    check(tbl, "╭╮", false, TBL_STYLE_ROUND);
+    check(tbl, "╰╯", false, TBL_STYLE_ROUND);
+    make_sure_that(tblGetLine(tbl, false, TBL_STYLE_ROUND) == NULL);
 
     tblRewind(tbl);
+
+    // Table without header, ASCII.
 
     tblSetCell(tbl, 0, 0, "Hoi");
     tblSetCell(tbl, 0, 1, "Hällø");
 
-    check(tbl, "+-----+-------+", false, TBL_FMT_ASCII);
-    check(tbl, "| Hoi | Hällø |", false, TBL_FMT_ASCII);
-    check(tbl, "+-----+-------+", false, TBL_FMT_ASCII);
-    make_sure_that(tblGetLine(tbl, false, TBL_FMT_ASCII) == NULL);
+    check(tbl, "+-----+-------+", false, TBL_STYLE_ASCII);
+    check(tbl, "| Hoi | Hällø |", false, TBL_STYLE_ASCII);
+    check(tbl, "+-----+-------+", false, TBL_STYLE_ASCII);
+    make_sure_that(tblGetLine(tbl, false, TBL_STYLE_ASCII) == NULL);
 
     tblRewind(tbl);
 
-    check(tbl, "┌─────┬───────┐", false, TBL_FMT_BOX);
-    check(tbl, "│ Hoi │ Hällø │", false, TBL_FMT_BOX);
-    check(tbl, "└─────┴───────┘", false, TBL_FMT_BOX);
-    make_sure_that(tblGetLine(tbl, false, TBL_FMT_ASCII) == NULL);
+    // Table without header, single line, square corners.
+
+    check(tbl, "┌─────┬───────┐", false, TBL_STYLE_BOX);
+    check(tbl, "│ Hoi │ Hällø │", false, TBL_STYLE_BOX);
+    check(tbl, "└─────┴───────┘", false, TBL_STYLE_BOX);
+    make_sure_that(tblGetLine(tbl, false, TBL_STYLE_ASCII) == NULL);
 
     tblRewind(tbl);
 
-    check(tbl, "╭─────┬───────╮", false, TBL_FMT_ROUND);
-    check(tbl, "│ Hoi │ Hällø │", false, TBL_FMT_ROUND);
-    check(tbl, "╰─────┴───────╯", false, TBL_FMT_ROUND);
-    make_sure_that(tblGetLine(tbl, false, TBL_FMT_ASCII) == NULL);
+    // Table without header, single line, round corners.
+
+    check(tbl, "╭─────┬───────╮", false, TBL_STYLE_ROUND);
+    check(tbl, "│ Hoi │ Hällø │", false, TBL_STYLE_ROUND);
+    check(tbl, "╰─────┴───────╯", false, TBL_STYLE_ROUND);
+    make_sure_that(tblGetLine(tbl, false, TBL_STYLE_ASCII) == NULL);
 
     tblDestroy(tbl);
 
     tbl = tblCreate();
+
+    // Full table with a header, two rows and two columns, ASCII.
 
     tblSetHeader(tbl, 0, "First");
     tblSetHeader(tbl, 1, "2nd");
@@ -78,58 +92,68 @@ int main(void)
     tblSetCell(tbl, 1, 0, "Bye");
     tblSetCell(tbl, 1, 1, "Doei");
 
-    check(tbl, "+-------+-------+", false, TBL_FMT_ASCII);
-    check(tbl, "| First | 2nd   |", false, TBL_FMT_ASCII);
-    check(tbl, "+-------+-------+", false, TBL_FMT_ASCII);
-    check(tbl, "| Hoi   | Hällø |", false, TBL_FMT_ASCII);
-    check(tbl, "| Bye   | Doei  |", false, TBL_FMT_ASCII);
-    check(tbl, "+-------+-------+", false, TBL_FMT_ASCII);
+    check(tbl, "+-------+-------+", false, TBL_STYLE_ASCII);
+    check(tbl, "| First | 2nd   |", false, TBL_STYLE_ASCII);
+    check(tbl, "+-------+-------+", false, TBL_STYLE_ASCII);
+    check(tbl, "| Hoi   | Hällø |", false, TBL_STYLE_ASCII);
+    check(tbl, "| Bye   | Doei  |", false, TBL_STYLE_ASCII);
+    check(tbl, "+-------+-------+", false, TBL_STYLE_ASCII);
 
     tblRewind(tbl);
 
-    check(tbl, "+-------+-------+", true, TBL_FMT_ASCII);
+    // Same, but with bold column titles.
+
+    check(tbl, "+-------+-------+", true, TBL_STYLE_ASCII);
     check(tbl, "| \033[1mFirst\033[0m | \033[1m2nd  \033[0m |", true,
-            TBL_FMT_ASCII);
-    check(tbl, "+-------+-------+", true, TBL_FMT_ASCII);
-    check(tbl, "| Hoi   | Hällø |", true, TBL_FMT_ASCII);
-    check(tbl, "| Bye   | Doei  |", true, TBL_FMT_ASCII);
-    check(tbl, "+-------+-------+", true, TBL_FMT_ASCII);
+            TBL_STYLE_ASCII);
+    check(tbl, "+-------+-------+", true, TBL_STYLE_ASCII);
+    check(tbl, "| Hoi   | Hällø |", true, TBL_STYLE_ASCII);
+    check(tbl, "| Bye   | Doei  |", true, TBL_STYLE_ASCII);
+    check(tbl, "+-------+-------+", true, TBL_STYLE_ASCII);
 
     tblRewind(tbl);
 
-    check(tbl, "┌───────┬───────┐", false, TBL_FMT_BOX);
-    check(tbl, "│ First │ 2nd   │", false, TBL_FMT_BOX);
-    check(tbl, "├───────┼───────┤", false, TBL_FMT_BOX);
-    check(tbl, "│ Hoi   │ Hällø │", false, TBL_FMT_BOX);
-    check(tbl, "│ Bye   │ Doei  │", false, TBL_FMT_BOX);
-    check(tbl, "└───────┴───────┘", false, TBL_FMT_BOX);
+    // Same with single lines and square corners.
+
+    check(tbl, "┌───────┬───────┐", false, TBL_STYLE_BOX);
+    check(tbl, "│ First │ 2nd   │", false, TBL_STYLE_BOX);
+    check(tbl, "├───────┼───────┤", false, TBL_STYLE_BOX);
+    check(tbl, "│ Hoi   │ Hällø │", false, TBL_STYLE_BOX);
+    check(tbl, "│ Bye   │ Doei  │", false, TBL_STYLE_BOX);
+    check(tbl, "└───────┴───────┘", false, TBL_STYLE_BOX);
 
     tblRewind(tbl);
 
-    check(tbl, "╭───────┬───────╮", false, TBL_FMT_ROUND);
-    check(tbl, "│ First │ 2nd   │", false, TBL_FMT_ROUND);
-    check(tbl, "├───────┼───────┤", false, TBL_FMT_ROUND);
-    check(tbl, "│ Hoi   │ Hällø │", false, TBL_FMT_ROUND);
-    check(tbl, "│ Bye   │ Doei  │", false, TBL_FMT_ROUND);
-    check(tbl, "╰───────┴───────╯", false, TBL_FMT_ROUND);
+    // Same with single lines and rounded corners.
+
+    check(tbl, "╭───────┬───────╮", false, TBL_STYLE_ROUND);
+    check(tbl, "│ First │ 2nd   │", false, TBL_STYLE_ROUND);
+    check(tbl, "├───────┼───────┤", false, TBL_STYLE_ROUND);
+    check(tbl, "│ Hoi   │ Hällø │", false, TBL_STYLE_ROUND);
+    check(tbl, "│ Bye   │ Doei  │", false, TBL_STYLE_ROUND);
+    check(tbl, "╰───────┴───────╯", false, TBL_STYLE_ROUND);
 
     tblRewind(tbl);
 
-    check(tbl, "╔═══════╤═══════╗", false, TBL_FMT_DOUBLE);
-    check(tbl, "║ First │ 2nd   ║", false, TBL_FMT_DOUBLE);
-    check(tbl, "╠═══════╪═══════╣", false, TBL_FMT_DOUBLE);
-    check(tbl, "║ Hoi   │ Hällø ║", false, TBL_FMT_DOUBLE);
-    check(tbl, "║ Bye   │ Doei  ║", false, TBL_FMT_DOUBLE);
-    check(tbl, "╚═══════╧═══════╝", false, TBL_FMT_DOUBLE);
+    // Same with double lines.
+
+    check(tbl, "╔═══════╤═══════╗", false, TBL_STYLE_DOUBLE);
+    check(tbl, "║ First │ 2nd   ║", false, TBL_STYLE_DOUBLE);
+    check(tbl, "╠═══════╪═══════╣", false, TBL_STYLE_DOUBLE);
+    check(tbl, "║ Hoi   │ Hällø ║", false, TBL_STYLE_DOUBLE);
+    check(tbl, "║ Bye   │ Doei  ║", false, TBL_STYLE_DOUBLE);
+    check(tbl, "╚═══════╧═══════╝", false, TBL_STYLE_DOUBLE);
 
     tblRewind(tbl);
 
-    check(tbl, "┏━━━━━━━┯━━━━━━━┓", false, TBL_FMT_HEAVY);
-    check(tbl, "┃ First │ 2nd   ┃", false, TBL_FMT_HEAVY);
-    check(tbl, "┡━━━━━━━┿━━━━━━━┩", false, TBL_FMT_HEAVY);
-    check(tbl, "│ Hoi   │ Hällø │", false, TBL_FMT_HEAVY);
-    check(tbl, "│ Bye   │ Doei  │", false, TBL_FMT_HEAVY);
-    check(tbl, "└───────┴───────┘", false, TBL_FMT_HEAVY);
+    // Same with heavy header and light body.
+
+    check(tbl, "┏━━━━━━━┯━━━━━━━┓", false, TBL_STYLE_HEAVY);
+    check(tbl, "┃ First │ 2nd   ┃", false, TBL_STYLE_HEAVY);
+    check(tbl, "┡━━━━━━━┿━━━━━━━┩", false, TBL_STYLE_HEAVY);
+    check(tbl, "│ Hoi   │ Hällø │", false, TBL_STYLE_HEAVY);
+    check(tbl, "│ Bye   │ Doei  │", false, TBL_STYLE_HEAVY);
+    check(tbl, "└───────┴───────┘", false, TBL_STYLE_HEAVY);
 
     tblDestroy(tbl);
 
