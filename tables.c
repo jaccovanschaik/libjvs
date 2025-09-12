@@ -22,29 +22,32 @@
 
 #include <sys/param.h>
 
+/*
+ * What is the next line of output we're going to return?
+ */
 typedef enum {
-    INITIAL,
-    TOP_OF_HEADER,
-    TEXT_OF_HEADER,
-    BOTTOM_OF_HEADER,
-    TRANSITION,
-    TOP_OF_BODY,
-    TEXT_OF_BODY,
-    BOTTOM_OF_BODY,
-    FINAL
+    INITIAL,            // Initial state, nothing returned yet.
+    TOP_OF_HEADER,      // Top of the header.
+    TEXT_OF_HEADER,     // Text of the header.
+    BOTTOM_OF_HEADER,   // Bottom of the header, if we have no body.
+    TRANSITION,         // Transition between header and body, if we have both.
+    TOP_OF_BODY,        // Top of the body, if we have no header.
+    TEXT_OF_BODY,       // Text of the body.
+    BOTTOM_OF_BODY,     // Bottom of the body.
+    FINAL               // Final state, nothing more to return.
 } OutputState;
 
 /*
  * Data for a table.
  */
 struct Table {
-    int    rows, cols;
-    int   *width;
-    int    next_line;
-    OutputState state;
-    Buffer line;
-    char **title;
-    char **cell;
+    int         rows, cols;     // Number of rows and columns in the table.
+    int        *width;          // <cols> column widths.
+    int         output_count;   // The number of lines output so far.
+    OutputState output_state;   // The state of the output.
+    Buffer      output_buf;     // The last returned line of output.
+    char      **title;          // <cols> pointers to column headers.
+    char      **cell;           // <cols> * <rows> pointers to table cells.
 };
 
 /*
@@ -468,85 +471,85 @@ const char *tblGetLine(Table *tbl, bool bold_headers, TableFormat format)
     bool has_header = tbl_has_header(tbl);
     bool has_body   = tbl->rows > 0;
 
-    if (tbl->state == INITIAL) {
+    if (tbl->output_state == INITIAL) {
         if (has_header) {
-            tbl->state = TOP_OF_HEADER;
+            tbl->output_state = TOP_OF_HEADER;
         }
         else {
-            tbl->state = TOP_OF_BODY;
+            tbl->output_state = TOP_OF_BODY;
         }
     }
 
-    switch (tbl->state) {
+    switch (tbl->output_state) {
     case TOP_OF_HEADER:
-        tbl_format_sep(&tbl->line,
+        tbl_format_sep(&tbl->output_buf,
                 edge[HDR_TOP_LEFT], edge[HDR_TOP_RIGHT],
                 edge[HDR_TOP_EDGE], edge[HDR_TOP_SEP],
                 tbl->cols, tbl->width);
-        tbl->state = TEXT_OF_HEADER;
+        tbl->output_state = TEXT_OF_HEADER;
         break;
     case TEXT_OF_HEADER:
-        tbl_format_text(&tbl->line, bold_headers,
+        tbl_format_text(&tbl->output_buf, bold_headers,
                 edge[HDR_TEXT_LEFT], edge[HDR_TEXT_RIGHT], edge[HDR_TEXT_SEP],
                 tbl->cols, tbl->width, tbl->title);
         if (has_body) {
-            tbl->state = TRANSITION;
+            tbl->output_state = TRANSITION;
         }
         else {
-            tbl->state = BOTTOM_OF_HEADER;
+            tbl->output_state = BOTTOM_OF_HEADER;
         }
         break;
     case BOTTOM_OF_HEADER:
-        tbl_format_sep(&tbl->line,
+        tbl_format_sep(&tbl->output_buf,
                 edge[HDR_BOTTOM_LEFT], edge[HDR_BOTTOM_RIGHT],
                 edge[HDR_BOTTOM_EDGE], edge[HDR_BOTTOM_SEP],
                 tbl->cols, tbl->width);
-        tbl->state = FINAL;
+        tbl->output_state = FINAL;
         break;
     case TRANSITION:
-        tbl_format_sep(&tbl->line,
+        tbl_format_sep(&tbl->output_buf,
                 edge[TRANS_LEFT], edge[TRANS_RIGHT],
                 edge[TRANS_EDGE], edge[TRANS_SEP],
                 tbl->cols, tbl->width);
-        tbl->state = TEXT_OF_BODY;
+        tbl->output_state = TEXT_OF_BODY;
         break;
     case TOP_OF_BODY:
-        tbl_format_sep(&tbl->line,
+        tbl_format_sep(&tbl->output_buf,
                 edge[BODY_TOP_LEFT], edge[BODY_TOP_RIGHT],
                 edge[BODY_TOP_EDGE], edge[BODY_TOP_SEP],
                 tbl->cols, tbl->width);
 
         if (has_body) {
-            tbl->state = TEXT_OF_BODY;
+            tbl->output_state = TEXT_OF_BODY;
         }
         else {
-            tbl->state = BOTTOM_OF_BODY;
+            tbl->output_state = BOTTOM_OF_BODY;
         }
 
         break;
     case TEXT_OF_BODY:
         if (has_header) {
-            row = tbl->next_line - 3;
+            row = tbl->output_count - 3;
         }
         else {
-            row = tbl->next_line - 1;
+            row = tbl->output_count - 1;
         }
 
-        tbl_format_text(&tbl->line, false,
+        tbl_format_text(&tbl->output_buf, false,
                 edge[BODY_TEXT_LEFT], edge[BODY_TEXT_RIGHT],
                 edge[BODY_TEXT_SEP],
                 tbl->cols, tbl->width, tbl->cell + tbl->cols * row);
 
         if (row + 1 >= tbl->rows) {
-            tbl->state = BOTTOM_OF_BODY;
+            tbl->output_state = BOTTOM_OF_BODY;
         }
         break;
     case BOTTOM_OF_BODY:
-        tbl_format_sep(&tbl->line,
+        tbl_format_sep(&tbl->output_buf,
                 edge[BODY_BOTTOM_LEFT], edge[BODY_BOTTOM_RIGHT],
                 edge[BODY_BOTTOM_EDGE], edge[BODY_BOTTOM_SEP],
                 tbl->cols, tbl->width);
-        tbl->state = FINAL;
+        tbl->output_state = FINAL;
         break;
     case FINAL:
         return NULL;
@@ -554,9 +557,9 @@ const char *tblGetLine(Table *tbl, bool bold_headers, TableFormat format)
         break;
     }
 
-    tbl->next_line++;
+    tbl->output_count++;
 
-    return bufGet(&tbl->line);
+    return bufGet(&tbl->output_buf);
 }
 
 /*
@@ -565,8 +568,8 @@ const char *tblGetLine(Table *tbl, bool bold_headers, TableFormat format)
  */
 void tblRewind(Table *tbl)
 {
-    tbl->next_line = 0;
-    tbl->state = INITIAL;
+    tbl->output_count = 0;
+    tbl->output_state = INITIAL;
 }
 
 /*
@@ -577,7 +580,7 @@ void tblDestroy(Table *tbl)
 {
     free(tbl->width);
 
-    bufClear(&tbl->line);
+    bufClear(&tbl->output_buf);
 
     for (int col = 0; col < tbl->cols; col++) {
         free(tbl->title[col]);
