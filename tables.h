@@ -73,7 +73,8 @@ int tblSetCell(Table *tbl, int row, int col, const char *fmt, ...);
  * Returns a pointer to a formatted output string, which is overwritten on each
  * call.
  */
-const char *tblGetLine(Table *tbl, bool bold_headers, TableStyle style);
+const char *tblGetLine(Table *tbl,
+        int max_width, bool bold_headers, TableStyle style);
 
 /*
  * Rewind the output of table <tbl> back to the start. On the next call to

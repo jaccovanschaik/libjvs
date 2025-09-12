@@ -157,7 +157,15 @@ int main(void)
 
     make_sure_that(utf8_strlen("Hällø!") == 6);
 
-    make_sure_that(utf8_field_width("Hällø!", 8) == 10);
+    check_int( 0, utf8_field_width("Hällø!", 0));
+    check_int( 1, utf8_field_width("Hällø!", 1));
+    check_int( 3, utf8_field_width("Hällø!", 2));
+    check_int( 4, utf8_field_width("Hällø!", 3));
+    check_int( 5, utf8_field_width("Hällø!", 4));
+    check_int( 7, utf8_field_width("Hällø!", 5));
+    check_int( 8, utf8_field_width("Hällø!", 6));
+    check_int( 9, utf8_field_width("Hällø!", 7));
+    check_int(10, utf8_field_width("Hällø!", 8));
 
     return errors;
 }

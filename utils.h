@@ -7,7 +7,7 @@
  * utils.h is part of libjvs.
  *
  * Copyright:   (c) 2012-2025 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: utils.h 513 2025-09-10 21:10:03Z jacco $
+ * Version:     $Id: utils.h 518 2025-09-12 17:31:24Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -37,6 +37,8 @@ extern "C" {
     _make_sure_that(__FILE__, __LINE__, &errors, #expr, (expr))
 #define check_string(expected, actual) \
     _check_string(__FILE__, __LINE__, &errors, expected, actual);
+#define check_int(expected, actual) \
+    _check_int(__FILE__, __LINE__, &errors, expected, actual);
 
 /*
  * "Packable" types.

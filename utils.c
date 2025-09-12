@@ -4,7 +4,7 @@
  * utils.c is part of libjvs.
  *
  * Copyright:   (c) 2012-2025 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: utils.c 513 2025-09-10 21:10:03Z jacco $
+ * Version:     $Id: utils.c 518 2025-09-12 17:31:24Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -811,6 +811,27 @@ int _check_string(const char *file, int line,
 }
 
 /*
+ * Check that strings <expected> and <actual> are identical. Complain and
+ * return 1 if they're not, otherwise return 0.
+ */
+int _check_int(const char *file, int line,
+        int *errors, int expected, int actual)
+{
+    if (expected != actual) {
+        fprintf(stderr, "%s:%d: Integer does not match expectation.\n",
+                file, line);
+        fprintf(stderr, "Expected: %d\n", expected);
+        fprintf(stderr, "Actual:   %d\n", actual);
+
+        (*errors)++;
+
+        return 1;
+    }
+
+    return 0;
+}
+
+/*
  * Increase the size of <str> (whose current size is pointed to by <size>) to
  * <new_size>, and return the (possibly changed) address of the embiggened
  * string, while also updating <size> to the new size.
@@ -898,20 +919,53 @@ size_t utf8_strlen(const char *str)
 }
 
 /*
- * Return the field width to use to print <str> in a space of <width>
- * characters. This corrects for embedded UTF-8 characters, which may consist
- * of multiple bytes, but still only take up one space in the terminal.
+ * Return the number of bytes to print from <str> to get a string of <width>
+ * glyphs (ie. visible characters) long. This accounts for embedded UTF-8
+ * characters, which may consist of multiple bytes, but still only take up one
+ * space in the terminal.
+ *
+ * If <width> is greater than the number of glyphs in <str>, the difference
+ * will be added to account for padding. If <width> is smaller, this returns
+ * the number of bytes to print to get exactly <width> characters.
  */
 int utf8_field_width(const char *str, int width)
 {
     if (str == NULL) {
         return width;
     }
-    else {
-        size_t num_bytes = strlen(str);
-        size_t num_chars = utf8_strlen(str);
 
-        return width + num_bytes - num_chars;
+    const char *p = str;
+
+    int glyphs = 0;
+
+    while (*p != '\0') {
+        // Break when we've reached the requested number of glyphs.
+        if (glyphs == width) break;
+
+        // Count this glyph.
+        glyphs++;
+
+        if (!isascii(*p)) {
+            // If this character is not ASCII it must be part of a UTF-8
+            // multi-byte sequence, which by definition consists entirely of
+            // non-ASCII characters. Skip past all that and count it as a
+            // single glyph.
+            while (!isascii(*p)) p++;
+        }
+        else {
+            // If it is ASCII, just step forward to the next one.
+            p++;
+        }
     }
-}
 
+    // The field width is the number of bytes we've seen so far.
+    int field_width = p - str;
+
+    // If the user requested a width greater than the number of glyphs, we
+    // need to take padding into account.
+    if (width > glyphs) {
+        field_width += (width - glyphs);
+    }
+
+    return field_width;
+}

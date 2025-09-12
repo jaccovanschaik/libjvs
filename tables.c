@@ -333,13 +333,15 @@ static void tbl_format_text(Buffer *line, bool bold,
     for (int col = 0; col < cols; col++) {
         if (col > 0) bufAddS(line, column_sep);
 
+        int field_width = (int) utf8_field_width(text[col], width[col]);
+
         if (text[col] == NULL || text[col][0] == '\0') {
-            bufAddF(line, " %*s ", width[col], "");
+            bufAddF(line, " %*.*s ", field_width, field_width, "");
         }
         else {
-            bufAddF(line, " %s%-*s%s ",
+            bufAddF(line, " %s%-*.*s%s ",
                     bold ? "\033[1m" : "",
-                    (int) utf8_field_width(text[col], width[col]), text[col],
+                    field_width, field_width, text[col],
                     bold ? "\033[0m" : "");
         }
     }
@@ -371,6 +373,22 @@ static void tbl_format_sep(Buffer *line,
     }
 
     bufAddS(line, right_edge);
+}
+
+/*
+ * Return the total rendered width of <tbl>.
+ */
+static int tbl_width(int cols, int width[])
+{
+    int total_width = 2;
+
+    for (int col = 0; col < cols; col++) {
+        total_width += width[col] + 2;
+
+        if (col > 0) total_width++;
+    }
+
+    return total_width;
 }
 
 /*
@@ -461,13 +479,19 @@ int tblSetCell(Table *tbl, int row, int col, const char *fmt, ...)
  * call, sequential character strings to print the given table. If there are no
  * more lines to print it will return NULL.
  *
+ * If <width> is greater than zero it specifies the maximum width of the table.
+ * If the table is too wide, the columns will be truncated, starting with the
+ * rightmost one. If the table is too wide even with all columns shrunk to
+ * nothing, tough luck. You'll just get empty table that is *still* too wide.
+ *
  * If <bold_headers> is true, the column titles in the header will be bolded
  * using ANSI escape sequences. <style> specifies which table style to use.
  *
  * Returns a pointer to a formatted output string, which is overwritten on each
  * call.
  */
-const char *tblGetLine(Table *tbl, bool bold_headers, TableStyle style)
+const char *tblGetLine(Table *tbl,
+        int max_width, bool bold_headers, TableStyle style)
 {
     const char **mark;
 
@@ -489,6 +513,23 @@ const char *tblGetLine(Table *tbl, bool bold_headers, TableStyle style)
         break;
     }
 
+    int width[tbl->cols];
+
+    memcpy(width, tbl->width, sizeof(width));
+
+    if (max_width > 0) {
+        for (int col = tbl->cols - 1; col >= 0; col--) {
+            int cur_width = tbl_width(tbl->cols, width);
+
+            if (cur_width <= max_width) {
+                break;
+            }
+            else {
+                width[col] = MAX(0, width[col] - (cur_width - max_width));
+            }
+        }
+    }
+
     int row;
     bool has_header = tbl_has_header(tbl);
     bool has_body   = tbl->rows > 0;
@@ -507,13 +548,13 @@ const char *tblGetLine(Table *tbl, bool bold_headers, TableStyle style)
         tbl_format_sep(&tbl->output_buf,
                 mark[HDR_TOP_LEFT], mark[HDR_TOP_RIGHT],
                 mark[HDR_TOP_FILL], mark[HDR_TOP_SEP],
-                tbl->cols, tbl->width);
+                tbl->cols, width);
         tbl->output_state = HEADER_TEXT;
         break;
     case HEADER_TEXT:
         tbl_format_text(&tbl->output_buf, bold_headers,
                 mark[HDR_TEXT_LEFT], mark[HDR_TEXT_RIGHT], mark[HDR_TEXT_SEP],
-                tbl->cols, tbl->width, tbl->title);
+                tbl->cols, width, tbl->title);
         if (has_body) {
             tbl->output_state = TRANSITION;
         }
@@ -525,21 +566,21 @@ const char *tblGetLine(Table *tbl, bool bold_headers, TableStyle style)
         tbl_format_sep(&tbl->output_buf,
                 mark[HDR_BOTTOM_LEFT], mark[HDR_BOTTOM_RIGHT],
                 mark[HDR_BOTTOM_FILL], mark[HDR_BOTTOM_SEP],
-                tbl->cols, tbl->width);
+                tbl->cols, width);
         tbl->output_state = FINAL;
         break;
     case TRANSITION:
         tbl_format_sep(&tbl->output_buf,
                 mark[TRANS_LEFT], mark[TRANS_RIGHT],
                 mark[TRANS_FILL], mark[TRANS_SEP],
-                tbl->cols, tbl->width);
+                tbl->cols, width);
         tbl->output_state = BODY_TEXT;
         break;
     case BODY_TOP:
         tbl_format_sep(&tbl->output_buf,
                 mark[BODY_TOP_LEFT], mark[BODY_TOP_RIGHT],
                 mark[BODY_TOP_FILL], mark[BODY_TOP_SEP],
-                tbl->cols, tbl->width);
+                tbl->cols, width);
 
         if (has_body) {
             tbl->output_state = BODY_TEXT;
@@ -560,7 +601,7 @@ const char *tblGetLine(Table *tbl, bool bold_headers, TableStyle style)
         tbl_format_text(&tbl->output_buf, false,
                 mark[BODY_TEXT_LEFT], mark[BODY_TEXT_RIGHT],
                 mark[BODY_TEXT_SEP],
-                tbl->cols, tbl->width, tbl->cell + tbl->cols * row);
+                tbl->cols, width, tbl->cell + tbl->cols * row);
 
         if (row + 1 >= tbl->rows) {
             tbl->output_state = BODY_BOTTOM;
@@ -570,7 +611,7 @@ const char *tblGetLine(Table *tbl, bool bold_headers, TableStyle style)
         tbl_format_sep(&tbl->output_buf,
                 mark[BODY_BOTTOM_LEFT], mark[BODY_BOTTOM_RIGHT],
                 mark[BODY_BOTTOM_FILL], mark[BODY_BOTTOM_SEP],
-                tbl->cols, tbl->width);
+                tbl->cols, width);
         tbl->output_state = FINAL;
         break;
     case FINAL:
