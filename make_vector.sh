@@ -1288,6 +1288,8 @@ EOF
 }
 
 matrix_va_print_any() {
+    DIGITS=9    # The maximum number of digits to print in a coefficient.
+
     cat << EOF
 
 /*
@@ -1295,7 +1297,7 @@ matrix_va_print_any() {
  * All of this preceded by a caption defined by the printf-compatible format
  * specifier at <caption> and the paramaters in <ap>.
  */
-void va_mprint(FILE *fp, size_t rows, size_t cols,
+static void va_mprint(FILE *fp, size_t rows, size_t cols,
         double *data, const char *caption, va_list ap)$1
 EOF
 
@@ -1310,7 +1312,45 @@ EOF
         lead_in = 1 + asprintf(&cap, caption, ap);
     }
 
+    int max_width[cols];
+    int max_digits = 0;
+
+    memset(max_width, 0, sizeof(max_width));
+
     int index = 0;
+
+    // First find the optimal format to use. We'll try to have the columns
+    // aligned and snuggled up to each other, and the same number of digits
+    // shown in each coefficient. We will print a maximum of ${DIGITS} digits in
+    // each coefficient.
+
+    for (size_t row = 0; row < rows; row++) {
+        for (size_t col = 0; col < cols; col++) {
+            char str[16];
+
+            snprintf(str, sizeof(str), "%-.${DIGITS}g", data[index++]);
+
+            bool found_point = false;
+
+            int this_width = 0;
+            int this_digits = 0;
+
+            for (char *p = str; *p != '\0'; p++) {
+                this_width++;
+                if (found_point) {
+                    this_digits++;
+                }
+                else if (*p == '.') {
+                    found_point = true;
+                }
+            }
+
+            if (this_digits > max_digits) max_digits = this_digits;
+            if (this_width  > max_width[col]) max_width[col] = this_width;
+        }
+    }
+
+    index = 0;
 
     for (size_t row = 0; row < rows; row++) {
         if (row == 0 && cap) {
@@ -1321,7 +1361,8 @@ EOF
         }
 
         for (size_t col = 0; col < cols; col++) {
-            fprintf(fp, "%s%f", col > 0 ? ", " : "", data[index++]);
+            fprintf(fp, "%s%*.*f", col > 0 ? ", " : "",
+                    max_width[col], max_digits, data[index++]);
         }
 
         fprintf(fp, " )\n");
@@ -1388,6 +1429,7 @@ do_header() {
     echo ''
     echo '#include <stdio.h>'
     echo '#include <stdarg.h>'
+    echo '#include <string.h>'
     echo '#include <stdbool.h>'
     echo ''
 
@@ -1400,8 +1442,6 @@ do_header() {
             matrix_typedef $rows $cols
         done
     done
-
-    matrix_va_print_any ';'
 
     vector_make 2 ';'
     vector_make 3 ';'

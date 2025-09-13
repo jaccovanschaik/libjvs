@@ -5,12 +5,12 @@ static int errors = 0;
 
 int main(void)
 {
-    Matrix2x2 m2x2 = m2x2Make(1, 0,
+    Matrix2x2 m2x2 = m2x2Make(-10.0001, 0,
                               0, 1);
 
     mPrint(stderr, m2x2, "Matrix2x2");
 
-    Matrix3x2 m3x2 = m3x2Make(1, 0,
+    Matrix3x2 m3x2 = m3x2Make(-251.111111111, 0,
                               1, 1,
                               0, 1);
     Vector2 in  = v2Make(1, -1);
