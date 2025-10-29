@@ -125,7 +125,7 @@ vector_add() {
     cat << EOF
 
 /*
- * Add vector <v2> to <v1>.
+ * Increase the vector at <v1> by <v2>.
  */
 void v${size}Add(Vector${size} *v1, Vector${size} v2)$2
 EOF
@@ -183,7 +183,7 @@ vector_sub() {
     cat << EOF
 
 /*
- * Subtract vector <v2> from <v1>.
+ * Reduce the vector at <v1> by <v2>.
  */
 void v${size}Sub(Vector${size} *v1, Vector${size} v2)$2
 EOF
@@ -1353,19 +1353,38 @@ EOF
     index = 0;
 
     for (size_t row = 0; row < rows; row++) {
-        if (row == 0 && cap) {
-            fprintf(fp, "%-*s( ", lead_in, cap);
+        const char *left_paren, *right_paren;
+
+        if (rows == 1) {
+            left_paren  = "(";
+            right_paren = ")";
+        }
+        else if (row == 0) {
+            left_paren  = "⎛";
+            right_paren = "⎞";
+        }
+        else if (row == rows - 1) {
+            left_paren  = "⎝";
+            right_paren = "⎠";
         }
         else {
-            fprintf(fp, "%-*s( ", lead_in, "");
+            left_paren  = "⎜";
+            right_paren = "⎟";
+        }
+
+        if (row == 0 && cap) {
+            fprintf(fp, "%-*s%s ", lead_in, cap, left_paren);
+        }
+        else {
+            fprintf(fp, "%-*s%s ", lead_in, "", left_paren);
         }
 
         for (size_t col = 0; col < cols; col++) {
-            fprintf(fp, "%s%*.*f", col > 0 ? ", " : "",
+            fprintf(fp, "%s%*.*f", col > 0 ? "  " : "",
                     max_width[col], max_digits, data[index++]);
         }
 
-        fprintf(fp, " )\n");
+        fprintf(fp, " %s\n", right_paren);
     }
 }
 
