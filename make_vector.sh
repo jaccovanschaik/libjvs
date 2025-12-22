@@ -1352,6 +1352,8 @@ EOF
 
     index = 0;
 
+    size_t center_row = (rows - 1) / 2;
+
     for (size_t row = 0; row < rows; row++) {
         const char *left_paren, *right_paren;
 
@@ -1372,7 +1374,7 @@ EOF
             right_paren = "⎟";
         }
 
-        if (row == 0 && cap) {
+        if (row == center_row && cap) {
             fprintf(fp, "%-*s%s ", lead_in, cap, left_paren);
         }
         else {

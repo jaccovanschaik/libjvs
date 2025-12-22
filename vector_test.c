@@ -8,11 +8,13 @@ int main(void)
     Matrix2x2 m2x2 = m2x2Make(-10.0001, 0,
                               0, 1);
 
-    mPrint(stderr, m2x2, "Matrix2x2");
+    mPrint(stderr, m2x2, "m2x2");
 
     Matrix3x2 m3x2 = m3x2Make(-251.111111111, 0,
                               1, 1,
                               0, 1);
+    mPrint2(stderr, m3x2);
+
     Vector2 in  = v2Make(1, -1);
     Vector3 out = mTransform(m3x2, in);
 

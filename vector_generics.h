@@ -115,6 +115,8 @@
         Matrix4x4:  m4x4Print                   \
     )(fp, m, __VA_ARGS__)
 
+#define mPrint2(fp, m) mPrint(fp, m, #m)
+
 #define vPrint(fp, v, ...)                      \
     _Generic((v),                               \
         Vector2:  v2Print,                      \
