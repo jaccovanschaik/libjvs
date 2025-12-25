@@ -937,12 +937,10 @@ void _logWrite(uint64_t channels, bool with_prefixes,
         // Only build the message if we have to...
 
         if (msg == NULL) {
-            msg = bufCreate();
-
             va_list ap;
 
             va_start(ap, fmt);
-            bufAddV(msg, fmt, ap);
+            msg = bufCreateV(fmt, ap);
             va_end(ap);
         }
 

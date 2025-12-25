@@ -51,13 +51,35 @@ static void buf_increase_by(Buffer *buf, size_t len)
 }
 
 /*
- * Create an empty buffer.
+ * Create an empty buffer. If <fmt> is not NULL, set the contents of the
+ * buffer to a string derived from <fmt> and the parameters in <ap>.
  */
-Buffer *bufCreate(void)
+Buffer *bufCreateV(const char *fmt, va_list ap)
 {
     Buffer *buf = calloc(1, sizeof(*buf));
 
     dbgAssert(stderr, buf != NULL, "Could not allocate buffer");
+
+    if (fmt != NULL) {
+        bufAddV(buf, fmt, ap);
+    }
+
+    return buf;
+}
+
+/*
+ * Create an empty buffer. If <fmt> is not NULL, set the contents of the
+ * buffer to a string derived from <fmt> and the subsequent parameters.
+ */
+__attribute__((format (printf, 1, 2)))
+Buffer *bufCreate(const char *fmt, ...)
+{
+    Buffer *buf;
+    va_list ap;
+
+    va_start(ap, fmt);
+    buf = bufCreateV(fmt, ap);
+    va_end(ap);
 
     return buf;
 }

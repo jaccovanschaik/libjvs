@@ -100,17 +100,17 @@ int main(void)
     char *r;
 
     // Regular string
-    buf3 = bufSetS(bufCreate(), "ABCDEF");
+    buf3 = bufCreate("ABCDEF");
     make_sure_that(strcmp((r = bufFinish(buf3)), "ABCDEF") == 0);
     free(r);
 
     // Empty buffer (where buf->data == NULL)
-    buf3 = bufCreate();
+    buf3 = bufCreate(NULL);
     make_sure_that(strcmp((r = bufFinish(buf3)), "") == 0);
     free(r);
 
     // Reset buffer (where buf->data != NULL)
-    buf3 = bufSetS(bufCreate(), "ABCDEF");
+    buf3 = bufCreate("ABCDEF");
     bufRewind(buf3);
     make_sure_that(strcmp((r = bufFinish(buf3)), "") == 0);
     free(r);
@@ -118,11 +118,11 @@ int main(void)
     // ** bufFinishN
 
     // Empty buffer (where buf->data == NULL)
-    buf3 = bufCreate();
+    buf3 = bufCreate(NULL);
     make_sure_that(bufFinishN(buf3) == NULL);
 
     // Reset buffer (where buf->data != NULL)
-    buf3 = bufSetS(bufCreate(), "ABCDEF");
+    buf3 = bufCreate("ABCDEF");
     bufRewind(buf3);
     make_sure_that(bufFinishN(buf3) == NULL);
 

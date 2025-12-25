@@ -98,7 +98,7 @@ int ifprintf(FILE *fp, int indent, const char *fmt, ...)
  */
 int ihexstr(char **str, int indent, const char *data, size_t size)
 {
-    Buffer *output = bufCreate();
+    Buffer *output = bufCreate(NULL);
     size_t i, end, begin = 0;
 
     while (begin < size) {
@@ -351,9 +351,9 @@ static void pack(void *data, size_t size, char **dest, ssize_t *remaining)
  * PACK_DOUBLE  double          8 byte double
  * PACK_STRING  char *          4-byte length (from strlen),
  *                              followed by as many bytes.
- * PACK_DATA    char *, uint    4-byte length (as given),
+ * PACK_DATA    char *, uint32  4-byte length (as given),
  *                              followed by as many bytes.
- * PACK_RAW     char *, uint    Raw bytes using length as given.
+ * PACK_RAW     char *, uint32  Raw bytes using length as given.
  *
  * All ints (including the lengths) are packed with big-endian byte order.
  *
@@ -522,17 +522,17 @@ int astrpack(char **str, ...)
  * extracted from <str> and put into the addresses that the pointers point to.
  * The types, pointers and unpacked data are as follows:
  *
- * type         pointer         unpacks
- * ----         -------         -----
- * PACK_INT8    uint8_t *       1 byte int
- * PACK_INT16   uint16_t *      2 byte int
- * PACK_INT32   uint32_t *      4 byte int
- * PACK_INT64   uint64_t *      8 byte int
- * PACK_FLOAT   float *         4 byte float
- * PACK_DOUBLE  double *        8 byte double
- * PACK_STRING  char **         4-byte length, followed by as many bytes.
- * PACK_DATA    char **, uint * 4-byte length, followed by as many bytes.
- * PACK_RAW     char *, uint    As many raw bytes as given.
+ * type         pointer             unpacks
+ * ----         -------             -----
+ * PACK_INT8    uint8_t *           1 byte int
+ * PACK_INT16   uint16_t *          2 byte int
+ * PACK_INT32   uint32_t *          4 byte int
+ * PACK_INT64   uint64_t *          8 byte int
+ * PACK_FLOAT   float *             4 byte float
+ * PACK_DOUBLE  double *            8 byte double
+ * PACK_STRING  char **             4-byte length, followed by as many bytes.
+ * PACK_DATA    char **, uint32 *   4-byte length, followed by as many bytes.
+ * PACK_RAW     char *, uint32      As many raw bytes as given.
  *
  * Note: PACK_STRING and PACK_DATA allocate space to put the data in, and it
  * is the caller's responsibility to free that space again. PACK_STRING
@@ -705,8 +705,8 @@ char *env_expand(const char *text)
 {
     const char *p;
 
-    Buffer *varname = bufCreate();
-    Buffer *result = bufCreate();
+    Buffer *varname = bufCreate(NULL);
+    Buffer *result = bufCreate(NULL);
 
     for (p = text; *p != '\0'; p++) {
         if (*p == '$') {

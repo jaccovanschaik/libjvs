@@ -7,7 +7,7 @@
  *
  * buffer.h is part of libjvs.
  *
- * Copyright:   (c) 2007-2024 Jacco van Schaik (jacco@jaccovanschaik.net)
+ * Copyright:   (c) 2007-2025 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Version:     $Id: buffer.h 497 2024-06-03 12:37:20Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
@@ -30,9 +30,17 @@ typedef struct {
 } Buffer;
 
 /*
- * Create an empty buffer.
+ * Create an empty buffer. If <fmt> is not NULL, set the contents of the
+ * buffer to a string derived from <fmt> and the parameters in <ap>.
  */
-Buffer *bufCreate(void);
+Buffer *bufCreateV(const char *fmt, va_list ap);
+
+/*
+ * Create an empty buffer. If <fmt> is not NULL, set the contents of the
+ * buffer to a string derived from <fmt> and the subsequent parameters.
+ */
+__attribute__((format (printf, 1, 2)))
+Buffer *bufCreate(const char *fmt, ...);
 
 /*
  * Initialize buffer <buf>.
