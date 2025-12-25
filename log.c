@@ -28,7 +28,7 @@
  *
  * Copyright: (c) 2019-2025 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2019-07-29
- * Version:   $Id: log.c 507 2025-08-23 14:43:51Z jacco $
+ * Version:   $Id: log.c 522 2025-12-25 15:50:26Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.

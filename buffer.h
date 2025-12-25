@@ -8,7 +8,7 @@
  * buffer.h is part of libjvs.
  *
  * Copyright:   (c) 2007-2025 Jacco van Schaik (jacco@jaccovanschaik.net)
- * Version:     $Id: buffer.h 497 2024-06-03 12:37:20Z jacco $
+ * Version:     $Id: buffer.h 522 2025-12-25 15:50:26Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
