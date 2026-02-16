@@ -9,9 +9,9 @@
  * Note that the search tree is built when you call pathCreate and pathAdd, so
  * a file created anywhere in the search path after that will not be found.
  *
- * Copyright: (c) 2020-2025 Jacco van Schaik (jacco@jaccovanschaik.net)
+ * Copyright: (c) 2020-2026 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2020-09-08
- * Version:   $Id: path.c 507 2025-08-23 14:43:51Z jacco $
+ * Version:   $Id: path.c 523 2026-02-16 11:47:00Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -243,6 +243,10 @@ int pathOpen(Path *path, const char *filename, int flags)
     }
 }
 
+/*
+ * Clear the internal data of <path>. You may free() it after this without
+ * fear of memory leaks.
+ */
 void pathClear(Path *path)
 {
     PathDir *dir, *next_dir;
