@@ -1,6 +1,6 @@
 # Makefile for libjvs.
 #
-# Copyright:    (c) 2007-2025 Jacco van Schaik (jacco@jaccovanschaik.net)
+# Copyright:    (c) 2007-2026 Jacco van Schaik (jacco@jaccovanschaik.net)
 # Version:      $Id$
 #
 # This software is distributed under the terms of the MIT license. See
@@ -16,7 +16,7 @@ INSTALL_INC = $(HOME)/include/libjvs
 
 CC = gcc
 
-LIBJVS_SRC = $(filter-out %_test.c vector.c,$(wildcard *.c)) vector.c
+LIBJVS_SRC = $(filter-out %_test.c gen_%.c vector.c,$(wildcard *.c)) vector.c
 LIBJVS_OBJ = $(LIBJVS_SRC:.c=.o)
 LIBJVS_DEP = $(LIBJVS_SRC:.c=.d)
 LIBJVS_TST = $(subst .c,,$(wildcard *_test.c))
@@ -56,6 +56,13 @@ libjvs.a: $(LIBJVS_OBJ) latlon_fields.o
 libjvs.so: $(LIBJVS_OBJ) latlon_fields.o
 	$(MAKE_SLIB) libjvs.so $^ -lm
 
+crc32.o: crc32.c crc32_table.h
+
+crc32_table.h: gen_crc32_table
+	./gen_crc32_table > crc32_table.h
+
+gen_crc32_table: gen_crc32_table.c
+
 clean:
 	rm -f *.o *.d *_test *.log \
             libjvs.a libjvs.so \
@@ -63,6 +70,7 @@ clean:
             core vgcore.* \
             latlon_fields.c latlon_fields.h \
             vector.c vector.h \
+            crc32_table.h \
             tags
 
 libjvs.tgz: clean

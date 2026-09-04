@@ -4,9 +4,9 @@
 /*
  * timeval.h: calculations with struct timeval's.
  *
- * Copyright: (c) 2020-2024 Jacco van Schaik (jacco@jaccovanschaik.net)
+ * Copyright: (c) 2020-2026 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2020-10-22
- * Version:   $Id: timeval.h 491 2024-02-17 09:55:33Z jacco $
+ * Version:   $Id: timeval.h 524 2026-09-04 12:44:42Z jacco $
  *
  * This software is distributed under the terms of the MIT license. See
  * http://www.opensource.org/licenses/mit-license.php for details.
@@ -97,8 +97,7 @@ struct timeval tvFromTimespec(struct timespec ts);
  * modify. If you need a string to call your own, use strdup() or call
  * tvFormat() below.
  */
-const char *tvFormatC(const struct timeval tv, const char *tz,
-        const char *fmt);
+const char *tvFormatC(const struct timeval tv, const char *tz, const char *fmt);
 
 /*
  * Identical to tvFormatC() above, but returns a dynamically allocated string
