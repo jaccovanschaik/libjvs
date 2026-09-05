@@ -68,6 +68,10 @@ bitmask.c, bitmask.h
 buffer.c, buffer.h
     Provides growing byte buffers.
 
+crc32.c, crc32.h
+    Calculate crc32 cyclic redundancy checks, using code that can be found all
+    over the internet.
+
 debug.c, debug.h
     Functions to assist in debugging.
 
