@@ -1,5 +1,8 @@
 /*
- * crc32.c: XXX
+ * crc32.c: calculate crc32 checksum.
+ *
+ * Shamelessly stolen from... well from everywhere, because this code is all
+ * over the Internet.
  *
  * Copyright: (c) 2026 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2026-09-04
@@ -22,7 +25,9 @@ uint32_t crc32(uint32_t crc, const char *buf, size_t len)
     crc = ~crc;
 
     for (size_t i = 0; i < len; i++) {
-        crc = (crc >> 8) ^ crc32_table[(crc & 0xff) ^ buf[i]];
+        unsigned char index = (crc & 0xff) ^ buf[i];
+
+        crc = (crc >> 8) ^ crc32_table[index];
     }
 
     return ~crc;

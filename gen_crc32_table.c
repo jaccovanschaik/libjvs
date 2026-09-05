@@ -1,7 +1,8 @@
 /*
- * gen_crc32_table.c: XXX
+ * gen_crc32_table.c: Generate a CRC32 polynomial table.
  *
- * Shamelessly stolen from https://rosettacode.org/wiki/CRC-32
+ * Shamelessly stolen (and adapted) from... well from everywhere, because this
+ * code is all over the Internet. At least the calculation part.
  *
  * Copyright: (c) 2026 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2026-09-04
@@ -20,7 +21,7 @@ int main(void)
     uint32_t rem;
     int i, j;
 
-    fprintf(stdout, "static uint64_t crc32_table[] = {\n    ");
+    fprintf(stdout, "static uint32_t crc32_table[] = {\n    ");
 
     for (i = 0; i < 256; i++) {
         rem = i;

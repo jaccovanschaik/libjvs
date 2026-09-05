@@ -70,7 +70,7 @@ clean:
             core vgcore.* \
             latlon_fields.c latlon_fields.h \
             vector.c vector.h \
-            crc32_table.h \
+            gen_crc32_table crc32_table.h \
             tags
 
 libjvs.tgz: clean

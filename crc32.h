@@ -2,7 +2,7 @@
 #define CRC32_H
 
 /*
- * crc32.h: XXX
+ * crc32.c: calculate crc32 checksum.
  *
  * Copyright: (c) 2026 Jacco van Schaik (jacco@jaccovanschaik.net)
  * Created:   2026-09-04
